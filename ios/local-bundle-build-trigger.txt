@@ -1,0 +1,1 @@
+Trigger the iOS build for the PR #3 local Capacitor bundle. This file exists only on the test branch.
