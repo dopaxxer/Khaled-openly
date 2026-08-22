@@ -12,10 +12,22 @@ const nav = [
 ]
 
 function Brand() {
-  return <Link href="/" className="brand" aria-label="Openly — الرئيسية" dir="ltr">
-    <span className="brand-mark" aria-hidden="true">O</span>
-    <span>Openly</span>
-  </Link>
+  return (
+    <Link href="/" className="brand" aria-label="Openly — الرئيسية" dir="ltr">
+      <img className="brand-logo" src="/openly-mark.webp" alt="" aria-hidden="true" />
+      <span>Openly</span>
+    </Link>
+  )
+}
+
+function NavLink({ href, label, Icon, active }) {
+  const isActive = active(href)
+  return (
+    <Link href={href} className={`nav-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
+      <Icon size={18} strokeWidth={isActive ? 2.1 : 1.75} aria-hidden="true" />
+      <span>{label}</span>
+    </Link>
+  )
 }
 
 export function AppShell({ children }) {
@@ -40,56 +52,45 @@ export function AppShell({ children }) {
 
   const active = href => href === '/' ? pathname === '/' : pathname.startsWith(href)
 
-  return <div className="app-shell">
-    <aside className="desktop-sidebar">
-      <Brand />
-      <nav className="side-nav" aria-label="التنقل الرئيسي">
+  return (
+    <div className="app-shell">
+      <header className="site-header">
+        <Brand />
+        <nav className="desktop-top-nav" aria-label="التنقل الرئيسي">
+          {nav.map(({ href, label, icon: Icon }) => (
+            <NavLink key={href} href={href} label={label} Icon={Icon} active={active} />
+          ))}
+        </nav>
+        <div className="header-actions">
+          {user && (
+            <Link href="/notifications" className={`icon-button${active('/notifications') ? ' active' : ''}`} aria-label="الإشعارات">
+              <Bell size={19} aria-hidden="true" />
+              {unread > 0 && <span className="icon-badge">{unread > 9 ? '9+' : unread}</span>}
+            </Link>
+          )}
+          {user
+            ? <Link href={`/u/${user.publicCode}`} className="identity-chip compact" dir="ltr"><span className="identity-dot" style={{ backgroundColor: user.identityColor }} /><span>{user.publicCode}</span></Link>
+            : user === null
+              ? <Link href="/login" className="header-login"><LogIn size={18} aria-hidden="true" /><span>دخول</span></Link>
+              : <span className="header-user-skeleton" aria-label="جارِ تحميل الحساب" />}
+        </div>
+      </header>
+
+      <main className="content-column">
+        <div key={pathname} className="route-stage">{children}</div>
+      </main>
+
+      <nav className="mobile-nav" aria-label="التنقل الرئيسي">
         {nav.map(({ href, label, icon: Icon }) => {
           const isActive = active(href)
-          return <Link key={href} href={href} className={`nav-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
-            <Icon size={19} strokeWidth={1.8} aria-hidden="true"/>
-            <span>{label}</span>
-          </Link>
+          return (
+            <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
+              <Icon size={21} strokeWidth={isActive ? 2.2 : 1.75} aria-hidden="true" />
+              <span>{label}</span>
+            </Link>
+          )
         })}
-        {user && <Link href="/notifications" className={`nav-link${active('/notifications') ? ' active' : ''}`} aria-current={active('/notifications') ? 'page' : undefined}>
-          <Bell size={19} strokeWidth={1.8} aria-hidden="true"/>
-          <span>الإشعارات</span>
-          {unread > 0 && <span className="nav-badge">{unread > 99 ? '99+' : unread}</span>}
-        </Link>}
       </nav>
-      <div className="sidebar-foot">
-        {user
-          ? <Link href={`/u/${user.publicCode}`} className="identity-chip" dir="ltr"><span className="identity-dot" style={{ backgroundColor: user.identityColor }}/><span>{user.publicCode}</span></Link>
-          : user === null
-            ? <Link href="/login" className="nav-link"><LogIn size={19} aria-hidden="true"/><span>تسجيل الدخول</span></Link>
-            : <span className="sidebar-user-skeleton" aria-label="جارِ تحميل الحساب"/>}
-        <p>كلمات عامة، بلا خوارزمية.</p>
-      </div>
-    </aside>
-
-    <div className="mobile-header">
-      <Brand />
-      <div className="mobile-header-actions">
-        {user && <Link href="/notifications" className="icon-button" aria-label="الإشعارات">
-          <Bell size={19} aria-hidden="true"/>
-          {unread > 0 && <span className="icon-badge">{unread > 9 ? '9+' : unread}</span>}
-        </Link>}
-        {user
-          ? <Link href={`/u/${user.publicCode}`} className="identity-chip compact" dir="ltr"><span className="identity-dot" style={{ backgroundColor: user.identityColor }}/><span>{user.publicCode}</span></Link>
-          : <Link href="/login" className="icon-button" aria-label="تسجيل الدخول"><LogIn size={20} aria-hidden="true"/></Link>}
-      </div>
     </div>
-
-    <main className="content-column"><div key={pathname} className="route-stage">{children}</div></main>
-
-    <nav className="mobile-nav" aria-label="التنقل الرئيسي">
-      {nav.map(({ href, label, icon: Icon }) => {
-        const isActive = active(href)
-        return <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
-          <Icon size={21} strokeWidth={isActive ? 2.1 : 1.7} aria-hidden="true"/>
-          <span>{label}</span>
-        </Link>
-      })}
-    </nav>
-  </div>
+  )
 }
