@@ -81,23 +81,11 @@ async function getOnePost(supabase, id) {
   }
 }
 
-function safeNext(value, fallback = '/') {
-  const next = String(value || '')
-  return next.startsWith('/') && !next.startsWith('//') ? next : fallback
-}
-
 export async function GET(request, { params }) {
   const { path, supabase } = await ctx(params)
   const url = new URL(request.url)
-
-  if (path.join('/') === 'auth/callback') {
-    const authCode = url.searchParams.get('code')
-    const next = safeNext(url.searchParams.get('next'))
-    if (!authCode) return NextResponse.redirect(new URL('/login?error=auth_callback_failed', request.url))
-    const { error } = await supabase.auth.exchangeCodeForSession(authCode)
-    if (error) return NextResponse.redirect(new URL('/login?error=auth_callback_failed', request.url))
-    return NextResponse.redirect(new URL(next, request.url))
-  }
+  // auth/callback moved to app/api/auth/callback/route.js — it needs the
+  // real public origin behind Vercel's proxy, which request.url can't give it.
 
   if (path.join('/') === 'auth/me') {
     const user = await currentUser(supabase)
@@ -312,42 +300,9 @@ export async function POST(request, { params }) {
     return json({ ok: true })
   }
 
-  if (path.join('/') === 'auth/register') {
-    const email = String(body.email || '').trim()
-    const password = String(body.password || '')
-    if (!email || password.length < 8 || password.length > 128) return json({ error: 'تحقق من البريد وكلمة المرور' }, 400)
-    const origin = new URL(request.url).origin
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${origin}/api/auth/callback?next=/first-post` }
-    })
-    if (error) {
-      // Supabase's own error.message is English; map the codes a user can
-      // actually hit here so nothing untranslated reaches the signup form.
-      const messages = {
-        user_already_exists: 'هذا البريد مسجَّل بالفعل. سجّل الدخول بدلًا من ذلك.',
-        weak_password: 'كلمة المرور ضعيفة جدًا. جرّب كلمة أطول أو أكثر تنوعًا.',
-        email_address_invalid: 'صيغة البريد الإلكتروني غير صحيحة.',
-        over_email_send_rate_limit: 'محاولات كثيرة. حاول بعد قليل.',
-        signup_disabled: 'إنشاء الحسابات معطّل حاليًا.'
-      }
-      return json({ error: messages[error.code] || 'تعذر إنشاء الحساب' }, 400)
-    }
-    return json({ ok: true, requiresEmailConfirmation: !data.session })
-  }
-
-  if (path.join('/') === 'auth/request-password-reset') {
-    const email = String(body.email || '').trim()
-    if (!email || email.length > 320 || !email.includes('@')) return json({ error: 'أدخل بريدًا إلكترونيًا صحيحًا' }, 400)
-    const origin = new URL(request.url).origin
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/api/auth/callback?next=/auth/update-password`
-    })
-    if (error && error.code === 'over_email_send_rate_limit') return json({ error: 'محاولات كثيرة. حاول بعد قليل.' }, 429)
-    if (error) console.error('[password-reset]', error.code, error.message)
-    return json({ ok: true })
-  }
+  // auth/register and auth/request-password-reset moved to their own files
+  // under app/api/auth/ — both need getPublicOrigin(), not request.url's
+  // origin, which can be an internal address behind Vercel's proxy.
 
   if (path.join('/') === 'auth/update-password') {
     const user = await currentUser(supabase)
