@@ -1,0 +1,146 @@
+:root {
+  --foreground: #171815;
+  --muted: #5f625c;
+  --subtle: #7d8178;
+  --motion: 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground: #f4f5f1;
+    --muted: #b4b7ae;
+    --subtle: #8e9288;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Arabic", "Helvetica Neue", Arial, sans-serif;
+  font-kerning: normal;
+  font-feature-settings: "kern" 1;
+}
+
+body {
+  font-weight: 450;
+  letter-spacing: -0.005em;
+  line-height: 1.78;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.brand {
+  font-weight: 730;
+  letter-spacing: -0.025em;
+}
+
+.page-title,
+.auth-title {
+  font-weight: 730;
+  letter-spacing: -0.025em;
+}
+
+.page-description,
+.auth-sub,
+.profile-bio,
+.profile-meta,
+.status-message {
+  font-weight: 450;
+}
+
+.post-body {
+  font-size: 17px;
+  font-weight: 460;
+  line-height: 1.84;
+  letter-spacing: -0.006em;
+}
+
+.comment-body {
+  font-weight: 450;
+  line-height: 1.82;
+}
+
+.nav-link,
+.mobile-link,
+.icon-button,
+.action-button,
+.primary-button,
+.secondary-button,
+.danger-button,
+.identity-chip,
+.form-control {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-link,
+.mobile-link,
+.icon-button,
+.action-button,
+.primary-button,
+.secondary-button,
+.danger-button {
+  transition-duration: 150ms;
+}
+
+.nav-link:active,
+.mobile-link:active,
+.icon-button:active,
+.action-button:active {
+  transform: scale(0.975);
+}
+
+.primary-button:active,
+.secondary-button:active,
+.danger-button:active {
+  transform: scale(0.985);
+}
+
+.mobile-header,
+.mobile-nav,
+.desktop-sidebar {
+  transition: background-color var(--motion), border-color var(--motion);
+}
+
+.route-stage {
+  min-block-size: 100%;
+  animation: openly-route-enter 165ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center top;
+}
+
+@keyframes openly-route-enter {
+  from {
+    opacity: 0.72;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 759px) {
+  .page-title { font-size: 21px; }
+  .page-description { font-size: 13.5px; }
+  .mobile-link { font-weight: 560; }
+  .mobile-link.active { font-weight: 680; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .route-stage { animation: none; }
+  .nav-link:active,
+  .mobile-link:active,
+  .icon-button:active,
+  .action-button:active,
+  .primary-button:active,
+  .secondary-button:active,
+  .danger-button:active { transform: none; }
+}
