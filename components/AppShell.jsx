@@ -47,12 +47,12 @@ export function AppShell({ children }) {
         {nav.map(({ href, label, icon: Icon }) => {
           const isActive = active(href)
           return <Link key={href} href={href} className={`nav-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
-            <Icon size={19} strokeWidth={1.8} aria-hidden="true"/>
+            <Icon size={20} strokeWidth={1.75} aria-hidden="true"/>
             <span>{label}</span>
           </Link>
         })}
         {user && <Link href="/notifications" className={`nav-link${active('/notifications') ? ' active' : ''}`} aria-current={active('/notifications') ? 'page' : undefined}>
-          <Bell size={19} strokeWidth={1.8} aria-hidden="true"/>
+          <Bell size={20} strokeWidth={1.75} aria-hidden="true"/>
           <span>الإشعارات</span>
           {unread > 0 && <span className="nav-badge">{unread > 99 ? '99+' : unread}</span>}
         </Link>}
@@ -61,7 +61,7 @@ export function AppShell({ children }) {
         {user
           ? <Link href={`/u/${user.publicCode}`} className="identity-chip" dir="ltr"><span className="identity-dot" style={{ backgroundColor: user.identityColor }}/><span>{user.publicCode}</span></Link>
           : user === null
-            ? <Link href="/login" className="nav-link"><LogIn size={19} aria-hidden="true"/><span>تسجيل الدخول</span></Link>
+            ? <Link href="/login" className="nav-link"><LogIn size={20} aria-hidden="true"/><span>تسجيل الدخول</span></Link>
             : <span className="sidebar-user-skeleton" aria-label="جارِ تحميل الحساب"/>}
         <p>كلمات عامة، بلا خوارزمية.</p>
       </div>
@@ -71,7 +71,7 @@ export function AppShell({ children }) {
       <Brand />
       <div className="mobile-header-actions">
         {user && <Link href="/notifications" className="icon-button" aria-label="الإشعارات">
-          <Bell size={19} aria-hidden="true"/>
+          <Bell size={20} aria-hidden="true"/>
           {unread > 0 && <span className="icon-badge">{unread > 9 ? '9+' : unread}</span>}
         </Link>}
         {user
@@ -86,7 +86,7 @@ export function AppShell({ children }) {
       {nav.map(({ href, label, icon: Icon }) => {
         const isActive = active(href)
         return <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
-          <Icon size={21} strokeWidth={isActive ? 2.1 : 1.7} aria-hidden="true"/>
+          <Icon size={20} strokeWidth={isActive ? 2.1 : 1.75} aria-hidden="true"/>
           <span>{label}</span>
         </Link>
       })}

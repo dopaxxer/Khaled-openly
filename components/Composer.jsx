@@ -57,7 +57,7 @@ export function Composer({ firstPost = false }) {
       </div>
       {error && <p className="status-message error composer-message">{error}</p>}
       {firstPost && <button className="action-button muted composer-skip" onClick={() => router.push('/')}>
-        التخطي الآن <ArrowLeft size={15} aria-hidden="true"/>
+        التخطي الآن <ArrowLeft size={16} aria-hidden="true"/>
       </button>}
     </div>
   </section>
