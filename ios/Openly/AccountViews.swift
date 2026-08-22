@@ -380,7 +380,9 @@ struct VerificationView: View {
                 .multilineTextAlignment(.center)
                 .textFieldStyle(.roundedBorder)
                 .environment(\.layoutDirection, .leftToRight)
-                .onChange(of: token) { token = String(token.filter(\.isNumber).prefix(6)) }
+                .onChange(of: token) { value in
+                    token = String(value.filter(\.isNumber).prefix(6))
+                }
             Button("تأكيد الكود") { Task { await verify() } }
                 .buttonStyle(.borderedProminent)
                 .disabled(token.count != 6 || isSubmitting)
