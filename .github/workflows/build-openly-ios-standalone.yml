@@ -7,6 +7,10 @@ on:
     paths:
       - 'ios/**'
       - '.github/workflows/build-openly-ios-standalone.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/build-openly-ios-standalone.yml'
   workflow_dispatch:
 
 jobs:
