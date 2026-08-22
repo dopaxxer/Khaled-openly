@@ -5,8 +5,8 @@ export default function manifest() {
     description: 'شبكة نصية عامة بلا خوارزمية ترتيب.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#f7f7f8',
-    theme_color: '#f7f7f8',
+    background_color: '#fafaf8',
+    theme_color: '#fafaf8',
     lang: 'ar',
     dir: 'rtl'
   }

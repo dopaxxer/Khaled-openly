@@ -1,4 +1,5 @@
 import './globals.css'
+import './ios-polish.css'
 import { AppShell } from '@/components/AppShell'
 
 export const metadata = {
@@ -13,8 +14,8 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f7f7f8' },
-    { media: '(prefers-color-scheme: dark)', color: '#151515' }
+    { media: '(prefers-color-scheme: light)', color: '#fafaf8' },
+    { media: '(prefers-color-scheme: dark)', color: '#111210' }
   ]
 }
 
