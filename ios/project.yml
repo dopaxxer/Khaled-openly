@@ -1,0 +1,20 @@
+name: Openly
+options:
+  bundleIdPrefix: ink.openly
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  Openly:
+    type: application
+    platform: iOS
+    sources:
+      - path: Openly
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ink.openly.app
+        PRODUCT_NAME: Openly
+        SWIFT_VERSION: 5.0
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: Openly/Info.plist
