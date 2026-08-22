@@ -1,1 +1,1 @@
-failed:1
+success
