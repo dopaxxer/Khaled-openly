@@ -1,12 +1,6 @@
 import './globals.css'
-import { Noto_Sans_Arabic } from 'next/font/google'
+import './ios-polish.css'
 import { AppShell } from '@/components/AppShell'
-
-const notoSansArabic = Noto_Sans_Arabic({
-  subsets: ['arabic'],
-  display: 'swap',
-  variable: '--font-arabic',
-})
 
 export const metadata = {
   title: 'Openly',
@@ -27,7 +21,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ar" dir="rtl" className={notoSansArabic.variable}>
+    <html lang="ar" dir="rtl">
       <body><AppShell>{children}</AppShell></body>
     </html>
   )
