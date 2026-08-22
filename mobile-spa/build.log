@@ -1,5 +1,5 @@
 
-added 20 packages in 10s
+added 20 packages in 11s
 
 > openly-mobile-spa@1.0.0 build
 > vite build
@@ -13,7 +13,7 @@ dist/index.html                   0.47 kB │ gzip:  0.30 kB
 dist/assets/index-N1EuEz0S.css   24.08 kB │ gzip:  5.03 kB
 dist/assets/index-DDHlQd8E.js   253.44 kB │ gzip: 76.44 kB
 
-[32m✓ built in 360ms[39m
+[32m✓ built in 423ms[39m
 384K	dist
 dist/apple-icon.png
 dist/assets/index-DDHlQd8E.js
