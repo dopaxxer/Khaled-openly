@@ -579,7 +579,10 @@ select:focus-visible {
 
 .composer textarea {
   inline-size: 100%;
-  min-block-size: 320px;
+  block-size: auto;
+  min-block-size: 96px;
+  max-block-size: 60vh;
+  overflow-y: auto;
   resize: none;
   padding-block: var(--space-5);
   padding-inline: var(--space-5);
@@ -874,7 +877,7 @@ select:focus-visible {
   .page-header { padding-block-start: var(--space-7); }
   .post-card { padding-block: 28px; }
   .post-skeleton { padding-block: 28px; }
-  .composer textarea { min-block-size: 360px; }
+  .composer textarea { min-block-size: 128px; }
   .auth-wrap { padding-block-start: 88px; }
 }
 

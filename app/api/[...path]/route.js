@@ -322,7 +322,18 @@ export async function POST(request, { params }) {
       password,
       options: { emailRedirectTo: `${origin}/api/auth/callback?next=/first-post` }
     })
-    if (error) return json({ error: error.message || 'تعذر إنشاء الحساب' }, 400)
+    if (error) {
+      // Supabase's own error.message is English; map the codes a user can
+      // actually hit here so nothing untranslated reaches the signup form.
+      const messages = {
+        user_already_exists: 'هذا البريد مسجَّل بالفعل. سجّل الدخول بدلًا من ذلك.',
+        weak_password: 'كلمة المرور ضعيفة جدًا. جرّب كلمة أطول أو أكثر تنوعًا.',
+        email_address_invalid: 'صيغة البريد الإلكتروني غير صحيحة.',
+        over_email_send_rate_limit: 'محاولات كثيرة. حاول بعد قليل.',
+        signup_disabled: 'إنشاء الحسابات معطّل حاليًا.'
+      }
+      return json({ error: messages[error.code] || 'تعذر إنشاء الحساب' }, 400)
+    }
     return json({ ok: true, requiresEmailConfirmation: !data.session })
   }
 

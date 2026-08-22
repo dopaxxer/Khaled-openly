@@ -1,13 +1,23 @@
 'use client'
 import { ArrowLeft, Send } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 export function Composer({ firstPost = false }) {
   const router = useRouter()
   const [body, setBody] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const textareaRef = useRef(null)
+
+  // Starts small and grows with the text instead of opening as one large box —
+  // the CSS max-height caps it so a long post scrolls internally rather than
+  // pushing the publish button off screen.
+  function grow(el) {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
 
   async function publish() {
     if (!body.trim() || busy) return
@@ -41,10 +51,12 @@ export function Composer({ firstPost = false }) {
     </header>
     <div className="composer panel">
       <textarea
+        ref={textareaRef}
         autoFocus
         value={body}
-        onChange={e => setBody(e.target.value)}
+        onChange={e => { setBody(e.target.value); grow(e.target) }}
         maxLength={3000}
+        rows={3}
         placeholder="ماذا تريد أن تقول؟"
         aria-label="نص المنشور"
       />
