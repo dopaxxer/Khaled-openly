@@ -22,32 +22,25 @@ targets:
     info:
       path: Openly/Info.plist
     postBuildScripts:
-      - name: Build and embed Openly local web app
+      - name: Embed verified Openly local web app
         basedOnDependencyAnalysis: false
         script: |
           set -euo pipefail
-          export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-          MOBILE_DIR="$SRCROOT/../mobile-spa"
-          PUBLIC_DIR="$MOBILE_DIR/public"
+          WEB_SOURCE="$SRCROOT/../mobile-spa/dist"
           DEST="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/WebBundle"
 
-          mkdir -p "$PUBLIC_DIR"
-          cp "$SRCROOT/../app/icon.png" "$PUBLIC_DIR/icon.png"
-          cp "$SRCROOT/../app/apple-icon.png" "$PUBLIC_DIR/apple-icon.png"
-
-          cd "$MOBILE_DIR"
-          npm install --no-audit --no-fund
-          npm run build
-
-          test -s "$MOBILE_DIR/dist/index.html"
-          test -n "$(find "$MOBILE_DIR/dist/assets" -type f -name '*.js' -print -quit)"
-          test -n "$(find "$MOBILE_DIR/dist/assets" -type f -name '*.css' -print -quit)"
+          test -s "$WEB_SOURCE/index.html"
+          test -n "$(find "$WEB_SOURCE/assets" -type f -name '*.js' -print -quit)"
+          test -n "$(find "$WEB_SOURCE/assets" -type f -name '*.css' -print -quit)"
 
           rm -rf "$DEST"
           mkdir -p "$DEST"
-          cp -R "$MOBILE_DIR/dist/." "$DEST/"
+          cp -R "$WEB_SOURCE/." "$DEST/"
 
           test -s "$DEST/index.html"
+          test -n "$(find "$DEST/assets" -type f -name '*.js' -print -quit)"
+          test -n "$(find "$DEST/assets" -type f -name '*.css' -print -quit)"
+
           WEB_KB=$(du -sk "$DEST" | awk '{print $1}')
           if [ "$WEB_KB" -lt 300 ]; then
             echo "Embedded Openly bundle is unexpectedly small: ${WEB_KB} KB"
