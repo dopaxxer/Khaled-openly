@@ -1,7 +1,18 @@
 'use client'
-import { MessageSquareText, RotateCcw } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { PostCard } from './PostCard'
+
+function FeedSkeleton() {
+  return <div className="feed-skeleton" aria-label="جارِ تحميل المنشورات">
+    {[0, 1, 2].map(item => <article className="post-skeleton" key={item}>
+      <div className="skeleton-line skeleton-meta" />
+      <div className="skeleton-line skeleton-body" />
+      <div className="skeleton-line skeleton-body short" />
+      <div className="skeleton-line skeleton-actions" />
+    </article>)}
+  </div>
+}
 
 export function Timeline({ endpoint = '/api/posts', empty = 'لا توجد منشورات بعد. كن أول من يكتب.' }) {
   const [posts, setPosts] = useState([])
@@ -30,12 +41,27 @@ export function Timeline({ endpoint = '/api/posts', empty = 'لا توجد من�
           setEngagement(old => ({ ...old, ...Object.fromEntries((ed.items || []).map(x => [x.postId, x])) }))
         }
       }
-    } catch (e) { setError(e.message || 'تعذر تحميل المنشورات') } finally { setLoading(false); setMoreLoading(false) }
+    } catch (e) {
+      setError(e.message || 'تعذر تحميل المنشورات')
+    } finally {
+      setLoading(false)
+      setMoreLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [endpoint])
-  if (loading) return <div className="screen-pad stack"><div className="skeleton"/><div className="skeleton"/><div className="skeleton"/></div>
-  if (error && !posts.length) return <div className="empty-state"><div><p>{error}</p><button className="secondary-button mt16" onClick={() => load()}><RotateCcw size={16}/>المحاولة مجددًا</button></div></div>
-  if (!posts.length) return <div className="empty-state"><div><MessageSquareText size={28} strokeWidth={1.5}/><p>{empty}</p></div></div>
-  return <div aria-live="polite">{posts.map(post => <PostCard key={post.id} post={post} initialEngagement={engagement[post.id] || null}/>)}<div className="screen-pad center">{cursor ? <button className="secondary-button" disabled={moreLoading} onClick={() => load(cursor)}>{moreLoading ? 'جارِ التحميل…' : 'عرض المزيد'}</button> : <span className="tiny subtle">هذه كل المنشورات المتاحة.</span>}{error && <p className="tiny danger-text">{error}</p>}</div></div>
+
+  if (loading) return <FeedSkeleton />
+  if (error && !posts.length) return <div className="empty-state"><div><p>{error}</p><button className="secondary-button mt16" onClick={() => load()}><RotateCcw size={16} aria-hidden="true"/>المحاولة مجددًا</button></div></div>
+  if (!posts.length) return <div className="empty-state"><div><p>{empty}</p></div></div>
+
+  return <div aria-live="polite">
+    {posts.map(post => <PostCard key={post.id} post={post} initialEngagement={engagement[post.id] || null}/>)}
+    <div className="feed-footer">
+      {cursor
+        ? <button className="secondary-button" disabled={moreLoading} onClick={() => load(cursor)}>{moreLoading ? 'جارِ التحميل…' : 'عرض المزيد'}</button>
+        : <span className="tiny subtle">هذه كل المنشورات المتاحة.</span>}
+      {error && <p className="tiny danger-text">{error}</p>}
+    </div>
+  </div>
 }
