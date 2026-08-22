@@ -16,6 +16,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Bundle Openly web project source
+        run: |
+          rm -rf ios/Openly/SourceBundle
+          mkdir -p ios/Openly/SourceBundle
+          cp -R app ios/Openly/SourceBundle/app
+          cp -R components ios/Openly/SourceBundle/components
+          cp -R lib ios/Openly/SourceBundle/lib
+          cp package.json ios/Openly/SourceBundle/package.json
+          cp package-lock.json ios/Openly/SourceBundle/package-lock.json
+          cp proxy.js ios/Openly/SourceBundle/proxy.js
+          cp README.md ios/Openly/SourceBundle/README.md
+          test -f ios/Openly/SourceBundle/app/page.jsx
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -37,15 +50,23 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             build
 
-      - name: Package unsigned IPA
+      - name: Verify bundled project source
         working-directory: ios
         run: |
           APP_PATH="build/Build/Products/Release-iphoneos/Openly.app"
           test -d "$APP_PATH"
+          find "$APP_PATH" -maxdepth 4 -type f | sort | head -100
+          du -sh "$APP_PATH"
+
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          APP_PATH="build/Build/Products/Release-iphoneos/Openly.app"
           rm -rf Payload Openly-Standalone-unsigned.ipa
           mkdir Payload
           cp -R "$APP_PATH" Payload/Openly.app
           zip -qry Openly-Standalone-unsigned.ipa Payload
+          ls -lh Openly-Standalone-unsigned.ipa
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
