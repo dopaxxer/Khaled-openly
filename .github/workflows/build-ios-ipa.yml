@@ -19,7 +19,7 @@ jobs:
 
       - name: Generate app icons
         working-directory: ios
-        run: swift generate_icons.swift
+        run: python3 generate_icons.py
 
       - name: Generate Xcode project
         working-directory: ios
