@@ -190,10 +190,27 @@ export async function POST(request, { params }) {
   if (path.join('/') === 'auth/register') {
     const email = String(body.email || '').trim(); const password = String(body.password || '')
     if (!email || password.length < 8 || password.length > 128) return json({ error: 'تحقق من البريد وكلمة المرور' }, 400)
-    const origin = new URL(request.url).origin
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${origin}/login` } })
+    const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) return json({ error: error.message || 'تعذر إنشاء الحساب' }, 400)
-    return json({ ok: true, requiresEmailConfirmation: !data.session })
+    if (data.session) return json({ ok: true, requiresEmailConfirmation: false })
+    return json({ ok: true, requiresEmailConfirmation: true, email })
+  }
+
+  if (path.join('/') === 'auth/verify') {
+    const email = String(body.email || '').trim()
+    const token = String(body.token || '').trim()
+    if (!email || !/^\d{6}$/.test(token)) return json({ error: 'أدخل كود التحقق المكوّن من 6 أرقام' }, 400)
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
+    if (error) return json({ error: 'الكود غير صحيح أو انتهت صلاحيته' }, 400)
+    return json({ ok: true })
+  }
+
+  if (path.join('/') === 'auth/resend-code') {
+    const email = String(body.email || '').trim()
+    if (!email) return json({ error: 'البريد الإلكتروني مطلوب' }, 400)
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    if (error) return json({ error: error.message || 'تعذر إعادة إرسال الكود' }, 400)
+    return json({ ok: true })
   }
 
   if (path.join('/') === 'auth/logout') {
@@ -224,42 +241,49 @@ export async function POST(request, { params }) {
   if (path[0] === 'users' && path[1] && path[2] === 'relation') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const { data: target } = await supabase.from('profiles').select('id').eq('public_code', code(path[1])).maybeSingle()
-    if (!target || target.id === user.id) return json({ error: 'العلاقة غير صالحة' }, 400)
-    const kind = body.kind; const enabled = !!body.enabled
-    const config = kind === 'follow' ? ['follows','follower_id','followed_id'] : kind === 'mute' ? ['mutes','muter_id','muted_id'] : kind === 'block' ? ['blocks','blocker_id','blocked_id'] : null
-    if (!config) return json({ error: 'نوع غير صالح' }, 400)
-    const [table, left, right] = config
-    const result = enabled ? await supabase.from(table).upsert({ [left]: user.id, [right]: target.id }) : await supabase.from(table).delete().eq(left, user.id).eq(right, target.id)
-    if (result.error) return json({ error: 'تعذر تحديث العلاقة' }, 400)
-    if (kind === 'block' && enabled) {
-      await Promise.all([
-        supabase.from('follows').delete().eq('follower_id', user.id).eq('followed_id', target.id),
-        supabase.from('follows').delete().eq('follower_id', target.id).eq('followed_id', user.id)
-      ])
+    const targetCode = code(path[1]); const kind = String(body.kind || ''); const enabled = !!body.enabled
+    if (!['follow','mute','block'].includes(kind)) return json({ error: 'نوع العلاقة غير صالح' }, 400)
+    const { data: target } = await supabase.from('profiles').select('id').eq('public_code', targetCode).maybeSingle()
+    if (!target || target.id === user.id) return json({ error: 'المستخدم غير صالح' }, 400)
+    const table = kind === 'follow' ? 'follows' : kind === 'mute' ? 'mutes' : 'blocks'
+    const a = kind === 'follow' ? 'follower_id' : kind === 'mute' ? 'muter_id' : 'blocker_id'
+    const b = kind === 'follow' ? 'followed_id' : kind === 'mute' ? 'muted_id' : 'blocked_id'
+    if (enabled) {
+      const { error } = await supabase.from(table).upsert({ [a]: user.id, [b]: target.id })
+      if (error) return json({ error: 'تعذر حفظ العلاقة' }, 400)
+    } else {
+      const { error } = await supabase.from(table).delete().eq(a, user.id).eq(b, target.id)
+      if (error) return json({ error: 'تعذر حفظ العلاقة' }, 400)
     }
     return json({ ok: true })
   }
 
-  if (path[0] === 'engagement' && path[1]) {
+  if (path[0] === 'posts' && path[1] && path[2] === 'like') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const action = body.action; const enabled = !!body.enabled
-    const fn = action === 'like' ? 'set_post_like' : action === 'bookmark' ? 'set_post_bookmark' : null
-    const key = action === 'like' ? 'p_liked' : 'p_bookmarked'
-    if (!fn) return json({ error: 'إجراء غير صالح' }, 400)
-    const { error } = await supabase.rpc(fn, { p_post_id: path[1], [key]: enabled })
-    if (error) return json({ error: 'تعذر تحديث التفاعل' }, 400)
-    const [engagement] = await engagementFor(supabase, [path[1]])
-    return json({ ok: true, engagement })
+    const enabled = !!body.enabled
+    const query = supabase.from('likes')
+    const { error } = enabled ? await query.upsert({ user_id: user.id, post_id: path[1] }) : await query.delete().eq('user_id', user.id).eq('post_id', path[1])
+    if (error) return json({ error: 'تعذر حفظ الإعجاب' }, 400)
+    return json({ ok: true })
   }
 
-  if (path.join('/') === 'reports') {
+  if (path[0] === 'posts' && path[1] && path[2] === 'bookmark') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    if (body.targetType !== 'post' || !body.targetId || !reasons.has(body.reason)) return json({ error: 'بلاغ غير صالح' }, 400)
-    const description = body.description ? String(body.description).slice(0, 1000) : null
-    const { error } = await supabase.from('reports').insert({ reporter_id: user.id, target_type: 'post', target_id: body.targetId, reason: body.reason, description })
+    const enabled = !!body.enabled
+    const query = supabase.from('bookmarks')
+    const { error } = enabled ? await query.upsert({ user_id: user.id, post_id: path[1] }) : await query.delete().eq('user_id', user.id).eq('post_id', path[1])
+    if (error) return json({ error: 'تعذر حفظ المنشور' }, 400)
+    return json({ ok: true })
+  }
+
+  if (path[0] === 'reports' && path.length === 1) {
+    const user = await currentUser(supabase)
+    if (!user) return json({ error: 'غير مسجل' }, 401)
+    const reason = String(body.reason || '')
+    if (!reasons.has(reason)) return json({ error: 'سبب البلاغ غير صالح' }, 400)
+    const { error } = await supabase.from('reports').insert({ reporter_id: user.id, target_type: body.targetType, target_id: body.targetId, reason, description: String(body.description || '').slice(0, 2000) })
     if (error) return json({ error: 'تعذر إرسال البلاغ' }, 400)
     return json({ ok: true }, 201)
   }
@@ -270,25 +294,14 @@ export async function POST(request, { params }) {
 export async function PATCH(request, { params }) {
   const { path, supabase } = await ctx(params)
   const body = await request.json().catch(() => ({}))
-
   if (path.join('/') === 'notifications') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const ids = Array.isArray(body.ids) ? body.ids : null
-    const { data, error } = await supabase.rpc('mark_notifications_read', { p_ids: ids })
+    const ids = Array.isArray(body.ids) ? body.ids.slice(0, 100) : []
+    if (!ids.length) return json({ ok: true })
+    const { error } = await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('recipient_id', user.id).in('id', ids)
     if (error) return json({ error: 'تعذر تحديث الإشعارات' }, 400)
-    return json({ ok: true, count: Number(data || 0) })
+    return json({ ok: true })
   }
-
-  if (path[0] === 'admin' && path[1] === 'reports' && path[2]) {
-    const { data: admin } = await supabase.rpc('is_admin')
-    if (!admin) return json({ error: 'غير مصرح' }, 403)
-    const allowed = new Set(['delete-content','suspend-author','ban-author','resolve','dismiss'])
-    if (!allowed.has(body.action)) return json({ error: 'إجراء غير صالح' }, 400)
-    const { data, error } = await supabase.rpc('moderate_report', { p_report_id: path[2], p_action: body.action })
-    if (error) return json({ error: 'تعذر تنفيذ الإجراء' }, 400)
-    return json({ ok: !!data })
-  }
-
   return json({ error: 'المسار غير موجود' }, 404)
 }
