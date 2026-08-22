@@ -1,0 +1,55 @@
+name: Build Openly Standalone IPA
+
+on:
+  push:
+    branches:
+      - openly-ios-standalone-v2
+    paths:
+      - 'ios/**'
+      - '.github/workflows/build-openly-ios-standalone.yml'
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build unsigned iPhone app
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -project Openly.xcodeproj \
+            -scheme Openly \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          APP_PATH="build/Build/Products/Release-iphoneos/Openly.app"
+          test -d "$APP_PATH"
+          rm -rf Payload Openly-Standalone-unsigned.ipa
+          mkdir Payload
+          cp -R "$APP_PATH" Payload/Openly.app
+          zip -qry Openly-Standalone-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Openly-Standalone-unsigned-ipa
+          path: ios/Openly-Standalone-unsigned.ipa
+          if-no-files-found: error
