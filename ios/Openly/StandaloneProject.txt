@@ -1,0 +1,1 @@
+Openly iOS standalone wrapper generated from the uploaded Openly project snapshot.
