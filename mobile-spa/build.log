@@ -1,5 +1,5 @@
 
-added 20 packages in 9s
+added 20 packages in 13s
 
 > openly-mobile-spa@1.0.0 build
 > vite build
@@ -11,9 +11,9 @@ rendering chunks...
 computing gzip size...
 dist/index.html                   0.47 kB │ gzip:  0.29 kB
 dist/assets/index-N1EuEz0S.css   24.08 kB │ gzip:  5.03 kB
-dist/assets/index-G2htRvNl.js   241.27 kB │ gzip: 73.16 kB
+dist/assets/index-o8NqD-ME.js   242.25 kB │ gzip: 73.62 kB
 
-[31m✗[39m Build failed in 218ms
+[31m✗[39m Build failed in 184ms
 [31merror during build:
 [31mBuild failed with 1 error:
 
