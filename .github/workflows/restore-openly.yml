@@ -1,0 +1,35 @@
+name: Restore Openly source
+
+on:
+  push:
+    branches: [restore-openly]
+    paths:
+      - '.restore/source.part*'
+
+permissions:
+  contents: write
+
+jobs:
+  restore-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore source archive
+        run: |
+          cat .restore/source.part* | base64 -d > /tmp/openly.tar.gz
+          tar -xzf /tmp/openly.tar.gz
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify production build
+        run: npm run build
+      - name: Commit restored source
+        run: |
+          rm -rf .restore
+          git config user.name 'openly-restore-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'Restore Openly source from production snapshot'
+          git push origin HEAD:restore-openly
