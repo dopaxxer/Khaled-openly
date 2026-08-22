@@ -1,0 +1,34 @@
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+.mobile-header {
+  block-size: calc(58px + env(safe-area-inset-top));
+  padding-block-start: env(safe-area-inset-top);
+}
+
+.content-column {
+  min-block-size: calc(100dvh - 58px - env(safe-area-inset-top));
+  padding-block-end: calc(88px + env(safe-area-inset-bottom));
+}
+
+.mobile-nav {
+  padding-block-end: env(safe-area-inset-bottom);
+}
+
+@media (display-mode: standalone) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
