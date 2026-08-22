@@ -133,6 +133,23 @@ body {
 }
 
 @media (max-width: 759px) {
+  html,
+  body,
+  .app-shell {
+    min-height: 100dvh;
+  }
+
+  .mobile-header {
+    block-size: calc(58px + env(safe-area-inset-top));
+    padding-block-start: env(safe-area-inset-top);
+    padding-inline-start: max(var(--space-4), env(safe-area-inset-left));
+    padding-inline-end: max(var(--space-4), env(safe-area-inset-right));
+  }
+
+  .content-column {
+    min-block-size: calc(100dvh - 58px - env(safe-area-inset-top));
+  }
+
   .page-title { font-size: 21px; }
   .page-description { font-size: 13.5px; }
   .mobile-link { font-weight: 560; }
