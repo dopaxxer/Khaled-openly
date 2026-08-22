@@ -1,0 +1,1 @@
+This directory builds the PR #3 Openly interface as a local React/Vite bundle for Capacitor. The UI assets are embedded in the native app; API requests are redirected to the existing Openly backend through CapacitorHttp. This branch is for mobile testing and is not intended to be merged into main as-is.
