@@ -1,5 +1,6 @@
 name: Build Openly Local Web Bundle
 
+# Re-run after mobile dependency resolution fix.
 on:
   push:
     branches:
