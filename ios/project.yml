@@ -9,6 +9,10 @@ targets:
     platform: iOS
     sources:
       - path: Openly
+        excludes:
+          - SourceBundle
+      - path: Openly/SourceBundle
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ink.openly.app
