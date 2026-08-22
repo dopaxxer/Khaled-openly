@@ -80,7 +80,7 @@ export function AppShell({ children }) {
       </div>
     </div>
 
-    <main className="content-column">{children}</main>
+    <main className="content-column"><div key={pathname} className="route-stage">{children}</div></main>
 
     <nav className="mobile-nav" aria-label="التنقل الرئيسي">
       {nav.map(({ href, label, icon: Icon }) => {
