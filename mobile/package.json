@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "cap:sync": "cap sync",
+    "native:sync": "cap sync",
+    "native:ios": "cap open ios",
+    "native:android": "cap open android",
     "cap:add:ios": "cap add ios",
-    "cap:add:android": "cap add android",
-    "cap:open:ios": "cap open ios",
-    "cap:open:android": "cap open android"
+    "cap:add:android": "cap add android"
   },
   "dependencies": {
     "@capacitor/android": "8.5.0",
