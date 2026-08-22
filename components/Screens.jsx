@@ -84,21 +84,24 @@ function AuthScreen({ mode }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState(false)
+  const [email, setEmail] = useState('')
 
   async function submit(e) {
     e.preventDefault()
     setError('')
     setBusy(true)
     const fd = new FormData(e.currentTarget)
+    const enteredEmail = String(fd.get('email') || '')
     try {
       const res = await fetch(`/api/auth/${login ? 'login' : 'register'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') })
+        body: JSON.stringify({ email: enteredEmail, password: fd.get('password') })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'تعذر إكمال العملية')
       if (data.requiresEmailConfirmation) {
+        setEmail(enteredEmail)
         setConfirm(true)
         return
       }
@@ -111,16 +114,7 @@ function AuthScreen({ mode }) {
     }
   }
 
-  if (confirm) {
-    return <div className="auth-wrap center">
-      <div className="panel" style={{ padding: 28 }}>
-        <CircleCheck size={38} />
-        <h1 className="auth-title mt16">تحقق من بريدك</h1>
-        <p className="auth-sub">أرسلنا رابط تأكيد إلى بريدك. بعد التأكيد ستعود إلى Openly لإكمال حسابك.</p>
-        <Link href="/login" className="primary-button full mt20">الذهاب إلى الدخول</Link>
-      </div>
-    </div>
-  }
+  if (confirm) return <SignupCodeScreen email={email} />
 
   return <div className="auth-wrap">
     <div className="auth-head">
@@ -145,6 +139,87 @@ function AuthScreen({ mode }) {
       {login ? 'ليس لديك حساب؟ ' : 'لديك حساب؟ '}
       <Link href={login ? '/register' : '/login'} style={{ textDecoration: 'underline' }}>{login ? 'أنشئ هويتك' : 'تسجيل الدخول'}</Link>
     </p>
+  </div>
+}
+
+function SignupCodeScreen({ email }) {
+  const router = useRouter()
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [resent, setResent] = useState(false)
+  const [resendBusy, setResendBusy] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    setBusy(true)
+    try {
+      const res = await fetch('/api/auth/verify-signup-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'الكود غير صحيح')
+      router.push('/first-post')
+      router.refresh()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function resend() {
+    if (resendBusy) return
+    setResendBusy(true)
+    setResent(false)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/resend-signup-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'تعذر إعادة الإرسال')
+      setResent(true)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setResendBusy(false)
+    }
+  }
+
+  return <div className="auth-wrap">
+    <div className="auth-head">
+      <div className="auth-icon"><CircleCheck size={21} /></div>
+      <h1 className="auth-title">تحقق من بريدك</h1>
+      <p className="auth-sub">أرسلنا كودًا مكوّنًا من 6 أرقام إلى {email}. أدخله هنا لإكمال إنشاء حسابك.</p>
+    </div>
+    <form className="panel auth-form" onSubmit={submit}>
+      <label className="label">
+        كود التحقق
+        <input
+          className="form-control"
+          value={code}
+          onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          dir="ltr"
+          maxLength={6}
+          placeholder="000000"
+          style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.3em', textAlign: 'center', fontSize: 20 }}
+          required
+        />
+      </label>
+      {error && <p className="status-message error">{error}</p>}
+      {resent && <p className="status-message" style={{ color: 'var(--success)' }}>أُرسل كود جديد إلى بريدك.</p>}
+      <button className="primary-button full" disabled={busy || code.length !== 6}>{busy ? 'جارِ التحقق…' : 'تأكيد'}</button>
+      <button type="button" className="center small muted" style={{ textDecoration: 'underline', background: 'none', border: 0 }} onClick={resend} disabled={resendBusy}>
+        {resendBusy ? 'جارِ الإرسال…' : 'لم يصلك الكود؟ إعادة الإرسال'}
+      </button>
+    </form>
   </div>
 }
 

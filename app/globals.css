@@ -13,21 +13,26 @@
   --subtle: #868ea6;
   --line: #e4e5ee;
   --line-strong: #d2d5e2;
+
+  /* Accent hue lives in exactly two variables — a colour theme only ever
+     overrides these. Everything else below derives from them via color-mix()
+     so soft fills, glows and the nebula wash stay in proportion automatically. */
   --accent: #16277a;
   --accent-strong: #2a44b8;
-  --accent-soft: #eaeefb;
   --accent-foreground: #ffffff;
   --danger: #b42318;
   --danger-soft: #fdf0ee;
   --success: #1a6b4c;
   --success-soft: #eaf5f0;
-  --focus: #2a44b8;
+  --focus: var(--accent-strong);
+
+  --accent-soft: color-mix(in srgb, var(--accent-strong) 8%, var(--surface));
 
   /* the single cosmic gesture: a distant nebula behind everything */
-  --nebula-1: rgba(38, 64, 180, 0.13);
-  --nebula-2: rgba(22, 39, 122, 0.08);
-  --glow: rgba(22, 39, 122, 0.16);
-  --glow-strong: rgba(22, 39, 122, 0.3);
+  --nebula-1: color-mix(in srgb, var(--accent-strong) 13%, transparent);
+  --nebula-2: color-mix(in srgb, var(--accent) 8%, transparent);
+  --glow: color-mix(in srgb, var(--accent) 16%, transparent);
+  --glow-strong: color-mix(in srgb, var(--accent) 30%, transparent);
 
   /* brand disc */
   --orb-paper: #ffffff;
@@ -71,20 +76,21 @@
     --subtle: #6d7595;
     --line: #1a2038;
     --line-strong: #29304c;
+
     --accent: #6d8bff;
     --accent-strong: #8ba3ff;
-    --accent-soft: #101a3d;
     --accent-foreground: #050a1e;
     --danger: #ff9d90;
     --danger-soft: #2a1614;
     --success: #6fd3a6;
     --success-soft: #0d2620;
-    --focus: #8ba3ff;
+    --focus: var(--accent-strong);
 
-    --nebula-1: rgba(64, 96, 255, 0.17);
-    --nebula-2: rgba(40, 60, 190, 0.12);
-    --glow: rgba(80, 110, 255, 0.22);
-    --glow-strong: rgba(109, 139, 255, 0.42);
+    --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
+    --nebula-1: color-mix(in srgb, var(--accent-strong) 17%, transparent);
+    --nebula-2: color-mix(in srgb, var(--accent) 12%, transparent);
+    --glow: color-mix(in srgb, var(--accent) 22%, transparent);
+    --glow-strong: color-mix(in srgb, var(--accent) 42%, transparent);
 
     --orb-paper: #070a14;
     --orb-ring: rgba(140, 165, 255, 0.3);
@@ -102,23 +108,45 @@
   --subtle: #6d7595;
   --line: #1a2038;
   --line-strong: #29304c;
+
   --accent: #6d8bff;
   --accent-strong: #8ba3ff;
-  --accent-soft: #101a3d;
   --accent-foreground: #050a1e;
   --danger: #ff9d90;
   --danger-soft: #2a1614;
   --success: #6fd3a6;
   --success-soft: #0d2620;
-  --focus: #8ba3ff;
+  --focus: var(--accent-strong);
 
-  --nebula-1: rgba(64, 96, 255, 0.17);
-  --nebula-2: rgba(40, 60, 190, 0.12);
-  --glow: rgba(80, 110, 255, 0.22);
-  --glow-strong: rgba(109, 139, 255, 0.42);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  --nebula-1: color-mix(in srgb, var(--accent-strong) 17%, transparent);
+  --nebula-2: color-mix(in srgb, var(--accent) 12%, transparent);
+  --glow: color-mix(in srgb, var(--accent) 22%, transparent);
+  --glow-strong: color-mix(in srgb, var(--accent) 42%, transparent);
 
   --orb-paper: #070a14;
   --orb-ring: rgba(140, 165, 255, 0.3);
+}
+
+/* Colour themes — retint just the accent pair; every derived token above
+   (soft fills, glow, nebula) follows automatically. The light variant is the
+   base (unconditional); dark needs its own block per how dark itself is
+   reached — an explicit choice needs no media query, the OS default does. */
+:root[data-color-theme="crimson"] { --accent: #7a1630; --accent-strong: #b8244c; }
+:root[data-color-theme="forest"] { --accent: #14532d; --accent-strong: #1f7a42; }
+:root[data-color-theme="amber"] { --accent: #6b3d08; --accent-strong: #8a5210; }
+:root[data-color-theme="violet"] { --accent: #4c1d95; --accent-strong: #7c3aed; }
+
+:root[data-theme="dark"][data-color-theme="crimson"] { --accent: #ff6b85; --accent-strong: #ff8fa3; }
+:root[data-theme="dark"][data-color-theme="forest"] { --accent: #5fd393; --accent-strong: #7fe0a8; }
+:root[data-theme="dark"][data-color-theme="amber"] { --accent: #ffb84d; --accent-strong: #ffc978; }
+:root[data-theme="dark"][data-color-theme="violet"] { --accent: #b794f6; --accent-strong: #c9a7fa; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-color-theme="crimson"] { --accent: #ff6b85; --accent-strong: #ff8fa3; }
+  :root:not([data-theme="light"])[data-color-theme="forest"] { --accent: #5fd393; --accent-strong: #7fe0a8; }
+  :root:not([data-theme="light"])[data-color-theme="amber"] { --accent: #ffb84d; --accent-strong: #ffc978; }
+  :root:not([data-theme="light"])[data-color-theme="violet"] { --accent: #b794f6; --accent-strong: #c9a7fa; }
 }
 
 * { box-sizing: border-box; }
@@ -584,7 +612,7 @@ select:focus-visible {
   max-block-size: 60vh;
   overflow-y: auto;
   resize: none;
-  padding-block: var(--space-5);
+  padding-block: var(--space-3) var(--space-5);
   padding-inline: var(--space-5);
   border: 0;
   outline: none;
@@ -595,6 +623,27 @@ select:focus-visible {
 }
 
 .composer textarea::placeholder { color: var(--subtle); }
+
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  border-block-end: 1px solid var(--line);
+}
+
+.toolbar-button {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border: 0;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: var(--muted);
+  transition: color var(--motion), background-color var(--motion);
+}
 
 .composer-foot {
   display: flex;
@@ -631,6 +680,21 @@ select:focus-visible {
   line-height: 1.88;
   text-wrap: pretty;
 }
+
+.post-body strong,
+.comment-body strong { font-weight: 700; }
+
+.post-body em,
+.comment-body em { font-style: italic; }
+
+.post-body ul,
+.comment-body ul {
+  margin-block: var(--space-2);
+  padding-inline-start: 1.4em;
+}
+
+.post-body li,
+.comment-body li { margin-block: 2px; }
 
 .post-actions {
   display: flex;
@@ -776,8 +840,25 @@ select:focus-visible {
 
 .reply-form textarea { min-block-size: 72px; resize: vertical; border-radius: var(--radius-2); }
 
-.owner-edit { margin-block: var(--space-2) 0; }
-.owner-edit textarea { min-block-size: 96px; resize: vertical; }
+/* Reuses .composer.panel's toolbar/textarea look, but sits inside a post
+   card's own padding rather than the dedicated /write page — so the panel's
+   own outer margin is cleared here. */
+.owner-edit.composer.panel { margin: 0; margin-block-end: var(--space-3); }
+.owner-edit textarea { min-block-size: 96px; max-block-size: 40vh; resize: vertical; }
+.owner-edit-actions { padding-block: var(--space-3); padding-inline: var(--space-4); }
+
+.swatch {
+  position: relative;
+  inline-size: 32px;
+  block-size: 32px;
+  flex: none;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line-strong);
+  transition: transform var(--motion), box-shadow var(--motion);
+}
+
+.swatch.active { box-shadow: 0 0 0 2px var(--foreground); transform: scale(1.08); }
 
 .notification {
   display: flex;
@@ -837,6 +918,7 @@ select:focus-visible {
   .mobile-link:hover { background: var(--surface-soft); color: var(--foreground); }
   .nav-link.active:hover { background: var(--accent-soft); color: var(--accent); }
   .icon-button:hover { background: var(--surface-soft); color: var(--foreground); }
+  .toolbar-button:hover { background: var(--surface-soft); color: var(--foreground); }
   .brand:hover .brand-mark { transform: scale(1.06); box-shadow: 0 0 0 1px var(--orb-ring), 0 10px 26px -10px var(--glow-strong); }
   .primary-button:hover { box-shadow: 0 14px 32px -12px var(--glow-strong); filter: saturate(1.06) brightness(1.06); }
   .secondary-button:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); background: var(--surface-soft); }

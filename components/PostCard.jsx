@@ -1,9 +1,11 @@
 'use client'
 import Link from 'next/link'
-import { Bookmark, Flag, Heart, MessageCircle, Pencil, Trash2 } from 'lucide-react'
+import { Bold, Bookmark, Flag, Heart, Italic, List, MessageCircle, Pencil, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Identity } from './Identity'
+import { renderRichText } from '@/lib/richText'
+import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
 
 export function PostCard({ post, initialEngagement = null, viewerCode = null, onChanged = null }) {
   const router = useRouter()
@@ -13,6 +15,17 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
   const [draft, setDraft] = useState(post.body)
   const [gone, setGone] = useState(false)
   const [ownerError, setOwnerError] = useState('')
+  const editRef = useRef(null)
+
+  function formatDraft(kind) {
+    const el = editRef.current
+    if (!el) return
+    const result = kind === 'list'
+      ? toggleListPrefix(draft, el.selectionStart, el.selectionEnd)
+      : toggleWrap(draft, el.selectionStart, el.selectionEnd, kind === 'bold' ? '**' : '*')
+    setDraft(result.value)
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(result.start, result.end) })
+  }
   // Public codes are unique, so matching the viewer's own code is enough to
   // decide what to *offer*. The server re-derives ownership from the session
   // before it writes anything.
@@ -78,14 +91,19 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
     <div className="post-top"><Identity code={post.authorCode} color={post.authorColor}/><time className="tiny subtle" dateTime={post.createdAt}>{time}</time></div>
 
     {editing
-      ? <div className="owner-edit">
-          <textarea className="form-control" value={draft} onChange={e => setDraft(e.target.value)} maxLength={3000} rows={5} aria-label="تعديل المنشور"/>
-          <div className="row wrap mt12">
+      ? <div className="owner-edit composer panel">
+          <div className="composer-toolbar" role="toolbar" aria-label="تنسيق النص">
+            <button type="button" className="toolbar-button" aria-label="عريض" title="عريض" onClick={() => formatDraft('bold')}><Bold size={16}/></button>
+            <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => formatDraft('italic')}><Italic size={16}/></button>
+            <button type="button" className="toolbar-button" aria-label="قائمة نقطية" title="قائمة نقطية" onClick={() => formatDraft('list')}><List size={16}/></button>
+          </div>
+          <textarea ref={editRef} value={draft} onChange={e => setDraft(e.target.value)} maxLength={3000} rows={5} aria-label="تعديل المنشور"/>
+          <div className="row wrap owner-edit-actions">
             <button className="primary-button" onClick={saveEdit} disabled={busy === 'edit' || !draft.trim()}>{busy === 'edit' ? 'جارِ الحفظ…' : 'حفظ'}</button>
             <button className="secondary-button" onClick={() => { setDraft(post.body); setEditing(false); setOwnerError('') }}>إلغاء</button>
           </div>
         </div>
-      : <Link href={`/post/${post.id}`}><p className="post-body">{post.body}</p></Link>}
+      : <Link href={`/post/${post.id}`}><div className="post-body">{renderRichText(post.body)}</div></Link>}
 
     {ownerError && <p className="status-message error mt12">{ownerError}</p>}
 

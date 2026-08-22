@@ -359,6 +359,24 @@ export async function POST(request, { params }) {
     return json({ ok: true })
   }
 
+  if (path.join('/') === 'auth/verify-signup-code') {
+    const email = String(body.email || '').trim()
+    const token = String(body.code || '').trim()
+    if (!email || !/^\d{6}$/.test(token)) return json({ error: 'أدخل كودًا صحيحًا من 6 أرقام' }, 400)
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' })
+    if (error) return json({ error: error.code === 'otp_expired' ? 'انتهت صلاحية الكود. اطلب كودًا جديدًا.' : 'الكود غير صحيح' }, 400)
+    return json({ ok: true })
+  }
+
+  if (path.join('/') === 'auth/resend-signup-code') {
+    const email = String(body.email || '').trim()
+    if (!email) return json({ error: 'البريد مطلوب' }, 400)
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    if (error && error.code === 'over_email_send_rate_limit') return json({ error: 'محاولات كثيرة. حاول بعد قليل.' }, 429)
+    if (error) console.error('[resend-signup-code]', error.code, error.message)
+    return json({ ok: true })
+  }
+
   if (path.join('/') === 'auth/logout') {
     await supabase.auth.signOut()
     return json({ ok: true })

@@ -4,6 +4,7 @@ import { CornerDownLeft, Flag, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { Identity } from './Identity'
+import { renderRichText } from '@/lib/richText'
 
 // Replies nest, but only so far. Past a few levels the indent eats the column
 // on a phone and the thread stops being readable, so deeper replies keep
@@ -74,7 +75,7 @@ function Comment({ node, depth, postId, viewerCode, onChanged }) {
         <Identity code={node.authorCode} color={node.authorColor}/>
         <time className="tiny subtle" dateTime={node.createdAt}>{time}</time>
       </div>
-      <p className="comment-body">{node.body}</p>
+      <div className="comment-body">{renderRichText(node.body)}</div>
 
       <div className="comment-actions">
         <button className="action-button" onClick={() => setReplying(v => !v)}>

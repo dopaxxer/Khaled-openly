@@ -1,7 +1,8 @@
 'use client'
-import { ArrowLeft, Send } from 'lucide-react'
+import { ArrowLeft, Bold, Italic, List, Send } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
+import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
 
 export function Composer({ firstPost = false }) {
   const router = useRouter()
@@ -17,6 +18,22 @@ export function Composer({ firstPost = false }) {
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
+  }
+
+  function format(kind) {
+    const el = textareaRef.current
+    if (!el) return
+    const result = kind === 'list'
+      ? toggleListPrefix(body, el.selectionStart, el.selectionEnd)
+      : toggleWrap(body, el.selectionStart, el.selectionEnd, kind === 'bold' ? '**' : '*')
+    setBody(result.value)
+    // The value only updates on the next render; the selection restore has
+    // to wait for that, and growing again keeps the box matching the new text.
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(result.start, result.end)
+      grow(el)
+    })
   }
 
   async function publish() {
@@ -50,6 +67,11 @@ export function Composer({ firstPost = false }) {
       <p className="page-description">سيظهر كلامك للجميع بهويتك الملوّنة. لا توجد مسودات خاصة هنا.</p>
     </header>
     <div className="composer panel">
+      <div className="composer-toolbar" role="toolbar" aria-label="تنسيق النص">
+        <button type="button" className="toolbar-button" aria-label="عريض" title="عريض" onClick={() => format('bold')}><Bold size={16}/></button>
+        <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => format('italic')}><Italic size={16}/></button>
+        <button type="button" className="toolbar-button" aria-label="قائمة نقطية" title="قائمة نقطية" onClick={() => format('list')}><List size={16}/></button>
+      </div>
       <textarea
         ref={textareaRef}
         autoFocus
