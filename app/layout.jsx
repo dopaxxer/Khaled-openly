@@ -1,5 +1,12 @@
 import './globals.css'
+import { Noto_Sans_Arabic } from 'next/font/google'
 import { AppShell } from '@/components/AppShell'
+
+const notoSansArabic = Noto_Sans_Arabic({
+  subsets: ['arabic'],
+  display: 'swap',
+  variable: '--font-arabic',
+})
 
 export const metadata = {
   title: 'Openly',
@@ -13,14 +20,14 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f7f7f8' },
-    { media: '(prefers-color-scheme: dark)', color: '#151515' }
+    { media: '(prefers-color-scheme: light)', color: '#fafaf8' },
+    { media: '(prefers-color-scheme: dark)', color: '#111210' }
   ]
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" className={notoSansArabic.variable}>
       <body><AppShell>{children}</AppShell></body>
     </html>
   )
