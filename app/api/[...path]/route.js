@@ -442,11 +442,12 @@ export async function POST(request, { params }) {
   if (path.join('/') === 'reports') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    if (body.targetType !== 'post' || !body.targetId || !reasons.has(body.reason)) return json({ error: 'بلاغ غير صالح' }, 400)
+    const targetType = body.targetType
+    if ((targetType !== 'post' && targetType !== 'comment') || !body.targetId || !reasons.has(body.reason)) return json({ error: 'بلاغ غير صالح' }, 400)
     const description = body.description ? String(body.description).slice(0, 1000) : null
     const { error } = await supabase.from('reports').insert({
       reporter_id: user.id,
-      target_type: 'post',
+      target_type: targetType,
       target_id: body.targetId,
       reason: body.reason,
       description
@@ -479,6 +480,44 @@ export async function PATCH(request, { params }) {
     const { data, error } = await supabase.rpc('moderate_report', { p_report_id: path[2], p_action: body.action })
     if (error) return json({ error: 'تعذر تنفيذ الإجراء' }, 400)
     return json({ ok: !!data })
+  }
+
+  if (path[0] === 'posts' && path[1] && path.length === 2) {
+    const user = await currentUser(supabase)
+    if (!user) return json({ error: 'غير مسجل' }, 401)
+    const text = String(body.body || '').trim()
+    if (!text || text.length > 3000) return json({ error: 'النص يجب أن يكون بين 1 و3000 حرف' }, 400)
+    // Ownership is re-derived from the session and applied as a filter, so a
+    // forged id simply matches no row rather than editing someone else's post.
+    const { data, error } = await supabase.from('posts').update({ body: text }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
+    if (error) return json({ error: 'تعذر تعديل المنشور' }, 400)
+    if (!data) return json({ error: 'المنشور غير موجود' }, 404)
+    return json({ ok: true })
+  }
+
+  return json({ error: 'المسار غير موجود' }, 404)
+}
+
+export async function DELETE(request, { params }) {
+  const { path, supabase } = await ctx(params)
+  const user = await currentUser(supabase)
+  if (!user) return json({ error: 'غير مسجل' }, 401)
+  const now = new Date().toISOString()
+
+  // Soft delete, matching how the feed and threads already filter: the row
+  // stays so replies and moderation history keep resolving.
+  if (path[0] === 'posts' && path[1] && path.length === 2) {
+    const { data, error } = await supabase.from('posts').update({ deleted_at: now }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
+    if (error) return json({ error: 'تعذر حذف المنشور' }, 400)
+    if (!data) return json({ error: 'المنشور غير موجود' }, 404)
+    return json({ ok: true })
+  }
+
+  if (path[0] === 'comments' && path[1] && path.length === 2) {
+    const { data, error } = await supabase.from('comments').update({ deleted_at: now }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
+    if (error) return json({ error: 'تعذر حذف التعليق' }, 400)
+    if (!data) return json({ error: 'التعليق غير موجود' }, 404)
+    return json({ ok: true })
   }
 
   return json({ error: 'المسار غير موجود' }, 404)

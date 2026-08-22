@@ -56,8 +56,11 @@
   --sidebar-width: 236px;
 }
 
+/* Dark is defined once and applied twice: by the device setting unless an
+   explicit light choice overrides it, and by an explicit dark choice. Keeping
+   the two selectors on one block means the palette can never drift apart. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --background: #05070f;
     --surface: #080b16;
@@ -86,6 +89,36 @@
     --orb-paper: #070a14;
     --orb-ring: rgba(140, 165, 255, 0.3);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #05070f;
+  --surface: #080b16;
+  --surface-soft: #111629;
+  --surface-hover: #151b31;
+  --foreground: #eef1f8;
+  --muted: #98a1bd;
+  --subtle: #6d7595;
+  --line: #1a2038;
+  --line-strong: #29304c;
+  --accent: #6d8bff;
+  --accent-strong: #8ba3ff;
+  --accent-soft: #101a3d;
+  --accent-foreground: #050a1e;
+  --danger: #ff9d90;
+  --danger-soft: #2a1614;
+  --success: #6fd3a6;
+  --success-soft: #0d2620;
+  --focus: #8ba3ff;
+
+  --nebula-1: rgba(64, 96, 255, 0.17);
+  --nebula-2: rgba(40, 60, 190, 0.12);
+  --glow: rgba(80, 110, 255, 0.22);
+  --glow-strong: rgba(109, 139, 255, 0.42);
+
+  --orb-paper: #070a14;
+  --orb-ring: rgba(140, 165, 255, 0.3);
 }
 
 * { box-sizing: border-box; }
@@ -711,6 +744,38 @@ select:focus-visible {
   padding-block: var(--space-3);
 }
 
+/* Nested replies step in from the reading edge only — never both edges, so
+   the indent reads as depth instead of shrinking the whole column. */
+.comment-branch {
+  border-inline-start: 2px solid var(--line);
+  margin-inline-start: clamp(var(--space-3), 3vw, var(--space-5));
+}
+
+.comment-branch .comment { padding-inline-start: clamp(var(--space-3), 3vw, var(--space-5)); }
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-block-start: var(--space-3);
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.reply-form {
+  margin-block-start: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--surface-soft);
+}
+
+.reply-form textarea { min-block-size: 72px; resize: vertical; border-radius: var(--radius-2); }
+
+.owner-edit { margin-block: var(--space-2) 0; }
+.owner-edit textarea { min-block-size: 96px; resize: vertical; }
+
 .notification {
   display: flex;
   align-items: flex-start;
@@ -776,6 +841,7 @@ select:focus-visible {
   .identity-chip:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); background: var(--surface-soft); }
   .post-card:hover { background: var(--surface-hover); }
   .action-button:hover { color: var(--accent); }
+  .action-button.danger-action:hover { color: var(--danger); }
   .notification:hover { background: var(--surface-hover); }
 }
 

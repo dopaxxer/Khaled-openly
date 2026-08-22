@@ -1,14 +1,22 @@
 'use client'
 import Link from 'next/link'
-import { Bookmark, Flag, Heart, MessageCircle } from 'lucide-react'
+import { Bookmark, Flag, Heart, MessageCircle, Pencil, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Identity } from './Identity'
 
-export function PostCard({ post, initialEngagement = null }) {
+export function PostCard({ post, initialEngagement = null, viewerCode = null, onChanged = null }) {
   const router = useRouter()
   const [eng, setEng] = useState(initialEngagement || { likeCount: post.likeCount || 0, viewerHasLiked: false, viewerHasBookmarked: false })
   const [busy, setBusy] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(post.body)
+  const [gone, setGone] = useState(false)
+  const [ownerError, setOwnerError] = useState('')
+  // Public codes are unique, so matching the viewer's own code is enough to
+  // decide what to *offer*. The server re-derives ownership from the session
+  // before it writes anything.
+  const isOwner = !!viewerCode && post.authorCode === viewerCode
 
   useEffect(() => {
     if (initialEngagement) return
@@ -35,15 +43,62 @@ export function PostCard({ post, initialEngagement = null }) {
     } catch { setEng(previous) } finally { setBusy('') }
   }
 
+  async function saveEdit() {
+    const text = draft.trim()
+    if (!text || busy) return
+    setBusy('edit')
+    setOwnerError('')
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: text }) })
+      if (res.status === 401) { router.push('/login'); return }
+      if (!res.ok) throw new Error((await res.json()).error || 'تعذر التعديل')
+      post.body = text
+      setEditing(false)
+      onChanged?.()
+    } catch (e) { setOwnerError(e.message) } finally { setBusy('') }
+  }
+
+  async function remove() {
+    if (busy || !confirm('حذف هذا المنشور؟ لا يمكن التراجع.')) return
+    setBusy('delete')
+    setOwnerError('')
+    try {
+      const res = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' })
+      if (res.status === 401) { router.push('/login'); return }
+      if (!res.ok) throw new Error((await res.json()).error || 'تعذر الحذف')
+      setGone(true)
+      onChanged?.()
+    } catch (e) { setOwnerError(e.message); setBusy('') }
+  }
+
+  if (gone) return null
+
   const time = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.createdAt))
   return <article className="post-card">
     <div className="post-top"><Identity code={post.authorCode} color={post.authorColor}/><time className="tiny subtle" dateTime={post.createdAt}>{time}</time></div>
-    <Link href={`/post/${post.id}`}><p className="post-body">{post.body}</p></Link>
+
+    {editing
+      ? <div className="owner-edit">
+          <textarea className="form-control" value={draft} onChange={e => setDraft(e.target.value)} maxLength={3000} rows={5} aria-label="تعديل المنشور"/>
+          <div className="row wrap mt12">
+            <button className="primary-button" onClick={saveEdit} disabled={busy === 'edit' || !draft.trim()}>{busy === 'edit' ? 'جارِ الحفظ…' : 'حفظ'}</button>
+            <button className="secondary-button" onClick={() => { setDraft(post.body); setEditing(false); setOwnerError('') }}>إلغاء</button>
+          </div>
+        </div>
+      : <Link href={`/post/${post.id}`}><p className="post-body">{post.body}</p></Link>}
+
+    {ownerError && <p className="status-message error mt12">{ownerError}</p>}
+
     <div className="post-actions">
       <Link href={`/post/${post.id}`} className="action-button"><MessageCircle size={16} strokeWidth={1.7}/><span>{post.commentCount ? `${post.commentCount} تعليق` : 'تعليق'}</span></Link>
       <button className={`action-button like${eng.viewerHasLiked ? ' active' : ''}`} onClick={() => toggle('like', !eng.viewerHasLiked)} disabled={busy === 'like'} aria-pressed={eng.viewerHasLiked}><Heart size={16} strokeWidth={1.7} fill={eng.viewerHasLiked ? 'currentColor' : 'none'}/><span>{eng.likeCount || 'إعجاب'}</span></button>
       <button className={`action-button bookmark${eng.viewerHasBookmarked ? ' active' : ''}`} onClick={() => toggle('bookmark', !eng.viewerHasBookmarked)} disabled={busy === 'bookmark'} aria-pressed={eng.viewerHasBookmarked}><Bookmark size={16} strokeWidth={1.7} fill={eng.viewerHasBookmarked ? 'currentColor' : 'none'}/><span>{eng.viewerHasBookmarked ? 'محفوظ' : 'حفظ'}</span></button>
-      <Link href={`/report/post/${post.id}`} className="action-button"><Flag size={16} strokeWidth={1.7}/><span>إبلاغ</span></Link>
+      {isOwner
+        ? <>
+            <button className="action-button" onClick={() => setEditing(true)} disabled={editing}><Pencil size={16} strokeWidth={1.7}/><span>تعديل</span></button>
+            <button className="action-button danger-action" onClick={remove} disabled={busy === 'delete'}><Trash2 size={16} strokeWidth={1.7}/><span>{busy === 'delete' ? 'جارِ الحذف…' : 'حذف'}</span></button>
+          </>
+        : <Link href={`/report/post/${post.id}`} className="action-button"><Flag size={16} strokeWidth={1.7}/><span>إبلاغ</span></Link>}
     </div>
   </article>
 }

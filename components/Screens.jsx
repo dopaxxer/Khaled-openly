@@ -18,9 +18,11 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { CommentThread } from './CommentThread'
 import { Composer } from './Composer'
 import { Identity } from './Identity'
 import { PostCard } from './PostCard'
+import { ThemeControl } from './Settings'
 import { Timeline } from './Timeline'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -71,7 +73,8 @@ export function ScreenRouter({ slug }) {
   if (key === 'admin/reports') return <AdminReportsScreen />
   if (slug[0] === 'u' && slug[1]) return <UserScreen code={slug[1]} />
   if (slug[0] === 'post' && slug[1]) return <PostScreen id={slug[1]} />
-  if (slug[0] === 'report' && slug[1] === 'post' && slug[2]) return <ReportScreen id={slug[2]} />
+  if (slug[0] === 'report' && slug[1] === 'post' && slug[2]) return <ReportScreen targetType="post" id={slug[2]} />
+  if (slug[0] === 'report' && slug[1] === 'comment' && slug[2]) return <ReportScreen targetType="comment" id={slug[2]} />
   return <NotFound />
 }
 
@@ -502,6 +505,10 @@ function SettingsScreen() {
         <p className="small muted mt8">يمكنك تغيير كلمة المرور للحساب الحالي في أي وقت.</p>
         <Link href="/auth/update-password" className="secondary-button mt16"><KeyRound size={16} />تغيير كلمة المرور</Link>
       </div>
+
+      <div className="panel" style={{ padding: 20 }}>
+        <ThemeControl />
+      </div>
     </div>
   </>
 }
@@ -554,7 +561,9 @@ function UserScreen({ code }) {
       </div>}
     </section>
     <div className="section-title">الكتابات</div>
-    {posts.length ? posts.map(p => <PostCard key={p.id} post={p} />) : <div className="empty-state"><p>لا توجد منشورات.</p></div>}
+    {posts.length
+      ? posts.map(p => <PostCard key={p.id} post={p} viewerCode={user.isSelf ? user.publicCode : null} />)
+      : <div className="empty-state"><p>لا توجد منشورات.</p></div>}
   </>
 }
 
@@ -563,6 +572,7 @@ function PostScreen({ id }) {
   const [comments, setComments] = useState([])
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
+  const [viewerCode, setViewerCode] = useState(null)
 
   async function load() {
     const r = await fetch(`/api/posts/${id}`, { cache: 'no-store' })
@@ -576,6 +586,13 @@ function PostScreen({ id }) {
   }
 
   useEffect(() => { load() }, [id])
+
+  useEffect(() => {
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : { user: null })
+      .then(d => setViewerCode(d.user?.publicCode || null))
+      .catch(() => {})
+  }, [])
 
   async function comment(e) {
     e.preventDefault()
@@ -601,15 +618,13 @@ function PostScreen({ id }) {
   if (!post) return <NotFound />
 
   return <>
-    <PostCard post={post} />
+    <PostCard post={post} viewerCode={viewerCode} onChanged={load} />
     <form className="comment-form" onSubmit={comment}>
       <textarea className="form-control" maxLength={2000} value={body} onChange={e => setBody(e.target.value)} placeholder="اكتب تعليقًا…" />
       <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / 2000</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
     </form>
     <div className="section-title">التعليقات</div>
-    {comments.length
-      ? comments.map(c => <article className="comment" key={c.id}><div className="row between"><Identity code={c.authorCode} color={c.authorColor} /><time className="tiny subtle">{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(c.createdAt))}</time></div><p className="comment-body">{c.body}</p></article>)
-      : <div className="empty-state"><p>لا توجد تعليقات بعد.</p></div>}
+    <CommentThread comments={comments} postId={id} viewerCode={viewerCode} onChanged={load} />
   </>
 }
 
@@ -692,7 +707,7 @@ function PrivacyScreen() {
   </>
 }
 
-function ReportScreen({ id }) {
+function ReportScreen({ targetType, id }) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -705,7 +720,7 @@ function ReportScreen({ id }) {
     const r = await fetch('/api/reports', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetType: 'post', targetId: id, reason: f.get('reason'), description: f.get('description') || null })
+      body: JSON.stringify({ targetType, targetId: id, reason: f.get('reason'), description: f.get('description') || null })
     })
     if (r.status === 401) {
       router.push('/login')
@@ -718,7 +733,7 @@ function ReportScreen({ id }) {
 
   return <>
     <header className="page-header">
-      <div className="page-title-row"><Flag size={20} /><h1 className="page-title">إبلاغ عن منشور</h1></div>
+      <div className="page-title-row"><Flag size={20} /><h1 className="page-title">{targetType === 'comment' ? 'إبلاغ عن تعليق' : 'إبلاغ عن منشور'}</h1></div>
       <p className="page-description">البلاغات خاصة ويطّلع عليها فريق الإشراف فقط.</p>
     </header>
     <form className="screen-pad stack" onSubmit={submit}>

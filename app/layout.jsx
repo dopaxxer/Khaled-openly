@@ -1,6 +1,7 @@
 import './globals.css'
 import './ios-polish.css'
 import { AppShell } from '@/components/AppShell'
+import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 
 export const metadata = {
   title: 'Openly',
@@ -21,7 +22,8 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}/></head>
       <body><AppShell>{children}</AppShell></body>
     </html>
   )

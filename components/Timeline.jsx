@@ -21,6 +21,7 @@ export function Timeline({ endpoint = '/api/posts', empty = 'لا توجد من�
   const [loading, setLoading] = useState(true)
   const [moreLoading, setMoreLoading] = useState(false)
   const [error, setError] = useState('')
+  const [viewerCode, setViewerCode] = useState(null)
 
   async function load(next = null) {
     next ? setMoreLoading(true) : setLoading(true)
@@ -51,12 +52,21 @@ export function Timeline({ endpoint = '/api/posts', empty = 'لا توجد من�
 
   useEffect(() => { load() }, [endpoint])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/auth/me', { cache: 'no-store', signal: controller.signal })
+      .then(r => r.ok ? r.json() : { user: null })
+      .then(d => setViewerCode(d.user?.publicCode || null))
+      .catch(() => {})
+    return () => controller.abort()
+  }, [])
+
   if (loading) return <FeedSkeleton />
   if (error && !posts.length) return <div className="empty-state"><div><p>{error}</p><button className="secondary-button mt16" onClick={() => load()}><RotateCcw size={16} aria-hidden="true"/>المحاولة مجددًا</button></div></div>
   if (!posts.length) return <div className="empty-state"><div><p>{empty}</p></div></div>
 
   return <div aria-live="polite">
-    {posts.map(post => <PostCard key={post.id} post={post} initialEngagement={engagement[post.id] || null}/>)}
+    {posts.map(post => <PostCard key={post.id} post={post} initialEngagement={engagement[post.id] || null} viewerCode={viewerCode} onChanged={() => load()}/>)}
     <div className="feed-footer">
       {cursor
         ? <button className="secondary-button" disabled={moreLoading} onClick={() => load(cursor)}>{moreLoading ? 'جارِ التحميل…' : 'عرض المزيد'}</button>

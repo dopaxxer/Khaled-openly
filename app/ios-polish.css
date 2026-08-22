@@ -6,11 +6,17 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --foreground: #f0f2f9;
     --muted: #9ba4c0;
     --subtle: #707898;
   }
+}
+
+:root[data-theme="dark"] {
+  --foreground: #f0f2f9;
+  --muted: #9ba4c0;
+  --subtle: #707898;
 }
 
 html {
