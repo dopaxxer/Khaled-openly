@@ -1,0 +1,1 @@
+This iOS package was generated from the Openly Next.js project snapshot on branch claude/website-design-modernize-lkp0ts. The bundled SourceSnapshot resources are included for project portability/reference. Runtime server features (Next.js API routes, authentication and Supabase operations) remain hosted services and are accessed over HTTPS by the iOS app.
