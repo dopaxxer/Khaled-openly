@@ -1,56 +1,794 @@
 'use client'
+
 import Link from 'next/link'
-import { Bell, Bookmark, CircleCheck, Flag, LogIn, Search, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
+import {
+  Bell,
+  Bookmark,
+  CircleCheck,
+  Flag,
+  KeyRound,
+  LogIn,
+  Save,
+  Search,
+  Settings,
+  ShieldCheck,
+  Shuffle,
+  Sparkles,
+  UserRound
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Composer } from './Composer'
 import { Identity } from './Identity'
 import { PostCard } from './PostCard'
 import { Timeline } from './Timeline'
 
-export function HomeScreen(){return <><header className="page-header"><h1 className="page-title">المساحة العامة</h1><p className="page-description">الأحدث أولًا. بلا خوارزمية ترتيب.</p></header><Timeline/></>}
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+const IDENTITY_PALETTE = [
+  '#D9484F', '#E85D75', '#F47B5D', '#E8A33F', '#C9A227',
+  '#8AA64B', '#4F9D69', '#3E9B8E', '#3D8BB5', '#4A6FA5',
+  '#6B5B95', '#8D6E63', '#A07E5C', '#9B6A6A', '#B8336A',
+  '#2F4858', '#1B998B', '#5C7AEA', '#7B6EAA', '#D6A2E8'
+]
 
-export function ScreenRouter({slug}){
-  const key=slug.join('/')
-  if(key==='login') return <AuthScreen mode="login"/>
-  if(key==='register') return <AuthScreen mode="register"/>
-  if(key==='write') return <Composer/>
-  if(key==='first-post') return <Composer firstPost/>
-  if(key==='search') return <SearchScreen/>
-  if(key==='me') return <MeScreen/>
-  if(key==='notifications') return <NotificationsScreen/>
-  if(key==='bookmarks') return <BookmarksScreen/>
-  if(key==='privacy') return <PrivacyScreen/>
-  if(key==='admin/reports') return <AdminReportsScreen/>
-  if(slug[0]==='u'&&slug[1]) return <UserScreen code={slug[1]}/>
-  if(slug[0]==='post'&&slug[1]) return <PostScreen id={slug[1]}/>
-  if(slug[0]==='report'&&slug[1]==='post'&&slug[2]) return <ReportScreen id={slug[2]}/>
-  return <NotFound/>
+function normalizeCode(value) {
+  return String(value || '')
+    .toUpperCase()
+    .split('')
+    .filter(char => CODE_ALPHABET.includes(char))
+    .join('')
+    .slice(0, 8)
 }
 
-function AuthScreen({mode}){
-  const router=useRouter(); const login=mode==='login'; const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const [confirm,setConfirm]=useState(false)
-  async function submit(e){e.preventDefault();setError('');setBusy(true);const fd=new FormData(e.currentTarget);try{const res=await fetch(`/api/auth/${login?'login':'register'}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:fd.get('email'),password:fd.get('password')})});const data=await res.json();if(!res.ok)throw new Error(data.error||'تعذر إكمال العملية');if(data.requiresEmailConfirmation){setConfirm(true);return}router.push(login?'/':'/first-post');router.refresh()}catch(e){setError(e.message)}finally{setBusy(false)}}
-  if(confirm)return <div className="auth-wrap center"><div className="panel" style={{padding:28}}><CircleCheck size={38} className=""/><h1 className="auth-title mt16">تحقق من بريدك</h1><p className="auth-sub">أرسلنا رابط تأكيد إلى بريدك. بعد التأكيد، ارجع وسجّل الدخول.</p><Link href="/login" className="primary-button full mt20">الذهاب إلى الدخول</Link></div></div>
-  return <div className="auth-wrap"><div className="auth-head"><div className="auth-icon">{login?<LogIn size={21}/>:<Sparkles size={21}/>}</div><h1 className="auth-title">{login?'مرحبًا بعودتك':'أنشئ هويتك'}</h1><p className="auth-sub">{login?'ادخل إلى هويتك وكلماتك.':'سنمنحك كودًا ولونًا ثابتين؛ لا اسم عرض ولا صورة شخصية.'}</p></div><form className="panel auth-form" onSubmit={submit}><label className="label">البريد الإلكتروني<input className="form-control" type="email" name="email" autoComplete="email" required dir="ltr" placeholder="name@example.com"/></label><label className="label">كلمة المرور<input className="form-control" type="password" name="password" autoComplete={login?'current-password':'new-password'} minLength={login?undefined:8} maxLength={128} required dir="ltr" placeholder="••••••••"/></label>{error&&<p className="status-message error">{error}</p>}<button className="primary-button full" disabled={busy}>{busy?'جارِ التنفيذ…':login?'تسجيل الدخول':'إنشاء الحساب'}</button></form><p className="center muted small mt20">{login?'ليس لديك حساب؟ ':'لديك حساب؟ '}<Link href={login?'/register':'/login'} style={{textDecoration:'underline'}}>{login?'أنشئ هويتك':'تسجيل الدخول'}</Link></p></div>
+function randomCode(length = 4) {
+  return Array.from({ length }, () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join('')
 }
 
-function SearchScreen(){const[q,setQ]=useState('');const[posts,setPosts]=useState([]);const[users,setUsers]=useState([]);const[busy,setBusy]=useState(false);const[done,setDone]=useState(false);async function run(e){e?.preventDefault();if(!q.trim())return;setBusy(true);try{const r=await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`,{cache:'no-store'});const d=await r.json();setPosts(d.posts||[]);setUsers(d.users||[]);setDone(true)}finally{setBusy(false)}}return <><header className="page-header"><div className="page-title-row"><Search size={20}/><h1 className="page-title">بحث</h1></div><p className="page-description">ابحث عن كلمات عامة أو كود هوية.</p></header><form className="search-box row" onSubmit={run}><input className="form-control" value={q} onChange={e=>setQ(e.target.value)} maxLength={120} placeholder="ابحث…"/><button className="primary-button" disabled={busy||!q.trim()}>{busy?'…':'بحث'}</button></form>{users.length>0&&<><div className="section-title">الهويات</div>{users.map(u=><div className="list-row" key={u.publicCode}><Identity code={u.publicCode} color={u.identityColor}/><Link className="small muted" href={`/u/${u.publicCode}`}>عرض</Link></div>)}</>}{posts.length>0&&<><div className="section-title">المنشورات</div>{posts.map(p=><PostCard key={p.id} post={p}/>)}</>}{done&&!users.length&&!posts.length&&<div className="empty-state"><p>لا توجد نتائج.</p></div>}</>}
+export function HomeScreen() {
+  return <>
+    <header className="page-header">
+      <h1 className="page-title">المساحة العامة</h1>
+      <p className="page-description">الأحدث أولًا. بلا خوارزمية ترتيب.</p>
+    </header>
+    <Timeline />
+  </>
+}
 
-function MeScreen(){const router=useRouter();const[user,setUser]=useState(undefined);const[count,setCount]=useState(null);const[following,setFollowing]=useState([]);useEffect(()=>{(async()=>{const m=await fetch('/api/auth/me',{cache:'no-store'});const md=m.ok?await m.json():{user:null};setUser(md.user||null);if(md.user){const[a,b]=await Promise.all([fetch('/api/me/followers-count',{cache:'no-store'}),fetch('/api/me/following',{cache:'no-store'})]);if(a.ok)setCount((await a.json()).count);if(b.ok)setFollowing((await b.json()).items||[])}})()},[]);async function logout(){await fetch('/api/auth/logout',{method:'POST'});router.push('/');router.refresh()}if(user===undefined)return <div className="screen-pad"><div className="skeleton"/></div>;if(user===null)return <div className="empty-state"><div><p>سجّل الدخول لرؤية حسابك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div></div>;return <><header className="page-header"><h1 className="page-title">حسابي</h1><p className="page-description">هويتك الخاصة وإعدادات علاقاتك العامة.</p></header><section className="profile-hero"><Identity code={user.publicCode} color={user.identityColor} large/><div className="stat-grid"><div className="panel stat"><span className="small muted">الأشخاص المهتمون بما تكتب</span><strong>{count??'—'}</strong></div><div className="panel stat"><span className="small muted">خاص بك فقط</span><p className="small mt12">لا نعرض عدد متابَعاتك للآخرين.</p></div></div><div className="row wrap mt20"><Link href={`/u/${user.publicCode}`} className="secondary-button">صفحة كتاباتي</Link><Link href="/bookmarks" className="secondary-button"><Bookmark size={15}/>المحفوظات</Link><Link href="/privacy" className="secondary-button">الخصوصية</Link><button onClick={logout} className="danger-button">تسجيل الخروج</button></div></section><div className="section-title">الأكواد التي أتابعها</div>{following.length?following.map(x=><div key={x.publicCode} className="list-row"><Identity code={x.publicCode} color={x.identityColor}/><Link href={`/u/${x.publicCode}`} className="small muted">عرض</Link></div>):<div className="empty-state"><p>لم تتابع أي كود بعد.</p></div>}</>}
+export function ScreenRouter({ slug }) {
+  const key = slug.join('/')
+  if (key === 'login') return <AuthScreen mode="login" />
+  if (key === 'register') return <AuthScreen mode="register" />
+  if (key === 'forgot-password') return <ForgotPasswordScreen />
+  if (key === 'auth/update-password') return <UpdatePasswordScreen />
+  if (key === 'write') return <Composer />
+  if (key === 'first-post') return <Composer firstPost />
+  if (key === 'search') return <SearchScreen />
+  if (key === 'me') return <MeScreen />
+  if (key === 'settings') return <SettingsScreen />
+  if (key === 'notifications') return <NotificationsScreen />
+  if (key === 'bookmarks') return <BookmarksScreen />
+  if (key === 'privacy') return <PrivacyScreen />
+  if (key === 'admin/reports') return <AdminReportsScreen />
+  if (slug[0] === 'u' && slug[1]) return <UserScreen code={slug[1]} />
+  if (slug[0] === 'post' && slug[1]) return <PostScreen id={slug[1]} />
+  if (slug[0] === 'report' && slug[1] === 'post' && slug[2]) return <ReportScreen id={slug[2]} />
+  return <NotFound />
+}
 
-function UserScreen({code}){const[user,setUser]=useState(undefined);const[posts,setPosts]=useState([]);const[busy,setBusy]=useState('');useEffect(()=>{(async()=>{const [u,p]=await Promise.all([fetch(`/api/users/${encodeURIComponent(code)}`,{cache:'no-store'}),fetch(`/api/posts?author=${encodeURIComponent(code)}`,{cache:'no-store'})]);setUser(u.ok?(await u.json()).user:null);if(p.ok)setPosts((await p.json()).items||[])})()},[code]);async function relation(kind,enabled){if(busy)return;setBusy(kind);const r=await fetch(`/api/users/${code}/relation`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,enabled})});if(r.status===401){location.href='/login';return}if(r.ok)setUser(u=>({...u,[kind==='follow'?'viewerIsFollowing':kind==='mute'?'viewerHasMuted':'viewerHasBlocked']:enabled}));setBusy('')}if(user===undefined)return <div className="screen-pad"><div className="skeleton"/></div>;if(!user)return <NotFound/>;return <><section className="profile-hero"><Identity code={user.publicCode} color={user.identityColor} large/>{user.status&&<p className="profile-status">{user.status}</p>}{user.bio&&<p className="profile-bio">{user.bio}</p>}<p className="profile-meta">انضم في {new Intl.DateTimeFormat('ar',{dateStyle:'medium'}).format(new Date(user.createdAt))}</p>{!user.isSelf&&<div className="row wrap mt20"><button className="primary-button" disabled={busy==='follow'} onClick={()=>relation('follow',!user.viewerIsFollowing)}>{user.viewerIsFollowing?'إلغاء المتابعة':'متابعة'}</button><button className="secondary-button" disabled={busy==='mute'} onClick={()=>relation('mute',!user.viewerHasMuted)}>{user.viewerHasMuted?'إلغاء الكتم':'كتم'}</button><button className="danger-button" disabled={busy==='block'} onClick={()=>relation('block',!user.viewerHasBlocked)}>{user.viewerHasBlocked?'إلغاء الحظر':'حظر'}</button></div>}</section><div className="section-title">الكتابات</div>{posts.length?posts.map(p=><PostCard key={p.id} post={p}/>):<div className="empty-state"><p>لا توجد منشورات.</p></div>}</>}
+function AuthScreen({ mode }) {
+  const router = useRouter()
+  const login = mode === 'login'
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [confirm, setConfirm] = useState(false)
 
-function PostScreen({id}){const[post,setPost]=useState(undefined);const[comments,setComments]=useState([]);const[body,setBody]=useState('');const[busy,setBusy]=useState(false);async function load(){const r=await fetch(`/api/posts/${id}`,{cache:'no-store'});if(!r.ok){setPost(null);return}const d=await r.json();setPost(d.post);setComments(d.comments||[])}useEffect(()=>{load()},[id]);async function comment(e){e.preventDefault();if(!body.trim())return;setBusy(true);const r=await fetch(`/api/posts/${id}/comments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({body})});if(r.status===401){location.href='/login';return}if(r.ok){setBody('');await load()}setBusy(false)}if(post===undefined)return <div className="screen-pad"><div className="skeleton"/></div>;if(!post)return <NotFound/>;return <><PostCard post={post}/><form className="comment-form" onSubmit={comment}><textarea className="form-control" maxLength={2000} value={body} onChange={e=>setBody(e.target.value)} placeholder="اكتب تعليقًا…"/><div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / 2000</span><button className="primary-button" disabled={busy||!body.trim()}>{busy?'جارِ الإرسال…':'تعليق'}</button></div></form><div className="section-title">التعليقات</div>{comments.length?comments.map(c=><article className="comment" key={c.id}><div className="row between"><Identity code={c.authorCode} color={c.authorColor}/><time className="tiny subtle">{new Intl.DateTimeFormat('ar',{dateStyle:'medium',timeStyle:'short'}).format(new Date(c.createdAt))}</time></div><p className="comment-body">{c.body}</p></article>):<div className="empty-state"><p>لا توجد تعليقات بعد.</p></div>}</>}
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    setBusy(true)
+    const fd = new FormData(e.currentTarget)
+    try {
+      const res = await fetch(`/api/auth/${login ? 'login' : 'register'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'تعذر إكمال العملية')
+      if (data.requiresEmailConfirmation) {
+        setConfirm(true)
+        return
+      }
+      router.push(login ? '/' : '/first-post')
+      router.refresh()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
-function NotificationsScreen(){const[items,setItems]=useState(undefined);async function load(){const r=await fetch('/api/notifications',{cache:'no-store'});if(r.status===401){setItems(null);return}const d=await r.json();setItems(d.items||[]);if((d.items||[]).some(x=>!x.readAt))await fetch('/api/notifications',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:(d.items||[]).filter(x=>!x.readAt).map(x=>x.id)})})}useEffect(()=>{load()},[]);if(items===undefined)return <div className="screen-pad"><div className="skeleton"/></div>;if(items===null)return <div className="empty-state"><Link href="/login" className="primary-button">تسجيل الدخول</Link></div>;return <><header className="page-header"><div className="page-title-row"><Bell size={20}/><h1 className="page-title">الإشعارات</h1></div><p className="page-description">التفاعلات والردود المرتبطة بك.</p></header>{items.length?items.map(n=><Link href={`/post/${n.postId}`} className={`notification${n.readAt?'':' unread'}`} key={n.id}><span className="notification-icon">{n.kind==='like'?'♥':'↩'}</span><div className="notification-main"><p><Identity code={n.actorCode} color={n.actorColor}/> {n.kind==='like'?'أعجب بمنشورك':'رد على منشورك'}</p><time>{new Intl.DateTimeFormat('ar',{dateStyle:'medium',timeStyle:'short'}).format(new Date(n.createdAt))}</time></div></Link>):<div className="empty-state"><p>لا توجد إشعارات.</p></div>}</>}
+  if (confirm) {
+    return <div className="auth-wrap center">
+      <div className="panel" style={{ padding: 28 }}>
+        <CircleCheck size={38} />
+        <h1 className="auth-title mt16">تحقق من بريدك</h1>
+        <p className="auth-sub">أرسلنا رابط تأكيد إلى بريدك. بعد التأكيد ستعود إلى Openly لإكمال حسابك.</p>
+        <Link href="/login" className="primary-button full mt20">الذهاب إلى الدخول</Link>
+      </div>
+    </div>
+  }
 
-function BookmarksScreen(){return <><header className="page-header"><div className="page-title-row"><Bookmark size={20}/><h1 className="page-title">المحفوظات</h1></div><p className="page-description">منشورات محفوظة لك فقط.</p></header><Timeline endpoint="/api/bookmarks" empty="لا توجد منشورات محفوظة."/></>}
+  return <div className="auth-wrap">
+    <div className="auth-head">
+      <div className="auth-icon">{login ? <LogIn size={21} /> : <Sparkles size={21} />}</div>
+      <h1 className="auth-title">{login ? 'مرحبًا بعودتك' : 'أنشئ هويتك'}</h1>
+      <p className="auth-sub">{login ? 'ادخل إلى هويتك وكلماتك.' : 'سنمنحك كودًا ولونًا ثابتين؛ لا اسم عرض ولا صورة شخصية.'}</p>
+    </div>
+    <form className="panel auth-form" onSubmit={submit}>
+      <label className="label">
+        البريد الإلكتروني
+        <input className="form-control" type="email" name="email" autoComplete="email" required dir="ltr" placeholder="name@example.com" />
+      </label>
+      <label className="label">
+        كلمة المرور
+        <input className="form-control" type="password" name="password" autoComplete={login ? 'current-password' : 'new-password'} minLength={login ? undefined : 8} maxLength={128} required dir="ltr" placeholder="••••••••" />
+      </label>
+      {error && <p className="status-message error">{error}</p>}
+      <button className="primary-button full" disabled={busy}>{busy ? 'جارِ التنفيذ…' : login ? 'تسجيل الدخول' : 'إنشاء الحساب'}</button>
+      {login && <Link href="/forgot-password" className="center small muted" style={{ textDecoration: 'underline' }}>نسيت كلمة المرور؟</Link>}
+    </form>
+    <p className="center muted small mt20">
+      {login ? 'ليس لديك حساب؟ ' : 'لديك حساب؟ '}
+      <Link href={login ? '/register' : '/login'} style={{ textDecoration: 'underline' }}>{login ? 'أنشئ هويتك' : 'تسجيل الدخول'}</Link>
+    </p>
+  </div>
+}
 
-function PrivacyScreen(){const[items,setItems]=useState(undefined);async function load(){const r=await fetch('/api/privacy',{cache:'no-store'});setItems(r.ok?(await r.json()).items:null)}useEffect(()=>{load()},[]);async function undo(kind,code){await fetch(`/api/users/${code}/relation`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,enabled:false})});await load()}if(items===undefined)return <div className="screen-pad"><div className="skeleton"/></div>;if(items===null)return <div className="empty-state"><Link href="/login" className="primary-button">تسجيل الدخول</Link></div>;return <><header className="page-header"><h1 className="page-title">الخصوصية</h1><p className="page-description">إدارة الحسابات المكتومة والمحظورة.</p></header>{items.length?items.map((x,i)=><div className="list-row" key={`${x.kind}-${x.publicCode}-${i}`}><div><Identity code={x.publicCode} color={x.identityColor}/><div className="tiny muted mt8">{x.kind==='mute'?'مكتوم':'محظور'}</div></div><button className="secondary-button" onClick={()=>undo(x.kind==='mute'?'mute':'block',x.publicCode)}>إلغاء</button></div>):<div className="empty-state"><p>لا توجد علاقات خصوصية حاليًا.</p></div>}</>}
+function ForgotPasswordScreen() {
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState('')
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
 
-function ReportScreen({id}){const router=useRouter();const[error,setError]=useState('');const[busy,setBusy]=useState(false);async function submit(e){e.preventDefault();setBusy(true);setError('');const f=new FormData(e.currentTarget);const r=await fetch('/api/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({targetType:'post',targetId:id,reason:f.get('reason'),description:f.get('description')||null})});if(r.status===401){router.push('/login');return}if(r.ok)router.back();else setError('تعذر إرسال البلاغ.');setBusy(false)}return <><header className="page-header"><div className="page-title-row"><Flag size={20}/><h1 className="page-title">إبلاغ عن منشور</h1></div><p className="page-description">البلاغات خاصة ويطّلع عليها فريق الإشراف فقط.</p></header><form className="screen-pad stack" onSubmit={submit}><label className="label">السبب<select name="reason" className="form-control" defaultValue="spam"><option value="spam">محتوى مزعج أو مكرر</option><option value="harassment">مضايقة</option><option value="hate">خطاب كراهية</option><option value="threat">تهديد</option><option value="sexual">محتوى جنسي</option><option value="illegal">محتوى غير قانوني</option><option value="other">سبب آخر</option></select></label><label className="label">تفاصيل إضافية<textarea name="description" maxLength={1000} className="form-control" style={{minHeight:128}} placeholder="اختياري"/></label>{error&&<p className="status-message error">{error}</p>}<div className="row"><button className="primary-button" disabled={busy}>{busy?'جارِ الإرسال…':'إرسال البلاغ'}</button><button className="secondary-button" type="button" onClick={()=>router.back()}>إلغاء</button></div></form></>}
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    setBusy(true)
+    try {
+      const res = await fetch('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'تعذر إرسال الرابط')
+      setSent(true)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
-function AdminReportsScreen(){const[items,setItems]=useState(undefined);const[error,setError]=useState('');async function load(){const r=await fetch('/api/admin/reports',{cache:'no-store'});if(!r.ok){setError(r.status===403?'غير مصرح لك.':'تعذر تحميل البلاغات.');setItems([]);return}setItems((await r.json()).items||[])}useEffect(()=>{load()},[]);async function act(id,action){const r=await fetch(`/api/admin/reports/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});if(r.ok)await load()}if(items===undefined)return <div className="screen-pad"><div className="skeleton"/></div>;return <><header className="page-header"><div className="page-title-row"><ShieldCheck size={20}/><h1 className="page-title">البلاغات</h1></div></header>{error&&<div className="screen-pad"><p className="status-message error">{error}</p></div>}{items.map(x=><article className="admin-card" key={x.id}><div className="small muted">{x.targetType} · {x.reason} · {x.status}</div><div className="mono tiny mt8">{x.targetId}</div>{x.description&&<p>{x.description}</p>}<div className="row wrap mt16">{[['delete-content','حذف المحتوى'],['suspend-author','تعليق الحساب'],['ban-author','حظر الحساب'],['resolve','حل'],['dismiss','رفض البلاغ']].map(([a,l])=><button key={a} className="secondary-button" onClick={()=>act(x.id,a)}>{l}</button>)}</div></article>)}{!error&&!items.length&&<div className="empty-state"><p>لا توجد بلاغات.</p></div>}</>}
+  if (sent) {
+    return <div className="auth-wrap center">
+      <div className="panel" style={{ padding: 28 }}>
+        <CircleCheck size={38} />
+        <h1 className="auth-title mt16">تحقق من بريدك</h1>
+        <p className="auth-sub">إذا كان هناك حساب بهذا البريد، أرسلنا رابطًا لاختيار كلمة مرور جديدة.</p>
+        <Link href="/login" className="secondary-button full mt20">العودة لتسجيل الدخول</Link>
+      </div>
+    </div>
+  }
 
-function NotFound(){return <div className="empty-state"><div><UserRound size={28}/><h1>الصفحة غير موجودة</h1><p>ربما تغيّر الرابط أو حُذف المحتوى.</p><Link href="/" className="primary-button mt16">العودة للرئيسية</Link></div></div>}
+  return <div className="auth-wrap">
+    <div className="auth-head">
+      <div className="auth-icon"><KeyRound size={21} /></div>
+      <h1 className="auth-title">استعادة كلمة المرور</h1>
+      <p className="auth-sub">أدخل البريد المرتبط بحسابك وسنرسل لك رابط الاستعادة.</p>
+    </div>
+    <form className="panel auth-form" onSubmit={submit}>
+      <label className="label">
+        البريد الإلكتروني
+        <input className="form-control" type="email" autoComplete="email" required dir="ltr" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@example.com" />
+      </label>
+      {error && <p className="status-message error">{error}</p>}
+      <button className="primary-button full" disabled={busy}>{busy ? 'جارِ الإرسال…' : 'إرسال رابط الاستعادة'}</button>
+      <Link href="/login" className="center small muted">العودة لتسجيل الدخول</Link>
+    </form>
+  </div>
+}
+
+function UpdatePasswordScreen() {
+  const router = useRouter()
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    if (password !== confirmPassword) {
+      setError('كلمتا المرور غير متطابقتين')
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await fetch('/api/auth/update-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'تعذر تحديث كلمة المرور')
+      router.push('/me')
+      router.refresh()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return <div className="auth-wrap">
+    <div className="auth-head">
+      <div className="auth-icon"><KeyRound size={21} /></div>
+      <h1 className="auth-title">كلمة مرور جديدة</h1>
+      <p className="auth-sub">اختر كلمة مرور جديدة لا تقل عن 8 أحرف.</p>
+    </div>
+    <form className="panel auth-form" onSubmit={submit}>
+      <label className="label">
+        كلمة المرور الجديدة
+        <input className="form-control" type="password" autoComplete="new-password" required minLength={8} maxLength={128} dir="ltr" value={password} onChange={e => setPassword(e.target.value)} />
+      </label>
+      <label className="label">
+        تأكيد كلمة المرور
+        <input className="form-control" type="password" autoComplete="new-password" required minLength={8} maxLength={128} dir="ltr" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+      </label>
+      {error && <p className="status-message error">{error}</p>}
+      <button className="primary-button full" disabled={busy || password.length < 8}>{busy ? 'جارِ الحفظ…' : 'حفظ كلمة المرور'}</button>
+    </form>
+  </div>
+}
+
+function SearchScreen() {
+  const [q, setQ] = useState('')
+  const [posts, setPosts] = useState([])
+  const [users, setUsers] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+
+  async function run(e) {
+    e?.preventDefault()
+    if (!q.trim()) return
+    setBusy(true)
+    try {
+      const r = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`, { cache: 'no-store' })
+      const d = await r.json()
+      setPosts(d.posts || [])
+      setUsers(d.users || [])
+      setDone(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return <>
+    <header className="page-header">
+      <div className="page-title-row"><Search size={20} /><h1 className="page-title">بحث</h1></div>
+      <p className="page-description">ابحث عن كلمات عامة أو كود هوية.</p>
+    </header>
+    <form className="search-box row" onSubmit={run}>
+      <input className="form-control" value={q} onChange={e => setQ(e.target.value)} maxLength={120} placeholder="ابحث…" />
+      <button className="primary-button" disabled={busy || !q.trim()}>{busy ? '…' : 'بحث'}</button>
+    </form>
+    {users.length > 0 && <>
+      <div className="section-title">الهويات</div>
+      {users.map(u => <div className="list-row" key={u.publicCode}>
+        <Identity code={u.publicCode} color={u.identityColor} />
+        <Link className="small muted" href={`/u/${u.publicCode}`}>عرض</Link>
+      </div>)}
+    </>}
+    {posts.length > 0 && <>
+      <div className="section-title">المنشورات</div>
+      {posts.map(p => <PostCard key={p.id} post={p} />)}
+    </>}
+    {done && !users.length && !posts.length && <div className="empty-state"><p>لا توجد نتائج.</p></div>}
+  </>
+}
+
+function MeScreen() {
+  const router = useRouter()
+  const [user, setUser] = useState(undefined)
+  const [count, setCount] = useState(null)
+  const [following, setFollowing] = useState([])
+
+  useEffect(() => {
+    (async () => {
+      const m = await fetch('/api/auth/me', { cache: 'no-store' })
+      const md = m.ok ? await m.json() : { user: null }
+      setUser(md.user || null)
+      if (md.user) {
+        const [a, b] = await Promise.all([
+          fetch('/api/me/followers-count', { cache: 'no-store' }),
+          fetch('/api/me/following', { cache: 'no-store' })
+        ])
+        if (a.ok) setCount((await a.json()).count)
+        if (b.ok) setFollowing((await b.json()).items || [])
+      }
+    })()
+  }, [])
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/')
+    router.refresh()
+  }
+
+  if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
+  if (user === null) return <div className="empty-state"><div><p>سجّل الدخول لرؤية حسابك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div></div>
+
+  return <>
+    <header className="page-header">
+      <h1 className="page-title">حسابي</h1>
+      <p className="page-description">هويتك الخاصة وإعدادات علاقاتك العامة.</p>
+    </header>
+    <section className="profile-hero">
+      <Identity code={user.publicCode} color={user.identityColor} large />
+      {user.status && <p className="profile-status">{user.status}</p>}
+      {user.bio && <p className="profile-bio">{user.bio}</p>}
+      <div className="stat-grid">
+        <div className="panel stat"><span className="small muted">الأشخاص المهتمون بما تكتب</span><strong>{count ?? '—'}</strong></div>
+        <div className="panel stat"><span className="small muted">خاص بك فقط</span><p className="small mt12">لا نعرض عدد متابَعاتك للآخرين.</p></div>
+      </div>
+      <div className="row wrap mt20">
+        <Link href={`/u/${user.publicCode}`} className="secondary-button">صفحة كتاباتي</Link>
+        <Link href="/settings" className="secondary-button"><Settings size={15} />الإعدادات</Link>
+        <Link href="/bookmarks" className="secondary-button"><Bookmark size={15} />المحفوظات</Link>
+        <Link href="/privacy" className="secondary-button">الخصوصية</Link>
+        <button onClick={logout} className="danger-button">تسجيل الخروج</button>
+      </div>
+    </section>
+    <div className="section-title">الأكواد التي أتابعها</div>
+    {following.length
+      ? following.map(x => <div key={x.publicCode} className="list-row"><Identity code={x.publicCode} color={x.identityColor} /><Link href={`/u/${x.publicCode}`} className="small muted">عرض</Link></div>)
+      : <div className="empty-state"><p>لم تتابع أي كود بعد.</p></div>}
+  </>
+}
+
+function SettingsScreen() {
+  const router = useRouter()
+  const [user, setUser] = useState(undefined)
+  const [publicCode, setPublicCode] = useState('')
+  const [identityColor, setIdentityColor] = useState('#5C7AEA')
+  const [status, setStatus] = useState('')
+  const [bio, setBio] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    (async () => {
+      const r = await fetch('/api/auth/me', { cache: 'no-store' })
+      const d = r.ok ? await r.json() : { user: null }
+      const next = d.user || null
+      setUser(next)
+      if (next) {
+        setPublicCode(next.publicCode || '')
+        setIdentityColor(next.identityColor || '#5C7AEA')
+        setStatus(next.status || '')
+        setBio(next.bio || '')
+      }
+    })()
+  }, [])
+
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    setSaved(false)
+    setBusy(true)
+    try {
+      const r = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicCode, identityColor, status, bio })
+      })
+      const d = await r.json()
+      if (r.status === 401) {
+        router.push('/login')
+        return
+      }
+      if (!r.ok) throw new Error(d.error || 'تعذر الحفظ')
+      setUser(d.user)
+      setPublicCode(d.user.publicCode)
+      setIdentityColor(d.user.identityColor)
+      setStatus(d.user.status || '')
+      setBio(d.user.bio || '')
+      setSaved(true)
+      router.refresh()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
+  if (user === null) return <div className="empty-state"><div><p>سجّل الدخول لتعديل هويتك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div></div>
+
+  return <>
+    <header className="page-header">
+      <div className="page-title-row"><Settings size={20} /><h1 className="page-title">الإعدادات</h1></div>
+      <p className="page-description">عدّل هويتك العامة من دون إضافة اسم حقيقي أو صورة شخصية.</p>
+    </header>
+    <div className="screen-pad stack">
+      <form className="panel auth-form" onSubmit={submit}>
+        <div className="row wrap" style={{ alignItems: 'center', gap: 16 }}>
+          <Identity code={publicCode || user.publicCode} color={identityColor} large />
+          <span className="small muted">هذه هي الهوية التي يراها الآخرون.</span>
+        </div>
+
+        <label className="label">
+          كود الهوية
+          <div className="row" style={{ gap: 8 }}>
+            <input
+              className="form-control"
+              value={publicCode}
+              onChange={e => setPublicCode(normalizeCode(e.target.value))}
+              maxLength={8}
+              minLength={4}
+              required
+              dir="ltr"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.12em' }}
+            />
+            <button type="button" className="secondary-button" aria-label="إنشاء كود عشوائي" onClick={() => setPublicCode(randomCode())}>
+              <Shuffle size={16} />
+            </button>
+          </div>
+          <span className="tiny subtle">4–8 رموز واضحة؛ لا نستخدم I أو L أو O أو 0 أو 1 لتجنب الالتباس.</span>
+        </label>
+
+        <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="label" style={{ marginBottom: 10 }}>لون الهوية</legend>
+          <div className="row wrap" style={{ gap: 10 }}>
+            {IDENTITY_PALETTE.map(swatch => {
+              const selected = swatch.toUpperCase() === String(identityColor).toUpperCase()
+              return <button
+                key={swatch}
+                type="button"
+                aria-label={`اختيار اللون ${swatch}`}
+                aria-pressed={selected}
+                onClick={() => setIdentityColor(swatch)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: swatch,
+                  border: selected ? '3px solid var(--foreground)' : '2px solid var(--surface)',
+                  boxShadow: selected ? '0 0 0 2px var(--line-strong)' : '0 0 0 1px var(--line)',
+                  transform: selected ? 'scale(1.08)' : 'none'
+                }}
+              />
+            })}
+          </div>
+        </fieldset>
+
+        <label className="label">
+          الحالة
+          <input className="form-control" value={status} onChange={e => setStatus(e.target.value)} maxLength={60} placeholder="جملة قصيرة — اختياري" />
+          <span className="tiny subtle" dir="ltr">{status.length} / 60</span>
+        </label>
+
+        <label className="label">
+          النبذة
+          <textarea className="form-control" value={bio} onChange={e => setBio(e.target.value)} maxLength={240} placeholder="اكتب شيئًا مختصرًا عن هذه الهوية — اختياري" style={{ minHeight: 112, resize: 'vertical' }} />
+          <span className="tiny subtle" dir="ltr">{bio.length} / 240</span>
+        </label>
+
+        {error && <p className="status-message error">{error}</p>}
+        {saved && <p className="status-message" style={{ color: 'var(--success)' }}>تم حفظ التغييرات.</p>}
+        <button className="primary-button full" disabled={busy || publicCode.length < 4}>
+          <Save size={16} />{busy ? 'جارِ الحفظ…' : 'حفظ الهوية'}
+        </button>
+      </form>
+
+      <div className="panel" style={{ padding: 20 }}>
+        <h2 className="page-title" style={{ fontSize: 16 }}>الأمان</h2>
+        <p className="small muted mt8">يمكنك تغيير كلمة المرور للحساب الحالي في أي وقت.</p>
+        <Link href="/auth/update-password" className="secondary-button mt16"><KeyRound size={16} />تغيير كلمة المرور</Link>
+      </div>
+    </div>
+  </>
+}
+
+function UserScreen({ code }) {
+  const [user, setUser] = useState(undefined)
+  const [posts, setPosts] = useState([])
+  const [busy, setBusy] = useState('')
+
+  useEffect(() => {
+    (async () => {
+      const [u, p] = await Promise.all([
+        fetch(`/api/users/${encodeURIComponent(code)}`, { cache: 'no-store' }),
+        fetch(`/api/posts?author=${encodeURIComponent(code)}`, { cache: 'no-store' })
+      ])
+      setUser(u.ok ? (await u.json()).user : null)
+      if (p.ok) setPosts((await p.json()).items || [])
+    })()
+  }, [code])
+
+  async function relation(kind, enabled) {
+    if (busy) return
+    setBusy(kind)
+    const r = await fetch(`/api/users/${code}/relation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, enabled })
+    })
+    if (r.status === 401) {
+      location.href = '/login'
+      return
+    }
+    if (r.ok) setUser(u => ({ ...u, [kind === 'follow' ? 'viewerIsFollowing' : kind === 'mute' ? 'viewerHasMuted' : 'viewerHasBlocked']: enabled }))
+    setBusy('')
+  }
+
+  if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
+  if (!user) return <NotFound />
+
+  return <>
+    <section className="profile-hero">
+      <Identity code={user.publicCode} color={user.identityColor} large />
+      {user.status && <p className="profile-status">{user.status}</p>}
+      {user.bio && <p className="profile-bio">{user.bio}</p>}
+      <p className="profile-meta">انضم في {new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(user.createdAt))}</p>
+      {!user.isSelf && <div className="row wrap mt20">
+        <button className="primary-button" disabled={busy === 'follow'} onClick={() => relation('follow', !user.viewerIsFollowing)}>{user.viewerIsFollowing ? 'إلغاء المتابعة' : 'متابعة'}</button>
+        <button className="secondary-button" disabled={busy === 'mute'} onClick={() => relation('mute', !user.viewerHasMuted)}>{user.viewerHasMuted ? 'إلغاء الكتم' : 'كتم'}</button>
+        <button className="danger-button" disabled={busy === 'block'} onClick={() => relation('block', !user.viewerHasBlocked)}>{user.viewerHasBlocked ? 'إلغاء الحظر' : 'حظر'}</button>
+      </div>}
+    </section>
+    <div className="section-title">الكتابات</div>
+    {posts.length ? posts.map(p => <PostCard key={p.id} post={p} />) : <div className="empty-state"><p>لا توجد منشورات.</p></div>}
+  </>
+}
+
+function PostScreen({ id }) {
+  const [post, setPost] = useState(undefined)
+  const [comments, setComments] = useState([])
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function load() {
+    const r = await fetch(`/api/posts/${id}`, { cache: 'no-store' })
+    if (!r.ok) {
+      setPost(null)
+      return
+    }
+    const d = await r.json()
+    setPost(d.post)
+    setComments(d.comments || [])
+  }
+
+  useEffect(() => { load() }, [id])
+
+  async function comment(e) {
+    e.preventDefault()
+    if (!body.trim()) return
+    setBusy(true)
+    const r = await fetch(`/api/posts/${id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body })
+    })
+    if (r.status === 401) {
+      location.href = '/login'
+      return
+    }
+    if (r.ok) {
+      setBody('')
+      await load()
+    }
+    setBusy(false)
+  }
+
+  if (post === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
+  if (!post) return <NotFound />
+
+  return <>
+    <PostCard post={post} />
+    <form className="comment-form" onSubmit={comment}>
+      <textarea className="form-control" maxLength={2000} value={body} onChange={e => setBody(e.target.value)} placeholder="اكتب تعليقًا…" />
+      <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / 2000</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
+    </form>
+    <div className="section-title">التعليقات</div>
+    {comments.length
+      ? comments.map(c => <article className="comment" key={c.id}><div className="row between"><Identity code={c.authorCode} color={c.authorColor} /><time className="tiny subtle">{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(c.createdAt))}</time></div><p className="comment-body">{c.body}</p></article>)
+      : <div className="empty-state"><p>لا توجد تعليقات بعد.</p></div>}
+  </>
+}
+
+function NotificationsScreen() {
+  const [items, setItems] = useState(undefined)
+
+  async function load() {
+    const r = await fetch('/api/notifications', { cache: 'no-store' })
+    if (r.status === 401) {
+      setItems(null)
+      return
+    }
+    const d = await r.json()
+    setItems(d.items || [])
+    if ((d.items || []).some(x => !x.readAt)) {
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: (d.items || []).filter(x => !x.readAt).map(x => x.id) })
+      })
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  if (items === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
+  if (items === null) return <div className="empty-state"><Link href="/login" className="primary-button">تسجيل الدخول</Link></div>
+
+  return <>
+    <header className="page-header">
+      <div className="page-title-row"><Bell size={20} /><h1 className="page-title">الإشعارات</h1></div>
+      <p className="page-description">التفاعلات والردود المرتبطة بك.</p>
+    </header>
+    {items.length
+      ? items.map(n => <Link href={`/post/${n.postId}`} className={`notification${n.readAt ? '' : ' unread'}`} key={n.id}><span className="notification-icon">{n.kind === 'like' ? '♥' : '↩'}</span><div className="notification-main"><p><Identity code={n.actorCode} color={n.actorColor} /> {n.kind === 'like' ? 'أعجب بمنشورك' : 'رد على منشورك'}</p><time>{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(n.createdAt))}</time></div></Link>)
+      : <div className="empty-state"><p>لا توجد إشعارات.</p></div>}
+  </>
+}
+
+function BookmarksScreen() {
+  return <>
+    <header className="page-header">
+      <div className="page-title-row"><Bookmark size={20} /><h1 className="page-title">المحفوظات</h1></div>
+      <p className="page-description">منشورات محفوظة لك فقط.</p>
+    </header>
+    <Timeline endpoint="/api/bookmarks" empty="لا توجد منشورات محفوظة." />
+  </>
+}
+
+function PrivacyScreen() {
+  const [items, setItems] = useState(undefined)
+
+  async function load() {
+    const r = await fetch('/api/privacy', { cache: 'no-store' })
+    setItems(r.ok ? (await r.json()).items : null)
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function undo(kind, code) {
+    await fetch(`/api/users/${code}/relation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, enabled: false })
+    })
+    await load()
+  }
+
+  if (items === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
+  if (items === null) return <div className="empty-state"><Link href="/login" className="primary-button">تسجيل الدخول</Link></div>
+
+  return <>
+    <header className="page-header">
+      <h1 className="page-title">الخصوصية</h1>
+      <p className="page-description">إدارة الحسابات المكتومة والمحظورة.</p>
+    </header>
+    {items.length
+      ? items.map((x, i) => <div className="list-row" key={`${x.kind}-${x.publicCode}-${i}`}><div><Identity code={x.publicCode} color={x.identityColor} /><div className="tiny muted mt8">{x.kind === 'mute' ? 'مكتوم' : 'محظور'}</div></div><button className="secondary-button" onClick={() => undo(x.kind === 'mute' ? 'mute' : 'block', x.publicCode)}>إلغاء</button></div>)
+      : <div className="empty-state"><p>لا توجد علاقات خصوصية حاليًا.</p></div>}
+  </>
+}
+
+function ReportScreen({ id }) {
+  const router = useRouter()
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    const f = new FormData(e.currentTarget)
+    const r = await fetch('/api/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetType: 'post', targetId: id, reason: f.get('reason'), description: f.get('description') || null })
+    })
+    if (r.status === 401) {
+      router.push('/login')
+      return
+    }
+    if (r.ok) router.back()
+    else setError('تعذر إرسال البلاغ.')
+    setBusy(false)
+  }
+
+  return <>
+    <header className="page-header">
+      <div className="page-title-row"><Flag size={20} /><h1 className="page-title">إبلاغ عن منشور</h1></div>
+      <p className="page-description">البلاغات خاصة ويطّلع عليها فريق الإشراف فقط.</p>
+    </header>
+    <form className="screen-pad stack" onSubmit={submit}>
+      <label className="label">
+        السبب
+        <select name="reason" className="form-control" defaultValue="spam">
+          <option value="spam">محتوى مزعج أو مكرر</option>
+          <option value="harassment">مضايقة</option>
+          <option value="hate">خطاب كراهية</option>
+          <option value="threat">تهديد</option>
+          <option value="sexual">محتوى جنسي</option>
+          <option value="illegal">محتوى غير قانوني</option>
+          <option value="other">سبب آخر</option>
+        </select>
+      </label>
+      <label className="label">تفاصيل إضافية<textarea name="description" maxLength={1000} className="form-control" style={{ minHeight: 128 }} placeholder="اختياري" /></label>
+      {error && <p className="status-message error">{error}</p>}
+      <div className="row"><button className="primary-button" disabled={busy}>{busy ? 'جارِ الإرسال…' : 'إرسال البلاغ'}</button><button className="secondary-button" type="button" onClick={() => router.back()}>إلغاء</button></div>
+    </form>
+  </>
+}
+
+function AdminReportsScreen() {
+  const [items, setItems] = useState(undefined)
+  const [error, setError] = useState('')
+
+  async function load() {
+    const r = await fetch('/api/admin/reports', { cache: 'no-store' })
+    if (!r.ok) {
+      setError(r.status === 403 ? 'غير مصرح لك.' : 'تعذر تحميل البلاغات.')
+      setItems([])
+      return
+    }
+    setItems((await r.json()).items || [])
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function act(id, action) {
+    const r = await fetch(`/api/admin/reports/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    })
+    if (r.ok) await load()
+  }
+
+  if (items === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
+
+  return <>
+    <header className="page-header"><div className="page-title-row"><ShieldCheck size={20} /><h1 className="page-title">البلاغات</h1></div></header>
+    {error && <div className="screen-pad"><p className="status-message error">{error}</p></div>}
+    {items.map(x => <article className="admin-card" key={x.id}>
+      <div className="small muted">{x.targetType} · {x.reason} · {x.status}</div>
+      <div className="mono tiny mt8">{x.targetId}</div>
+      {x.description && <p>{x.description}</p>}
+      <div className="row wrap mt16">
+        {[
+          ['delete-content', 'حذف المحتوى'],
+          ['suspend-author', 'تعليق الحساب'],
+          ['ban-author', 'حظر الحساب'],
+          ['resolve', 'حل'],
+          ['dismiss', 'رفض البلاغ']
+        ].map(([a, l]) => <button key={a} className="secondary-button" onClick={() => act(x.id, a)}>{l}</button>)}
+      </div>
+    </article>)}
+    {!error && !items.length && <div className="empty-state"><p>لا توجد بلاغات.</p></div>}
+  </>
+}
+
+function NotFound() {
+  return <div className="empty-state"><div><UserRound size={28} /><h1>الصفحة غير موجودة</h1><p>ربما تغيّر الرابط أو حُذف المحتوى.</p><Link href="/" className="primary-button mt16">العودة للرئيسية</Link></div></div>
+}
