@@ -1,0 +1,1 @@
+Snapshot resources are bundled to keep this IPA project separate from the website repository runtime.
