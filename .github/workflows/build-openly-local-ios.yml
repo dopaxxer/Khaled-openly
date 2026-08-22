@@ -7,6 +7,10 @@ on:
     paths:
       - 'mobile-spa/**'
       - '.github/workflows/build-openly-local-ios.yml'
+  pull_request:
+    paths:
+      - 'mobile-spa/**'
+      - '.github/workflows/build-openly-local-ios.yml'
   workflow_dispatch:
 
 jobs:
