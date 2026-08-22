@@ -25,6 +25,7 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.websiteDataStore = .default()
+        configuration.applicationNameForUserAgent = "Openly-iOS/1.0"
 
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.translatesAutoresizingMaskIntoConstraints = false
