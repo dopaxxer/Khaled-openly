@@ -1,0 +1,1 @@
+Bundled Openly web project source is copied from the repository during the iOS build. It is included inside the IPA for project portability/reference; server-side Next.js and Supabase functionality still runs remotely.
