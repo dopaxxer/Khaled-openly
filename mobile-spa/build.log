@@ -1,6 +1,5 @@
-npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
 
-added 118 packages in 14s
+added 20 packages in 9s
 
 > openly-mobile-spa@1.0.0 build
 > vite build
@@ -14,7 +13,7 @@ dist/index.html                   0.47 kB │ gzip:  0.29 kB
 dist/assets/index-N1EuEz0S.css   24.08 kB │ gzip:  5.03 kB
 dist/assets/index-G2htRvNl.js   241.27 kB │ gzip: 73.16 kB
 
-[31m✗[39m Build failed in 350ms
+[31m✗[39m Build failed in 218ms
 [31merror during build:
 [31mBuild failed with 1 error:
 
