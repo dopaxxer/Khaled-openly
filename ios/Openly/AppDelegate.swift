@@ -17,15 +17,24 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
-final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
+final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
     private let productionURL = URL(string: "https://openly.ink")!
+
+    private lazy var apiSession: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.httpCookieStorage = HTTPCookieStorage.shared
+        configuration.httpShouldSetCookies = true
+        configuration.requestCachePolicy = .useProtocolCachePolicy
+        return URLSession(configuration: configuration)
+    }()
 
     private lazy var webView: WKWebView = {
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.websiteDataStore = .default()
-        configuration.applicationNameForUserAgent = "Openly-iOS/1.0"
+        configuration.applicationNameForUserAgent = "Openly-iOS/2.0"
+        configuration.userContentController.add(self, name: "openlyApi")
 
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -52,18 +61,96 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         refreshControl.addTarget(self, action: #selector(refreshPage(_:)), for: .valueChanged)
         webView.scrollView.refreshControl = refreshControl
 
-        loadOpenly()
+        loadOpenlyBundle()
     }
 
-    private func loadOpenly() {
-        var request = URLRequest(url: productionURL)
-        request.cachePolicy = .useProtocolCachePolicy
-        webView.load(request)
+    private func loadOpenlyBundle() {
+        guard let indexURL = Bundle.main.url(
+            forResource: "index",
+            withExtension: "html",
+            subdirectory: "WebBundle"
+        ) else {
+            webView.loadHTMLString(
+                "<html><body style='font-family:-apple-system;padding:40px'>Openly bundle is missing.</body></html>",
+                baseURL: nil
+            )
+            return
+        }
+
+        webView.loadFileURL(indexURL, allowingReadAccessTo: indexURL.deletingLastPathComponent())
     }
 
     @objc private func refreshPage(_ sender: UIRefreshControl) {
         webView.reload()
         sender.endRefreshing()
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "openlyApi",
+              let payload = message.body as? [String: Any],
+              let requestID = payload["id"] as? String,
+              let path = payload["path"] as? String,
+              path.hasPrefix("/api/"),
+              let targetURL = URL(string: path, relativeTo: productionURL)?.absoluteURL,
+              targetURL.scheme == "https",
+              targetURL.host == "openly.ink" else {
+            return
+        }
+
+        var request = URLRequest(url: targetURL)
+        request.httpMethod = (payload["method"] as? String) ?? "GET"
+        request.timeoutInterval = 45
+
+        if let headers = payload["headers"] as? [String: Any] {
+            for (key, value) in headers {
+                request.setValue(String(describing: value), forHTTPHeaderField: key)
+            }
+        }
+
+        if let body = payload["body"] as? String {
+            request.httpBody = body.data(using: .utf8)
+        }
+
+        apiSession.dataTask(with: request) { [weak self] data, response, error in
+            let http = response as? HTTPURLResponse
+            let status = error == nil ? (http?.statusCode ?? 200) : 599
+            var responseHeaders: [String: String] = [:]
+
+            if let http {
+                for (key, value) in http.allHeaderFields {
+                    responseHeaders[String(describing: key)] = String(describing: value)
+                }
+            }
+
+            var responseBody = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            if let error, responseBody.isEmpty {
+                responseBody = error.localizedDescription
+            }
+
+            self?.resolveNativeRequest(
+                id: requestID,
+                payload: [
+                    "status": status,
+                    "headers": responseHeaders,
+                    "body": responseBody
+                ]
+            )
+        }.resume()
+    }
+
+    private func resolveNativeRequest(id: String, payload: [String: Any]) {
+        guard JSONSerialization.isValidJSONObject(payload),
+              let payloadData = try? JSONSerialization.data(withJSONObject: payload),
+              let payloadJSON = String(data: payloadData, encoding: .utf8),
+              let idData = try? JSONEncoder().encode(id),
+              let idJSON = String(data: idData, encoding: .utf8) else {
+            return
+        }
+
+        let script = "window.__openlyNativeResolve(\(idJSON), \(payloadJSON));"
+        DispatchQueue.main.async { [weak self] in
+            self?.webView.evaluateJavaScript(script, completionHandler: nil)
+        }
     }
 
     func webView(
@@ -76,12 +163,17 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
             return
         }
 
-        if let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) {
+        if url.isFileURL || url.scheme == "about" {
             decisionHandler(.allow)
             return
         }
 
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        if let scheme = url.scheme?.lowercased(), ["http", "https", "mailto", "tel"].contains(scheme) {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            decisionHandler(.cancel)
+            return
+        }
+
         decisionHandler(.cancel)
     }
 
@@ -91,8 +183,8 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKUIDeleg
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
-            webView.load(URLRequest(url: url))
+        if let url = navigationAction.request.url {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
         return nil
     }
