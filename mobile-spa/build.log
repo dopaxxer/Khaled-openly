@@ -1,0 +1,41 @@
+npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+
+added 118 packages in 14s
+
+> openly-mobile-spa@1.0.0 build
+> vite build
+
+[36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 29 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.47 kB │ gzip:  0.29 kB
+dist/assets/index-N1EuEz0S.css   24.08 kB │ gzip:  5.03 kB
+dist/assets/index-G2htRvNl.js   241.27 kB │ gzip: 73.16 kB
+
+[31m✗[39m Build failed in 350ms
+[31merror during build:
+[31mBuild failed with 1 error:
+
+Error: [vite]: Rolldown failed to resolve import "lucide-react" from "/home/runner/work/Khaled-openly/Khaled-openly/components/AppShell.jsx".
+This is most likely unintended because it can break your application at runtime.
+If you do want to externalize this module explicitly add it to
+`build.rolldownOptions.external`
+    at viteLog (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/chunks/node.js:33914:57)
+    at file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/chunks/node.js:33951:71
+    at onwarn (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/@vitejs/plugin-react/dist/index.js:40:7)
+    at file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/chunks/node.js:33951:28
+    at onRollupLog (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/chunks/node.js:33946:65)
+    at onLog (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/chunks/node.js:33710:4)
+    at file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/rolldown/dist/shared/create-bundler-option-Cj0juyCQ.mjs:48:26
+    at logger (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/rolldown/dist/shared/create-bundler-option-Cj0juyCQ.mjs:39:3)[31m
+    at aggregateBindingErrorsIntoJsError (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/rolldown/dist/shared/error-NcRuXAVN.mjs:48:18)
+    at unwrapBindingResult (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/rolldown/dist/shared/error-NcRuXAVN.mjs:18:128)
+    at #build (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/rolldown/dist/shared/rolldown-vcii7mEa.mjs:132:34)
+    at async buildEnvironment (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/chunks/node.js:33821:66)
+    at async Object.build (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/chunks/node.js:34242:19)
+    at async Object.buildApp (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/chunks/node.js:34239:153)
+    at async CAC.<anonymous> (file:///home/runner/work/Khaled-openly/Khaled-openly/mobile-spa/node_modules/vite/dist/node/cli.js:776:3) {
+  errors: [Getter/Setter]
+}[39m
