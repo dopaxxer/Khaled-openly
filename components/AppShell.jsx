@@ -12,7 +12,10 @@ const nav = [
 ]
 
 function Brand() {
-  return <Link href="/" className="brand" aria-label="Openly — الرئيسية" dir="ltr"><span className="brand-mark">O</span><span>Openly</span></Link>
+  return <Link href="/" className="brand" aria-label="Openly — الرئيسية" dir="ltr">
+    <span className="brand-mark" aria-hidden="true">O</span>
+    <span>Openly</span>
+  </Link>
 }
 
 export function AppShell({ children }) {
@@ -30,7 +33,8 @@ export function AppShell({ children }) {
           const n = await fetch('/api/notifications', { cache: 'no-store', signal: controller.signal }).catch(() => null)
           if (n?.ok) setUnread((await n.json()).unreadCount || 0)
         } else setUnread(0)
-      }).catch(() => setUser(null))
+      })
+      .catch(() => setUser(null))
     return () => controller.abort()
   }, [pathname])
 
@@ -40,16 +44,52 @@ export function AppShell({ children }) {
     <aside className="desktop-sidebar">
       <Brand />
       <nav className="side-nav" aria-label="التنقل الرئيسي">
-        {nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={`nav-link${active(href) ? ' active' : ''}`}><Icon size={19} strokeWidth={1.8}/><span>{label}</span></Link>)}
-        {user && <Link href="/notifications" className={`nav-link${active('/notifications') ? ' active' : ''}`}><Bell size={19} strokeWidth={1.8}/><span>الإشعارات</span>{unread > 0 && <span className="nav-badge">{unread > 99 ? '99+' : unread}</span>}</Link>}
+        {nav.map(({ href, label, icon: Icon }) => {
+          const isActive = active(href)
+          return <Link key={href} href={href} className={`nav-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
+            <Icon size={19} strokeWidth={1.8} aria-hidden="true"/>
+            <span>{label}</span>
+          </Link>
+        })}
+        {user && <Link href="/notifications" className={`nav-link${active('/notifications') ? ' active' : ''}`} aria-current={active('/notifications') ? 'page' : undefined}>
+          <Bell size={19} strokeWidth={1.8} aria-hidden="true"/>
+          <span>الإشعارات</span>
+          {unread > 0 && <span className="nav-badge">{unread > 99 ? '99+' : unread}</span>}
+        </Link>}
       </nav>
       <div className="sidebar-foot">
-        {user ? <Link href={`/u/${user.publicCode}`} className="identity-chip" dir="ltr"><span className="identity-dot" style={{backgroundColor:user.identityColor}}/><span>{user.publicCode}</span></Link> : user === null ? <Link href="/login" className="nav-link"><LogIn size={19}/><span>تسجيل الدخول</span></Link> : <span className="skeleton" style={{height:36,width:112}}/>}
+        {user
+          ? <Link href={`/u/${user.publicCode}`} className="identity-chip" dir="ltr"><span className="identity-dot" style={{ backgroundColor: user.identityColor }}/><span>{user.publicCode}</span></Link>
+          : user === null
+            ? <Link href="/login" className="nav-link"><LogIn size={19} aria-hidden="true"/><span>تسجيل الدخول</span></Link>
+            : <span className="sidebar-user-skeleton" aria-label="جارِ تحميل الحساب"/>}
         <p>كلمات عامة، بلا خوارزمية.</p>
       </div>
     </aside>
-    <div className="mobile-header"><Brand/><div className="mobile-header-actions">{user && <Link href="/notifications" className="icon-button" aria-label="الإشعارات"><Bell size={19}/>{unread > 0 && <span className="icon-badge">{unread > 9 ? '9+' : unread}</span>}</Link>}{user ? <Link href={`/u/${user.publicCode}`} className="identity-chip compact" dir="ltr"><span className="identity-dot" style={{backgroundColor:user.identityColor}}/><span>{user.publicCode}</span></Link> : <Link href="/login" className="icon-button" aria-label="تسجيل الدخول"><LogIn size={20}/></Link>}</div></div>
+
+    <div className="mobile-header">
+      <Brand />
+      <div className="mobile-header-actions">
+        {user && <Link href="/notifications" className="icon-button" aria-label="الإشعارات">
+          <Bell size={19} aria-hidden="true"/>
+          {unread > 0 && <span className="icon-badge">{unread > 9 ? '9+' : unread}</span>}
+        </Link>}
+        {user
+          ? <Link href={`/u/${user.publicCode}`} className="identity-chip compact" dir="ltr"><span className="identity-dot" style={{ backgroundColor: user.identityColor }}/><span>{user.publicCode}</span></Link>
+          : <Link href="/login" className="icon-button" aria-label="تسجيل الدخول"><LogIn size={20} aria-hidden="true"/></Link>}
+      </div>
+    </div>
+
     <main className="content-column">{children}</main>
-    <nav className="mobile-nav" aria-label="التنقل الرئيسي">{nav.map(({href,label,icon:Icon}) => <Link key={href} href={href} className={`mobile-link${active(href)?' active':''}`}><Icon size={21} strokeWidth={active(href)?2.2:1.7}/><span>{label}</span></Link>)}</nav>
+
+    <nav className="mobile-nav" aria-label="التنقل الرئيسي">
+      {nav.map(({ href, label, icon: Icon }) => {
+        const isActive = active(href)
+        return <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
+          <Icon size={21} strokeWidth={isActive ? 2.1 : 1.7} aria-hidden="true"/>
+          <span>{label}</span>
+        </Link>
+      })}
+    </nav>
   </div>
 }
