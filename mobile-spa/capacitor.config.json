@@ -1,0 +1,14 @@
+{
+  "appId": "ink.openly.app",
+  "appName": "Openly",
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  },
+  "ios": {
+    "contentInset": "never",
+    "preferredContentMode": "mobile"
+  }
+}
