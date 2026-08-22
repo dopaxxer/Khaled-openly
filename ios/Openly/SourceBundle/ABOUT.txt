@@ -1,0 +1,1 @@
+This directory is populated at build time from the Openly web project source so the IPA contains the project snapshot in addition to the native iOS wrapper.
