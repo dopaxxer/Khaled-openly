@@ -1,6 +1,7 @@
 import './globals.css'
 import './ios-polish.css'
 import { AppShell } from '@/components/AppShell'
+import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 
 export const metadata = {
@@ -24,7 +25,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}/></head>
-      <body><AppShell>{children}</AppShell></body>
+      <body>
+        <DeviceVisitTracker />
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   )
 }
