@@ -22,7 +22,9 @@ final class APIClient {
     static let shared = APIClient()
 
     // The native client talks only to Openly's JSON API. No web page is loaded.
-    private let baseURL = URL(string: "https://openly.ink/api/")!
+    // openly.ink is currently served by Netlify and does not expose /api/*.
+    // Use the stable Vercel production domain where the Next.js API routes are deployed.
+    private let baseURL = URL(string: "https://khaled-openly.vercel.app/api/")!
     private let session: URLSession
     private let decoder = JSONDecoder()
 
