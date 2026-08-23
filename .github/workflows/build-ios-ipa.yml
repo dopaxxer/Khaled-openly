@@ -1,12 +1,6 @@
-name: Build Openly IPA
+name: Build Openly Native IPA
 
 on:
-  push:
-    branches:
-      - build-ios-ipa
-    paths:
-      - 'ios/**'
-      - '.github/workflows/build-ios-ipa.yml'
   pull_request:
     paths:
       - 'ios/**'
@@ -14,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-ipa:
+  build-native-ipa:
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -23,11 +17,15 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Generate app icons
+        working-directory: ios
+        run: python3 generate_icons.py
+
       - name: Generate Xcode project
         working-directory: ios
         run: xcodegen generate
 
-      - name: Build unsigned iPhone app
+      - name: Build native iPhone app
         working-directory: ios
         run: |
           xcodebuild \
@@ -41,19 +39,26 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             build
 
-      - name: Package unsigned IPA
+      - name: Confirm app is native
         working-directory: ios
         run: |
-          APP_PATH="build/Build/Products/Release-iphoneos/Openly.app"
-          test -d "$APP_PATH"
-          rm -rf Payload Openly-unsigned.ipa
-          mkdir Payload
-          cp -R "$APP_PATH" Payload/Openly.app
-          zip -qry Openly-unsigned.ipa Payload
+          test -d build/Build/Products/Release-iphoneos/Openly.app
+          if grep -R "WKWebView\|WebKit" Openly --include='*.swift'; then
+            echo "Web wrapper code found" >&2
+            exit 1
+          fi
 
-      - name: Upload IPA
+      - name: Package native IPA
+        working-directory: ios
+        run: |
+          rm -rf Payload Openly-native.ipa
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/Openly.app Payload/Openly.app
+          zip -qry Openly-native.ipa Payload
+
+      - name: Upload native IPA
         uses: actions/upload-artifact@v6
         with:
-          name: Openly-unsigned-ipa
-          path: ios/Openly-unsigned.ipa
+          name: Openly-native-ipa
+          path: ios/Openly-native.ipa
           if-no-files-found: error
