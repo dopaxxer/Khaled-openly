@@ -19,6 +19,7 @@ final class AppSession: ObservableObject {
     @Published var user: UserSummary?
     @Published var isBooting = true
     @Published var alertMessage: String?
+    @Published var unreadCount = 0
     let api = APIClient.shared
 
     init() {
@@ -28,10 +29,21 @@ final class AppSession: ObservableObject {
     func refresh() async {
         do {
             user = try await api.sessionUser()
+            if user != nil {
+                unreadCount = (try? await api.notifications().unreadCount) ?? 0
+            } else {
+                unreadCount = 0
+            }
         } catch {
             user = nil
+            unreadCount = 0
         }
         isBooting = false
+    }
+
+    func refreshUnread() async {
+        guard user != nil else { unreadCount = 0; return }
+        unreadCount = (try? await api.notifications().unreadCount) ?? unreadCount
     }
 
     func login(email: String, password: String) async throws {
@@ -42,6 +54,7 @@ final class AppSession: ObservableObject {
     func logout() async {
         do { try await api.logout() } catch { }
         user = nil
+        unreadCount = 0
     }
 
     func requireLogin() -> Bool {
@@ -54,61 +67,62 @@ final class AppSession: ObservableObject {
 }
 
 enum OpenlyTheme {
-    static let accent = Color(red: 47 / 255, green: 111 / 255, blue: 98 / 255)
-    static let background = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 17 / 255, green: 18 / 255, blue: 16 / 255, alpha: 1)
-            : UIColor(red: 250 / 255, green: 250 / 255, blue: 248 / 255, alpha: 1)
-    })
-    static let surface = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 21 / 255, green: 22 / 255, blue: 20 / 255, alpha: 1)
-            : .white
-    })
-    static let surfaceSoft = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 27 / 255, green: 28 / 255, blue: 25 / 255, alpha: 1)
-            : UIColor(red: 244 / 255, green: 244 / 255, blue: 241 / 255, alpha: 1)
-    })
-    static let line = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 42 / 255, green: 44 / 255, blue: 39 / 255, alpha: 1)
-            : UIColor(red: 232 / 255, green: 232 / 255, blue: 227 / 255, alpha: 1)
-    })
-    static let muted = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 167 / 255, green: 170 / 255, blue: 161 / 255, alpha: 1)
-            : UIColor(red: 105 / 255, green: 107 / 255, blue: 101 / 255, alpha: 1)
-    })
-    static let subtle = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 124 / 255, green: 128 / 255, blue: 118 / 255, alpha: 1)
-            : UIColor(red: 143 / 255, green: 145 / 255, blue: 137 / 255, alpha: 1)
-    })
-    static let card = surfaceSoft
+    static let background = dynamic(light: 0xF5F5F4, dark: 0x05070F)
+    static let surface = dynamic(light: 0xFFFFFF, dark: 0x080B16)
+    static let surfaceSoft = dynamic(light: 0xEEF0F7, dark: 0x111629)
+    static let surfaceHover = dynamic(light: 0xF3F4FA, dark: 0x151B31)
+    static let foreground = dynamic(light: 0x0B1130, dark: 0xEEF1F8)
+    static let muted = dynamic(light: 0x565F80, dark: 0x98A1BD)
+    static let subtle = dynamic(light: 0x868EA6, dark: 0x6D7595)
+    static let line = dynamic(light: 0xE4E5EE, dark: 0x1A2038)
+    static let lineStrong = dynamic(light: 0xD2D5E2, dark: 0x29304C)
+    static let accent = dynamic(light: 0x16277A, dark: 0x6D8BFF)
+    static let accentStrong = dynamic(light: 0x2A44B8, dark: 0x8BA3FF)
+    static let danger = dynamic(light: 0xB42318, dark: 0xFF9D90)
+    static let success = dynamic(light: 0x1A6B4C, dark: 0x6FD3A6)
+    static let like = Color(red: 212 / 255, green: 72 / 255, blue: 60 / 255)
+
+    static var accentSoft: Color { accentStrong.opacity(0.09) }
+    static var glow: Color { accent.opacity(0.16) }
+
+    private static func dynamic(light: UInt32, dark: UInt32) -> Color {
+        Color(uiColor: UIColor { traits in
+            UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+}
+
+private extension UIColor {
+    convenience init(rgb: UInt32) {
+        self.init(
+            red: CGFloat((rgb >> 16) & 0xFF) / 255,
+            green: CGFloat((rgb >> 8) & 0xFF) / 255,
+            blue: CGFloat(rgb & 0xFF) / 255,
+            alpha: 1
+        )
+    }
 }
 
 struct RootView: View {
     @EnvironmentObject private var session: AppSession
+    @AppStorage("openly.appearance") private var appearance = "system"
 
     var body: some View {
         ZStack {
-            OpenlyTheme.background.ignoresSafeArea()
-            Group {
-                if session.isBooting {
-                    VStack(spacing: 14) {
-                        BrandLockup(markSize: 38)
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("جارِ فتح Openly")
-                            .font(.footnote)
-                            .foregroundColor(OpenlyTheme.muted)
-                    }
-                } else {
-                    MainTabView()
+            OpenlyBackground()
+            if session.isBooting {
+                VStack(spacing: 16) {
+                    BrandLockup(markSize: 44)
+                    ProgressView().controlSize(.small)
+                    Text("جارِ فتح Openly")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(OpenlyTheme.muted)
                 }
+            } else {
+                MainTabView()
             }
         }
+        .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
         .alert(
             "Openly",
             isPresented: Binding(
@@ -121,41 +135,123 @@ struct RootView: View {
     }
 }
 
-struct MainTabView: View {
-    @State private var selection = 0
+struct OpenlyBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        TabView(selection: $selection) {
-            FeedView()
-                .tabItem { Label("الرئيسية", systemImage: "house") }
-                .tag(0)
-
-            SearchView()
-                .tabItem { Label("بحث", systemImage: "magnifyingglass") }
-                .tag(1)
-
-            ComposerView(onPublished: { selection = 0 })
-                .tabItem { Label("اكتب", systemImage: "square.and.pencil") }
-                .tag(2)
-
-            AccountView()
-                .tabItem { Label("حسابي", systemImage: "person.crop.circle") }
-                .tag(3)
+        ZStack {
+            OpenlyTheme.background
+            RadialGradient(
+                colors: [OpenlyTheme.accentStrong.opacity(colorScheme == .dark ? 0.14 : 0.075), .clear],
+                center: .topTrailing,
+                startRadius: 0,
+                endRadius: 420
+            )
+            LinearGradient(
+                colors: [.clear, OpenlyTheme.accent.opacity(colorScheme == .dark ? 0.055 : 0.025)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         }
-        .toolbarBackground(OpenlyTheme.surface, for: .tabBar)
-        .toolbarBackground(.visible, for: .tabBar)
+        .ignoresSafeArea()
+    }
+}
+
+enum OpenlyTab: Int, CaseIterable {
+    case home, search, write, account
+
+    var title: String {
+        switch self {
+        case .home: return "الرئيسية"
+        case .search: return "بحث"
+        case .write: return "اكتب"
+        case .account: return "حسابي"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .home: return "house"
+        case .search: return "magnifyingglass"
+        case .write: return "square.and.pencil"
+        case .account: return "person.crop.circle"
+        }
+    }
+
+    var selectedIcon: String {
+        switch self {
+        case .home: return "house.fill"
+        case .search: return "magnifyingglass"
+        case .write: return "square.and.pencil"
+        case .account: return "person.crop.circle.fill"
+        }
+    }
+}
+
+struct MainTabView: View {
+    @State private var selection: OpenlyTab = .home
+
+    var body: some View {
+        ZStack {
+            switch selection {
+            case .home: FeedView()
+            case .search: SearchView()
+            case .write: ComposerView(onPublished: { selection = .home })
+            case .account: AccountView()
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            OpenlyTabBar(selection: $selection)
+        }
+        .animation(.easeOut(duration: 0.2), value: selection)
+    }
+}
+
+struct OpenlyTabBar: View {
+    @Binding var selection: OpenlyTab
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(OpenlyTab.allCases, id: \.rawValue) { tab in
+                Button { selection = tab } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: selection == tab ? tab.selectedIcon : tab.icon)
+                            .font(.system(size: 20, weight: selection == tab ? .semibold : .regular))
+                            .symbolRenderingMode(.monochrome)
+                        Text(tab.title)
+                            .font(.system(size: 10, weight: selection == tab ? .bold : .medium))
+                    }
+                    .foregroundStyle(selection == tab ? OpenlyTheme.accent : OpenlyTheme.muted)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(selection == tab ? OpenlyTheme.accentSoft : .clear)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tab.title)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 7)
+        .background(.regularMaterial)
+        .overlay(alignment: .top) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
     }
 }
 
 struct BrandLockup: View {
-    var markSize: CGFloat = 28
+    var markSize: CGFloat = 32
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             BrandMark(size: markSize)
             Text("Openly")
-                .font(.system(size: markSize <= 30 ? 17 : 22, weight: .bold, design: .default))
-                .tracking(-0.3)
+                .font(.system(size: markSize <= 34 ? 18 : 23, weight: .bold, design: .default))
+                .tracking(-0.45)
+                .foregroundStyle(OpenlyTheme.foreground)
         }
         .environment(\.layoutDirection, .leftToRight)
         .accessibilityElement(children: .ignore)
@@ -164,18 +260,41 @@ struct BrandLockup: View {
 }
 
 struct BrandMark: View {
-    var size: CGFloat = 28
+    var size: CGFloat = 32
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(.primary, lineWidth: 1)
-            Text("O")
-                .font(.system(size: size * 0.47, weight: .heavy, design: .default))
-                .foregroundColor(.primary)
+        Image("BrandOrb")
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(OpenlyTheme.lineStrong.opacity(0.7), lineWidth: 0.6))
+            .shadow(color: OpenlyTheme.accent.opacity(0.18), radius: 8, y: 4)
+            .accessibilityHidden(true)
+    }
+}
+
+struct OpenlyTopBar<Leading: View, Trailing: View>: View {
+    let leading: Leading
+    let trailing: Trailing
+
+    init(@ViewBuilder leading: () -> Leading, @ViewBuilder trailing: () -> Trailing) {
+        self.leading = leading()
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            leading
+            Spacer(minLength: 12)
+            BrandLockup(markSize: 32)
+            Spacer(minLength: 12)
+            trailing
         }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
+        .frame(height: 58)
+        .padding(.horizontal, 16)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
     }
 }
 
@@ -189,37 +308,43 @@ struct ScreenHeader: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(.system(size: 20, weight: .bold))
+                .font(.system(size: 21, weight: .bold))
+                .tracking(-0.3)
+                .foregroundStyle(OpenlyTheme.foreground)
             if let subtitle {
                 Text(subtitle)
-                    .font(.system(size: 13))
-                    .foregroundColor(OpenlyTheme.muted)
-                    .lineSpacing(3)
+                    .font(.system(size: 13.5, weight: .regular))
+                    .foregroundStyle(OpenlyTheme.muted)
+                    .lineSpacing(4)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 18)
+        .padding(.top, 28)
+        .padding(.bottom, 16)
     }
 }
 
 struct IdentityBadge: View {
     let code: String
     let color: String?
+    var large = false
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: large ? 10 : 8) {
             Circle()
                 .fill(Color(hex: color) ?? OpenlyTheme.accent)
-                .frame(width: 8, height: 8)
-                .overlay(Circle().stroke(.black.opacity(0.12), lineWidth: 0.5))
+                .frame(width: large ? 12 : 8, height: large ? 12 : 8)
+                .shadow(color: (Color(hex: color) ?? OpenlyTheme.accent).opacity(0.35), radius: 5)
             Text(code)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .tracking(0.5)
+                .font(.system(size: large ? 16 : 13, weight: .semibold, design: .monospaced))
+                .tracking(large ? 0.9 : 0.65)
+                .foregroundStyle(OpenlyTheme.foreground)
                 .environment(\.layoutDirection, .leftToRight)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -231,17 +356,85 @@ struct EmptyState: View {
     var body: some View {
         VStack(spacing: 8) {
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.primary)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(OpenlyTheme.foreground)
             Text(message)
-                .font(.system(size: 14))
-                .foregroundColor(OpenlyTheme.muted)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(OpenlyTheme.muted)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 230)
         .padding(.horizontal, 28)
-        .padding(.vertical, 48)
+    }
+}
+
+struct OpenlyIconButton: View {
+    let systemName: String
+    var badge: Int = 0
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: systemName)
+                .font(.system(size: 19, weight: .regular))
+                .foregroundStyle(OpenlyTheme.muted)
+                .frame(width: 42, height: 42)
+                .contentShape(Circle())
+            if badge > 0 {
+                Text(badge > 9 ? "9+" : "\(badge)")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(minWidth: 15, minHeight: 15)
+                    .padding(.horizontal, 1)
+                    .background(OpenlyTheme.danger)
+                    .clipShape(Capsule())
+                    .offset(x: 1, y: 1)
+            }
+        }
+    }
+}
+
+struct OpenlyPrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(minHeight: 44)
+            .padding(.horizontal, 20)
+            .background(
+                LinearGradient(colors: [OpenlyTheme.accentStrong, OpenlyTheme.accent], startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
+            .clipShape(Capsule())
+            .shadow(color: OpenlyTheme.accent.opacity(configuration.isPressed ? 0.08 : 0.22), radius: 10, y: 5)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+    }
+}
+
+struct OpenlySecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(OpenlyTheme.foreground)
+            .frame(minHeight: 42)
+            .padding(.horizontal, 18)
+            .background(OpenlyTheme.surface.opacity(configuration.isPressed ? 0.7 : 0))
+            .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1))
+            .clipShape(Capsule())
+    }
+}
+
+struct OpenlyCard<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .background(OpenlyTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(OpenlyTheme.line, lineWidth: 1))
     }
 }
 
