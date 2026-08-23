@@ -1,6 +1,7 @@
 import './globals.css'
 import './ios-polish.css'
 import { AppShell } from '@/components/AppShell'
+import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 
 export const metadata = {
   title: 'Openly',
@@ -22,7 +23,10 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
-      <body><AppShell>{children}</AppShell></body>
+      <body>
+        <DeviceVisitTracker />
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   )
 }
