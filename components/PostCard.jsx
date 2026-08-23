@@ -48,11 +48,9 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
       : { ...eng, viewerHasBookmarked: enabled }
     setEng(optimistic)
     try {
-      const res = await fetch(`/api/engagement/${post.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, enabled }) })
+      const res = await fetch(`/api/posts/${post.id}/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) })
       if (res.status === 401) { setEng(previous); router.push('/login'); return }
       if (!res.ok) throw new Error()
-      const data = await res.json()
-      if (data.engagement) setEng(data.engagement)
     } catch { setEng(previous) } finally { setBusy('') }
   }
 

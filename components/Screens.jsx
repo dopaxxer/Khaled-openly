@@ -155,10 +155,10 @@ function SignupCodeScreen({ email }) {
     setError('')
     setBusy(true)
     try {
-      const res = await fetch('/api/auth/verify-signup-code', {
+      const res = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code })
+        body: JSON.stringify({ email, token: code })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'الكود غير صحيح')
@@ -177,7 +177,7 @@ function SignupCodeScreen({ email }) {
     setResent(false)
     setError('')
     try {
-      const res = await fetch('/api/auth/resend-signup-code', {
+      const res = await fetch('/api/auth/resend-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

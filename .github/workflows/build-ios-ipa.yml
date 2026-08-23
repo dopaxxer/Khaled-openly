@@ -1,0 +1,64 @@
+name: Build Openly Native IPA
+
+on:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/build-ios-ipa.yml'
+  workflow_dispatch:
+
+jobs:
+  build-native-ipa:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate app icons
+        working-directory: ios
+        run: python3 generate_icons.py
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build native iPhone app
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -project Openly.xcodeproj \
+            -scheme Openly \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Confirm app is native
+        working-directory: ios
+        run: |
+          test -d build/Build/Products/Release-iphoneos/Openly.app
+          if grep -R "WKWebView\|WebKit" Openly --include='*.swift'; then
+            echo "Web wrapper code found" >&2
+            exit 1
+          fi
+
+      - name: Package native IPA
+        working-directory: ios
+        run: |
+          rm -rf Payload Openly-native.ipa
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/Openly.app Payload/Openly.app
+          zip -qry Openly-native.ipa Payload
+
+      - name: Upload native IPA
+        uses: actions/upload-artifact@v6
+        with:
+          name: Openly-native-ipa
+          path: ios/Openly-native.ipa
+          if-no-files-found: error

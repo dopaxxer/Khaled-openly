@@ -314,21 +314,21 @@ export async function POST(request, { params }) {
     return json({ ok: true })
   }
 
-  if (path.join('/') === 'auth/verify-signup-code') {
+  if (path.join('/') === 'auth/verify') {
     const email = String(body.email || '').trim()
-    const token = String(body.code || '').trim()
+    const token = String(body.token || '').trim()
     if (!email || !/^\d{6}$/.test(token)) return json({ error: 'أدخل كودًا صحيحًا من 6 أرقام' }, 400)
-    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' })
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
     if (error) return json({ error: error.code === 'otp_expired' ? 'انتهت صلاحية الكود. اطلب كودًا جديدًا.' : 'الكود غير صحيح' }, 400)
     return json({ ok: true })
   }
 
-  if (path.join('/') === 'auth/resend-signup-code') {
+  if (path.join('/') === 'auth/resend-code') {
     const email = String(body.email || '').trim()
     if (!email) return json({ error: 'البريد مطلوب' }, 400)
     const { error } = await supabase.auth.resend({ type: 'signup', email })
     if (error && error.code === 'over_email_send_rate_limit') return json({ error: 'محاولات كثيرة. حاول بعد قليل.' }, 429)
-    if (error) console.error('[resend-signup-code]', error.code, error.message)
+    if (error) console.error('[resend-code]', error.code, error.message)
     return json({ ok: true })
   }
 
@@ -409,18 +409,28 @@ export async function POST(request, { params }) {
     return json({ ok: true })
   }
 
-  if (path[0] === 'engagement' && path[1]) {
+  if (path[0] === 'posts' && path[1] && path[2] === 'like') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const action = body.action
     const enabled = !!body.enabled
-    const fn = action === 'like' ? 'set_post_like' : action === 'bookmark' ? 'set_post_bookmark' : null
-    const key = action === 'like' ? 'p_liked' : 'p_bookmarked'
-    if (!fn) return json({ error: 'إجراء غير صالح' }, 400)
-    const { error } = await supabase.rpc(fn, { p_post_id: path[1], [key]: enabled })
-    if (error) return json({ error: 'تعذر تحديث التفاعل' }, 400)
-    const [engagement] = await engagementFor(supabase, [path[1]])
-    return json({ ok: true, engagement })
+    const query = supabase.from('likes')
+    const { error } = enabled
+      ? await query.upsert({ user_id: user.id, post_id: path[1] })
+      : await query.delete().eq('user_id', user.id).eq('post_id', path[1])
+    if (error) return json({ error: 'تعذر حفظ الإعجاب' }, 400)
+    return json({ ok: true })
+  }
+
+  if (path[0] === 'posts' && path[1] && path[2] === 'bookmark') {
+    const user = await currentUser(supabase)
+    if (!user) return json({ error: 'غير مسجل' }, 401)
+    const enabled = !!body.enabled
+    const query = supabase.from('bookmarks')
+    const { error } = enabled
+      ? await query.upsert({ user_id: user.id, post_id: path[1] })
+      : await query.delete().eq('user_id', user.id).eq('post_id', path[1])
+    if (error) return json({ error: 'تعذر حفظ المنشور' }, 400)
+    return json({ ok: true })
   }
 
   if (path.join('/') === 'reports') {
@@ -450,10 +460,11 @@ export async function PATCH(request, { params }) {
   if (path.join('/') === 'notifications') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const ids = Array.isArray(body.ids) ? body.ids : null
-    const { data, error } = await supabase.rpc('mark_notifications_read', { p_ids: ids })
+    const ids = Array.isArray(body.ids) ? body.ids.slice(0, 100) : []
+    if (!ids.length) return json({ ok: true })
+    const { error } = await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('recipient_id', user.id).in('id', ids)
     if (error) return json({ error: 'تعذر تحديث الإشعارات' }, 400)
-    return json({ ok: true, count: Number(data || 0) })
+    return json({ ok: true })
   }
 
   if (path[0] === 'admin' && path[1] === 'reports' && path[2]) {
