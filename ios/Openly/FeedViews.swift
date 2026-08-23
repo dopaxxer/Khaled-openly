@@ -11,19 +11,30 @@ struct FeedView: View {
         NavigationView {
             Group {
                 if posts.isEmpty && isLoading {
-                    ProgressView("جارِ تحميل المنشورات")
+                    VStack(spacing: 18) {
+                        ForEach(0..<3, id: \.self) { _ in FeedSkeletonRow() }
+                    }
+                    .padding(.top, 8)
+                    .frame(maxHeight: .infinity, alignment: .top)
                 } else if posts.isEmpty {
-                    EmptyState(
-                        icon: "text.bubble",
-                        title: "لا توجد منشورات بعد",
-                        message: errorMessage ?? "كن أول من يكتب في المساحة العامة."
-                    )
+                    VStack(spacing: 16) {
+                        EmptyState(
+                            icon: "text.bubble",
+                            title: errorMessage == nil ? "لا توجد منشورات بعد" : "تعذر تحميل المنشورات",
+                            message: errorMessage ?? "كن أول من يكتب."
+                        )
+                        if errorMessage != nil {
+                            Button("المحاولة مجددًا") { Task { await load(reset: true) } }
+                                .buttonStyle(OpenlySecondaryButtonStyle())
+                        }
+                    }
                 } else {
                     List {
                         ForEach(posts) { post in
                             PostCard(post: post)
                                 .listRowInsets(EdgeInsets())
                                 .listRowSeparator(.hidden)
+                                .listRowBackground(OpenlyTheme.surface)
                                 .onAppear {
                                     if post.id == posts.last?.id, nextCursor != nil {
                                         Task { await load(reset: false) }
@@ -31,22 +42,63 @@ struct FeedView: View {
                                 }
                         }
                         if isLoading {
-                            HStack { Spacer(); ProgressView(); Spacer() }
+                            HStack { Spacer(); ProgressView().controlSize(.small); Spacer() }
+                                .padding(.vertical, 18)
                                 .listRowSeparator(.hidden)
+                                .listRowBackground(OpenlyTheme.surface)
+                        } else if nextCursor == nil {
+                            Text("هذه كل المنشورات المتاحة.")
+                                .font(.system(size: 11))
+                                .foregroundColor(OpenlyTheme.subtle)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 24)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(OpenlyTheme.surface)
                         }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(OpenlyTheme.surface)
                     .refreshable { await load(reset: true) }
                 }
             }
+            .background(OpenlyTheme.surface)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    HStack(spacing: 8) {
-                        BrandMark(size: 29)
-                        Text("Openly")
-                            .font(.system(.headline, design: .rounded).weight(.bold))
-                            .environment(\.layoutDirection, .leftToRight)
+                    BrandLockup(markSize: 28)
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if session.user != nil {
+                        NavigationLink(destination: NotificationsView()) {
+                            Image(systemName: "bell")
+                                .font(.system(size: 17, weight: .regular))
+                                .foregroundColor(OpenlyTheme.muted)
+                                .frame(width: 34, height: 34)
+                        }
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if let user = session.user {
+                        NavigationLink(destination: UserProfileView(code: user.publicCode)) {
+                            IdentityBadge(code: user.publicCode, color: user.identityColor)
+                                .padding(.horizontal, 8)
+                                .frame(height: 32)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .stroke(OpenlyTheme.line, lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        NavigationLink(destination: LoginView()) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 17))
+                                .foregroundColor(OpenlyTheme.muted)
+                                .frame(width: 34, height: 34)
+                        }
                     }
                 }
             }
@@ -69,10 +121,40 @@ struct FeedView: View {
                 !posts.contains(where: { $0.id == item.id })
             }
             nextCursor = response.nextCursor
+            errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+private struct FeedSkeletonRow: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            RoundedRectangle(cornerRadius: 3).fill(OpenlyTheme.surfaceSoft).frame(width: 110, height: 12)
+            RoundedRectangle(cornerRadius: 3).fill(OpenlyTheme.surfaceSoft).frame(height: 15)
+            RoundedRectangle(cornerRadius: 3).fill(OpenlyTheme.surfaceSoft).frame(width: 230, height: 15)
+            RoundedRectangle(cornerRadius: 3).fill(OpenlyTheme.surfaceSoft).frame(width: 170, height: 11)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(OpenlyTheme.surface)
+        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
+    }
+}
+
+struct OpenlySecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(.primary)
+            .padding(.horizontal, 16)
+            .frame(height: 40)
+            .background(Color.clear)
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(OpenlyTheme.line, lineWidth: 1))
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
@@ -84,8 +166,8 @@ struct PostCard: View {
     @State private var showReport = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
                 if let code = post.authorCode {
                     NavigationLink(destination: UserProfileView(code: code)) {
                         IdentityBadge(code: code, color: post.authorColor)
@@ -96,58 +178,75 @@ struct PostCard: View {
                 }
                 Spacer()
                 Text(OpenlyDate.relative(post.createdAt))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Menu {
-                    Button(role: .destructive) { showReport = true } label: {
-                        Label("إبلاغ", systemImage: "exclamationmark.bubble")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 4)
-                }
+                    .font(.system(size: 11))
+                    .foregroundColor(OpenlyTheme.subtle)
             }
 
             NavigationLink(destination: PostDetailView(postID: post.id)) {
                 Text(post.body)
-                    .font(.body)
+                    .font(.system(size: 16, weight: .regular))
                     .foregroundColor(.primary)
+                    .lineSpacing(5)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 24) {
-                Button { Task { await toggleLike() } } label: {
-                    Label(
-                        "\(engagement?.likeCount ?? 0)",
-                        systemImage: engagement?.viewerHasLiked == true ? "heart.fill" : "heart"
-                    )
-                    .foregroundColor(engagement?.viewerHasLiked == true ? .red : .secondary)
-                }
-                .disabled(isChanging)
-
+            HStack(spacing: 18) {
                 NavigationLink(destination: PostDetailView(postID: post.id)) {
-                    Label("\(post.commentCount ?? 0)", systemImage: "bubble.left")
-                        .foregroundColor(.secondary)
+                    actionLabel(
+                        icon: "bubble.left",
+                        text: (post.commentCount ?? 0) > 0 ? "\(post.commentCount ?? 0) تعليق" : "تعليق",
+                        active: false
+                    )
                 }
+                .buttonStyle(.plain)
 
-                Spacer()
+                Button { Task { await toggleLike() } } label: {
+                    actionLabel(
+                        icon: engagement?.viewerHasLiked == true ? "heart.fill" : "heart",
+                        text: (engagement?.likeCount ?? 0) > 0 ? "\(engagement?.likeCount ?? 0)" : "إعجاب",
+                        active: engagement?.viewerHasLiked == true
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(isChanging)
 
                 Button { Task { await toggleBookmark() } } label: {
-                    Image(systemName: engagement?.viewerHasBookmarked == true ? "bookmark.fill" : "bookmark")
-                        .foregroundColor(engagement?.viewerHasBookmarked == true ? OpenlyTheme.accent : .secondary)
+                    actionLabel(
+                        icon: engagement?.viewerHasBookmarked == true ? "bookmark.fill" : "bookmark",
+                        text: engagement?.viewerHasBookmarked == true ? "محفوظ" : "حفظ",
+                        active: engagement?.viewerHasBookmarked == true
+                    )
                 }
+                .buttonStyle(.plain)
                 .disabled(isChanging)
+
+                Spacer(minLength: 0)
+
+                Button { showReport = true } label: {
+                    actionLabel(icon: "flag", text: "إبلاغ", active: false)
+                }
+                .buttonStyle(.plain)
             }
-            .font(.subheadline)
         }
-        .padding(16)
-        .background(Color(uiColor: .systemBackground))
-        .overlay(alignment: .bottom) { Divider() }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 18)
+        .background(OpenlyTheme.surface)
+        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
         .task { await loadEngagement() }
         .sheet(isPresented: $showReport) { ReportView(postID: post.id) }
+    }
+
+    private func actionLabel(icon: String, text: String, active: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .regular))
+            Text(text)
+                .font(.system(size: 11, weight: active ? .semibold : .regular))
+        }
+        .foregroundColor(active ? OpenlyTheme.accent : OpenlyTheme.muted)
     }
 
     @MainActor
@@ -200,8 +299,9 @@ struct ComposerView: View {
                             .font(.body)
                             .padding(10)
                             .frame(minHeight: 220)
-                            .background(OpenlyTheme.card)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .background(OpenlyTheme.surface)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(OpenlyTheme.line, lineWidth: 1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .padding(.horizontal)
                             .onChange(of: bodyText) { value in
                                 if value.count > 3000 { bodyText = String(value.prefix(3000)) }
@@ -210,7 +310,7 @@ struct ComposerView: View {
                         HStack {
                             Text("\(bodyText.count) / 3000")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(OpenlyTheme.muted)
                             Spacer()
                             Button {
                                 Task { await publish() }
@@ -222,11 +322,13 @@ struct ComposerView: View {
                                 }
                             }
                             .buttonStyle(.borderedProminent)
+                            .tint(.primary)
                             .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishing)
                         }
                         .padding(.horizontal)
                         Spacer()
                     }
+                    .background(OpenlyTheme.surface)
                     .onAppear { isFocused = true }
                 }
             }
@@ -271,7 +373,7 @@ struct PostDetailView: View {
                     Section("التعليقات") {
                         if detail.comments.isEmpty {
                             Text("لا توجد تعليقات بعد.")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(OpenlyTheme.muted)
                         } else {
                             ForEach(detail.comments) { comment in
                                 VStack(alignment: .leading, spacing: 8) {
@@ -280,7 +382,7 @@ struct PostDetailView: View {
                                         Spacer()
                                         Text(OpenlyDate.relative(comment.createdAt))
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(OpenlyTheme.subtle)
                                     }
                                     Text(comment.body)
                                         .frame(maxWidth: .infinity, alignment: .leading)

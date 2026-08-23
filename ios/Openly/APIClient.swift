@@ -21,8 +21,8 @@ private struct ErrorResponse: Decodable {
 final class APIClient {
     static let shared = APIClient()
 
-    // The native client talks only to Openly's JSON API. No web page is loaded.
-    private let baseURL = URL(string: "https://openly.ink/api/")!
+    // Openly's native iOS client uses the deployed JSON API directly.
+    private let baseURL = URL(string: "https://khaled-openly.vercel.app/api/")!
     private let session: URLSession
     private let decoder = JSONDecoder()
 
