@@ -249,8 +249,8 @@ export async function POST(request, { params }) {
     const a = kind === 'follow' ? 'follower_id' : kind === 'mute' ? 'muter_id' : 'blocker_id'
     const b = kind === 'follow' ? 'followed_id' : kind === 'mute' ? 'muted_id' : 'blocked_id'
     if (enabled) {
-      const { error } = await supabase.from(table).upsert({ [a]: user.id, [b]: target.id })
-      if (error) return json({ error: 'تعذر حفظ العلاقة' }, 400)
+      const { error } = await supabase.from(table).insert({ [a]: user.id, [b]: target.id })
+      if (error && error.code !== '23505') return json({ error: 'تعذر حفظ العلاقة' }, 400)
     } else {
       const { error } = await supabase.from(table).delete().eq(a, user.id).eq(b, target.id)
       if (error) return json({ error: 'تعذر حفظ العلاقة' }, 400)
@@ -261,20 +261,16 @@ export async function POST(request, { params }) {
   if (path[0] === 'posts' && path[1] && path[2] === 'like') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const enabled = !!body.enabled
-    const query = supabase.from('likes')
-    const { error } = enabled ? await query.upsert({ user_id: user.id, post_id: path[1] }) : await query.delete().eq('user_id', user.id).eq('post_id', path[1])
-    if (error) return json({ error: 'تعذر حفظ الإعجاب' }, 400)
+    const { data, error } = await supabase.rpc('set_post_like', { p_post_id: path[1], p_liked: !!body.enabled })
+    if (error || data !== true) return json({ error: 'تعذر حفظ الإعجاب' }, 400)
     return json({ ok: true })
   }
 
   if (path[0] === 'posts' && path[1] && path[2] === 'bookmark') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const enabled = !!body.enabled
-    const query = supabase.from('bookmarks')
-    const { error } = enabled ? await query.upsert({ user_id: user.id, post_id: path[1] }) : await query.delete().eq('user_id', user.id).eq('post_id', path[1])
-    if (error) return json({ error: 'تعذر حفظ المنشور' }, 400)
+    const { data, error } = await supabase.rpc('set_post_bookmark', { p_post_id: path[1], p_bookmarked: !!body.enabled })
+    if (error || data !== true) return json({ error: 'تعذر حفظ المنشور' }, 400)
     return json({ ok: true })
   }
 
@@ -283,7 +279,7 @@ export async function POST(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const reason = String(body.reason || '')
     if (!reasons.has(reason)) return json({ error: 'سبب البلاغ غير صالح' }, 400)
-    const { error } = await supabase.from('reports').insert({ reporter_id: user.id, target_type: body.targetType, target_id: body.targetId, reason, description: String(body.description || '').slice(0, 2000) })
+    const { error } = await supabase.from('reports').insert({ reporter_id: user.id, target_type: body.targetType, target_id: body.targetId, reason, description: String(body.description || '').slice(0, 1000) })
     if (error) return json({ error: 'تعذر إرسال البلاغ' }, 400)
     return json({ ok: true }, 201)
   }
@@ -299,7 +295,7 @@ export async function PATCH(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const ids = Array.isArray(body.ids) ? body.ids.slice(0, 100) : []
     if (!ids.length) return json({ ok: true })
-    const { error } = await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('recipient_id', user.id).in('id', ids)
+    const { error } = await supabase.rpc('mark_notifications_read', { p_ids: ids })
     if (error) return json({ error: 'تعذر تحديث الإشعارات' }, 400)
     return json({ ok: true })
   }
