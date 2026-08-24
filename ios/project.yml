@@ -19,6 +19,8 @@ targets:
       path: Openly/Info.plist
       properties:
         CFBundleDisplayName: open
+        CFBundleShortVersionString: 1.0.0
+        CFBundleVersion: "4"
         CFBundleLocalizations:
           - ar
           - en
