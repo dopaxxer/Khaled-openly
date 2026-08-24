@@ -14,6 +14,10 @@ struct FeedView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 0) {
+                        HomeComposerCard {
+                            Task { await load(reset: true) }
+                        }
+
                         ScreenHeader("المساحة العامة", subtitle: "الأحدث أولًا. بلا خوارزمية ترتيب.")
 
                         if posts.isEmpty && isLoading {
@@ -85,6 +89,117 @@ struct FeedView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+private struct HomeComposerCard: View {
+    @EnvironmentObject private var session: AppSession
+    @State private var bodyText = ""
+    @State private var isPublishing = false
+    @FocusState private var isFocused: Bool
+    let onPublished: () -> Void
+
+    var body: some View {
+        Group {
+            if session.user == nil {
+                NavigationLink(destination: LoginView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(OpenlyTheme.accent)
+                        Text("سجّل الدخول واكتب شيئًا للجميع…")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(OpenlyTheme.muted)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 18)
+                    .frame(height: 64)
+                    .background(OpenlyTheme.elevated)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(OpenlyTheme.lineStrong, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                VStack(spacing: 12) {
+                    TextField("ماذا تريد أن تقول؟", text: $bodyText, axis: .vertical)
+                        .focused($isFocused)
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundColor(OpenlyTheme.ink)
+                        .lineLimit(2...5)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(OpenlyTheme.background)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                                .stroke(OpenlyTheme.lineStrong, lineWidth: 1)
+                        )
+                        .onChange(of: bodyText) { value in
+                            if value.count > postCharacterLimit {
+                                bodyText = String(value.prefix(postCharacterLimit))
+                            }
+                        }
+
+                    HStack(spacing: 12) {
+                        Text("\(bodyText.count) / \(postCharacterLimit)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(OpenlyTheme.subtle)
+                            .environment(\.layoutDirection, .leftToRight)
+
+                        Spacer()
+
+                        Button {
+                            Task { await publish() }
+                        } label: {
+                            HStack(spacing: 8) {
+                                if isPublishing {
+                                    ProgressView().tint(OpenlyTheme.accentForeground)
+                                } else {
+                                    Image(systemName: "paperplane")
+                                    Text("نشر")
+                                }
+                            }
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(OpenlyTheme.accentForeground)
+                            .padding(.horizontal, 20)
+                            .frame(height: 42)
+                            .background(OpenlyTheme.accent)
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishing)
+                        .opacity(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
+                    }
+                }
+                .padding(14)
+                .background(OpenlyTheme.elevated)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(OpenlyTheme.lineStrong, lineWidth: 1)
+                )
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 18)
+        .padding(.bottom, 6)
+    }
+
+    @MainActor
+    private func publish() async {
+        guard session.requireLogin() else { return }
+        let text = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        isPublishing = true
+        do {
+            _ = try await session.api.createPost(body: text)
+            bodyText = ""
+            isFocused = false
+            onPublished()
+        } catch {
+            session.alertMessage = error.localizedDescription
+        }
+        isPublishing = false
     }
 }
 
@@ -256,8 +371,8 @@ struct PostCard: View {
     }
 }
 
-/// Matches the server-side posts/comments constraint.
-let postCharacterLimit = 500
+/// Matches the server-side posts constraint.
+let postCharacterLimit = 3000
 
 struct ComposerView: View {
     @EnvironmentObject private var session: AppSession
