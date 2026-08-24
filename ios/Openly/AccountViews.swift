@@ -167,10 +167,7 @@ struct AccountView: View {
                     List {
                         Section {
                             VStack(spacing: 12) {
-                                Circle()
-                                    .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
-                                    .frame(width: 62, height: 62)
-                                    .overlay(Image(systemName: "text.quote").foregroundColor(.white).font(.title2))
+                                IdentityAvatar(code: user.publicCode, color: user.identityColor, size: 62)
                                 Text(user.publicCode)
                                     .font(.system(.title2, design: .monospaced).weight(.bold))
                                     .environment(\.layoutDirection, .leftToRight)
@@ -265,7 +262,7 @@ struct LoginView: View {
 
                 Button { Task { await login() } } label: {
                     Group {
-                        if isSubmitting { ProgressView().tint(.white) }
+                        if isSubmitting { ProgressView().tint(OpenlyTheme.accentForeground) }
                         else { Text("تسجيل الدخول") }
                     }
                     .frame(maxWidth: .infinity)
@@ -423,9 +420,7 @@ struct UserProfileView: View {
             if let user {
                 Section {
                     VStack(spacing: 10) {
-                        Circle()
-                            .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
-                            .frame(width: 58, height: 58)
+                        IdentityAvatar(code: user.publicCode, color: user.identityColor, size: 58)
                         Text(user.publicCode)
                             .font(.system(.title2, design: .monospaced).weight(.bold))
                             .environment(\.layoutDirection, .leftToRight)

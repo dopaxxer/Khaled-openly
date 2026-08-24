@@ -84,12 +84,9 @@ struct FeedView: View {
                     if let user = session.user {
                         NavigationLink(destination: UserProfileView(code: user.publicCode)) {
                             IdentityBadge(code: user.publicCode, color: user.identityColor)
-                                .padding(.horizontal, 8)
+                                .padding(.horizontal, 10)
                                 .frame(height: 32)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .stroke(OpenlyTheme.line, lineWidth: 1)
-                                )
+                                .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                     } else {
@@ -149,11 +146,11 @@ struct OpenlySecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 14, weight: .semibold))
-            .foregroundColor(.primary)
-            .padding(.horizontal, 16)
-            .frame(height: 40)
+            .foregroundColor(OpenlyTheme.ink)
+            .padding(.horizontal, 20)
+            .frame(height: 44)
             .background(Color.clear)
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(OpenlyTheme.line, lineWidth: 1))
+            .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1))
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
@@ -166,69 +163,76 @@ struct PostCard: View {
     @State private var showReport = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                if let code = post.authorCode {
-                    NavigationLink(destination: UserProfileView(code: code)) {
-                        IdentityBadge(code: code, color: post.authorColor)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    IdentityBadge(code: "OPENLY", color: post.authorColor)
-                }
-                Spacer()
-                Text(OpenlyDate.relative(post.createdAt))
-                    .font(.system(size: 11))
-                    .foregroundColor(OpenlyTheme.subtle)
-            }
-
-            NavigationLink(destination: PostDetailView(postID: post.id)) {
-                Text(post.body)
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundColor(.primary)
-                    .lineSpacing(5)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .top, spacing: 12) {
+            let code = post.authorCode ?? "OPEN"
+            NavigationLink(destination: UserProfileView(code: code)) {
+                IdentityAvatar(code: code, color: post.authorColor, size: 40)
             }
             .buttonStyle(.plain)
+            .disabled(post.authorCode == nil)
 
-            HStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Text(code)
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .foregroundColor(OpenlyTheme.ink)
+                        .environment(\.layoutDirection, .leftToRight)
+                    Text("·")
+                        .foregroundColor(OpenlyTheme.subtle)
+                    Text(OpenlyDate.relative(post.createdAt))
+                        .font(.system(size: 11))
+                        .foregroundColor(OpenlyTheme.subtle)
+                    Spacer(minLength: 0)
+                }
+
                 NavigationLink(destination: PostDetailView(postID: post.id)) {
-                    actionLabel(
-                        icon: "bubble.left",
-                        text: (post.commentCount ?? 0) > 0 ? "\(post.commentCount ?? 0) تعليق" : "تعليق",
-                        active: false
-                    )
+                    Text(post.body)
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(OpenlyTheme.ink)
+                        .lineSpacing(5)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .buttonStyle(.plain)
 
-                Button { Task { await toggleLike() } } label: {
-                    actionLabel(
-                        icon: engagement?.viewerHasLiked == true ? "heart.fill" : "heart",
-                        text: (engagement?.likeCount ?? 0) > 0 ? "\(engagement?.likeCount ?? 0)" : "إعجاب",
-                        active: engagement?.viewerHasLiked == true
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(isChanging)
+                HStack(spacing: 18) {
+                    NavigationLink(destination: PostDetailView(postID: post.id)) {
+                        actionLabel(
+                            icon: "bubble.left",
+                            text: (post.commentCount ?? 0) > 0 ? "\(post.commentCount ?? 0) تعليق" : "تعليق",
+                            active: false
+                        )
+                    }
+                    .buttonStyle(.plain)
 
-                Button { Task { await toggleBookmark() } } label: {
-                    actionLabel(
-                        icon: engagement?.viewerHasBookmarked == true ? "bookmark.fill" : "bookmark",
-                        text: engagement?.viewerHasBookmarked == true ? "محفوظ" : "حفظ",
-                        active: engagement?.viewerHasBookmarked == true
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(isChanging)
+                    Button { Task { await toggleLike() } } label: {
+                        actionLabel(
+                            icon: engagement?.viewerHasLiked == true ? "heart.fill" : "heart",
+                            text: (engagement?.likeCount ?? 0) > 0 ? "\(engagement?.likeCount ?? 0)" : "إعجاب",
+                            active: engagement?.viewerHasLiked == true
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isChanging)
 
-                Spacer(minLength: 0)
+                    Button { Task { await toggleBookmark() } } label: {
+                        actionLabel(
+                            icon: engagement?.viewerHasBookmarked == true ? "bookmark.fill" : "bookmark",
+                            text: engagement?.viewerHasBookmarked == true ? "محفوظ" : "حفظ",
+                            active: engagement?.viewerHasBookmarked == true
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isChanging)
 
-                Button { showReport = true } label: {
-                    actionLabel(icon: "flag", text: "إبلاغ", active: false)
+                    Spacer(minLength: 0)
+
+                    Button { showReport = true } label: {
+                        actionLabel(icon: "flag", text: "إبلاغ", active: false)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 16)
@@ -279,6 +283,11 @@ struct PostCard: View {
     }
 }
 
+/// The database enforces this ceiling (posts_body_check / comments_body_check),
+/// so anything longer is rejected server-side — the editor stops at the same
+/// number rather than letting someone write past it and lose the text.
+let postCharacterLimit = 500
+
 struct ComposerView: View {
     @EnvironmentObject private var session: AppSession
     @State private var bodyText = ""
@@ -304,11 +313,13 @@ struct ComposerView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .padding(.horizontal)
                             .onChange(of: bodyText) { value in
-                                if value.count > 3000 { bodyText = String(value.prefix(3000)) }
+                                if value.count > postCharacterLimit {
+                                    bodyText = String(value.prefix(postCharacterLimit))
+                                }
                             }
 
                         HStack {
-                            Text("\(bodyText.count) / 3000")
+                            Text("\(bodyText.count) / \(postCharacterLimit)")
                                 .font(.caption)
                                 .foregroundColor(OpenlyTheme.muted)
                             Spacer()
@@ -316,13 +327,13 @@ struct ComposerView: View {
                                 Task { await publish() }
                             } label: {
                                 if isPublishing {
-                                    ProgressView().tint(.white)
+                                    ProgressView().tint(OpenlyTheme.accentForeground)
                                 } else {
                                     Label("نشر", systemImage: "paperplane.fill")
                                 }
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(.primary)
+                            .tint(OpenlyTheme.accent)
                             .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishing)
                         }
                         .padding(.horizontal)
@@ -376,16 +387,28 @@ struct PostDetailView: View {
                                 .foregroundColor(OpenlyTheme.muted)
                         } else {
                             ForEach(detail.comments) { comment in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        IdentityBadge(code: comment.authorCode ?? "OPENLY", color: comment.authorColor)
-                                        Spacer()
-                                        Text(OpenlyDate.relative(comment.createdAt))
-                                            .font(.caption)
-                                            .foregroundColor(OpenlyTheme.subtle)
+                                HStack(alignment: .top, spacing: 10) {
+                                    IdentityAvatar(
+                                        code: comment.authorCode ?? "OPEN",
+                                        color: comment.authorColor,
+                                        size: 32
+                                    )
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack(spacing: 6) {
+                                            Text(comment.authorCode ?? "OPEN")
+                                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                                .foregroundColor(OpenlyTheme.ink)
+                                                .environment(\.layoutDirection, .leftToRight)
+                                            Text("·").foregroundColor(OpenlyTheme.subtle)
+                                            Text(OpenlyDate.relative(comment.createdAt))
+                                                .font(.caption)
+                                                .foregroundColor(OpenlyTheme.subtle)
+                                            Spacer(minLength: 0)
+                                        }
+                                        Text(comment.body)
+                                            .foregroundColor(OpenlyTheme.ink)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                     }
-                                    Text(comment.body)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                                 .padding(.vertical, 5)
                             }

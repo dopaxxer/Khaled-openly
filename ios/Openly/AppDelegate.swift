@@ -53,38 +53,46 @@ final class AppSession: ObservableObject {
     }
 }
 
+// Mirrors the web app's paper-and-ink palette (app/globals.css) value for
+// value, so the two clients read as the same product. A text-first surface
+// lives or dies on how type sits on it: the ground is warm paper rather than
+// screen white, and dark is a warm near-black rather than #000 — pure black
+// under pure white haloes badly over a long column of Arabic type.
+//
+// Accent is the ink colour itself, not a hue. Colour here is reserved for
+// feedback and for each person's own identity dot, so nothing competes with
+// the writing.
+private func dynamicColor(light: (Int, Int, Int), dark: (Int, Int, Int)) -> Color {
+    Color(uiColor: UIColor { traits in
+        let (r, g, b) = traits.userInterfaceStyle == .dark ? dark : light
+        return UIColor(red: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
+    })
+}
+
 enum OpenlyTheme {
-    static let accent = Color(red: 47 / 255, green: 111 / 255, blue: 98 / 255)
-    static let background = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 17 / 255, green: 18 / 255, blue: 16 / 255, alpha: 1)
-            : UIColor(red: 250 / 255, green: 250 / 255, blue: 248 / 255, alpha: 1)
-    })
-    static let surface = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 21 / 255, green: 22 / 255, blue: 20 / 255, alpha: 1)
-            : .white
-    })
-    static let surfaceSoft = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 27 / 255, green: 28 / 255, blue: 25 / 255, alpha: 1)
-            : UIColor(red: 244 / 255, green: 244 / 255, blue: 241 / 255, alpha: 1)
-    })
-    static let line = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 42 / 255, green: 44 / 255, blue: 39 / 255, alpha: 1)
-            : UIColor(red: 232 / 255, green: 232 / 255, blue: 227 / 255, alpha: 1)
-    })
-    static let muted = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 167 / 255, green: 170 / 255, blue: 161 / 255, alpha: 1)
-            : UIColor(red: 105 / 255, green: 107 / 255, blue: 101 / 255, alpha: 1)
-    })
-    static let subtle = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 124 / 255, green: 128 / 255, blue: 118 / 255, alpha: 1)
-            : UIColor(red: 143 / 255, green: 145 / 255, blue: 137 / 255, alpha: 1)
-    })
+    /// --accent: the ink itself in light, the off-white ink in dark.
+    static let accent = dynamicColor(light: (22, 23, 26), dark: (232, 230, 226))
+    /// --accent-foreground: what sits *on* the accent. Inverts with it, so a
+    /// spinner or label on a filled button stays legible in both schemes.
+    static let accentForeground = dynamicColor(light: (251, 250, 247), dark: (25, 25, 28))
+    /// --background
+    static let background = dynamicColor(light: (243, 241, 236), dark: (17, 17, 19))
+    /// --surface: the reading column, a step above its surround.
+    static let surface = dynamicColor(light: (251, 250, 247), dark: (25, 25, 28))
+    /// --surface-soft
+    static let surfaceSoft = dynamicColor(light: (240, 238, 233), dark: (33, 33, 36))
+    /// --line
+    static let line = dynamicColor(light: (231, 228, 221), dark: (44, 44, 49))
+    /// --line-strong
+    static let lineStrong = dynamicColor(light: (216, 212, 202), dark: (63, 63, 69))
+    /// --foreground
+    static let ink = dynamicColor(light: (22, 23, 26), dark: (232, 230, 226))
+    /// --muted
+    static let muted = dynamicColor(light: (92, 95, 102), dark: (154, 152, 148))
+    /// --subtle
+    static let subtle = dynamicColor(light: (138, 141, 148), dark: (112, 110, 106))
+    /// --danger
+    static let danger = dynamicColor(light: (180, 35, 24), dark: (248, 113, 113))
     static let card = surfaceSoft
 }
 
@@ -153,29 +161,54 @@ struct BrandLockup: View {
     var body: some View {
         HStack(spacing: 8) {
             BrandMark(size: markSize)
-            Text("Openly")
+            Text("open")
                 .font(.system(size: markSize <= 30 ? 17 : 22, weight: .bold, design: .default))
                 .tracking(-0.3)
+                .foregroundColor(OpenlyTheme.ink)
         }
         .environment(\.layoutDirection, .leftToRight)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Openly")
+        .accessibilityLabel("open")
     }
 }
 
+/// A disc, matching the web `.brand-mark` — the mark is round there, not a
+/// lettered box.
 struct BrandMark: View {
     var size: CGFloat = 28
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(.primary, lineWidth: 1)
+            Circle().fill(OpenlyTheme.surface)
+            Circle().stroke(OpenlyTheme.lineStrong, lineWidth: 1)
             Text("O")
                 .font(.system(size: size * 0.47, weight: .heavy, design: .default))
-                .foregroundColor(.primary)
+                .foregroundColor(OpenlyTheme.ink)
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
+    }
+}
+
+/// Identity is pseudonymous: a colour plus a short code, never a photo. The
+/// avatar renders that as a plain colour disc carrying the code's first two
+/// characters — the same treatment the web client uses.
+struct IdentityAvatar: View {
+    let code: String
+    let color: String?
+    var size: CGFloat = 40
+
+    var body: some View {
+        Circle()
+            .fill(Color(hex: color) ?? OpenlyTheme.accent)
+            .frame(width: size, height: size)
+            .overlay(
+                Text(String(code.prefix(2)).uppercased())
+                    .font(.system(size: size * 0.34, weight: .semibold))
+                    .foregroundColor(.white)
+                    .environment(\.layoutDirection, .leftToRight)
+            )
+            .accessibilityHidden(true)
     }
 }
 
@@ -192,6 +225,7 @@ struct ScreenHeader: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.system(size: 20, weight: .bold))
+                .foregroundColor(OpenlyTheme.ink)
             if let subtitle {
                 Text(subtitle)
                     .font(.system(size: 13))
@@ -232,7 +266,7 @@ struct EmptyState: View {
         VStack(spacing: 8) {
             Text(title)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundColor(OpenlyTheme.ink)
             Text(message)
                 .font(.system(size: 14))
                 .foregroundColor(OpenlyTheme.muted)
