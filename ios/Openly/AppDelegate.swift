@@ -65,6 +65,7 @@ final class AppSession: ObservableObject {
     @Published var user: UserSummary?
     @Published var isBooting = true
     @Published var alertMessage: String?
+    @Published private(set) var feedRevision = 0
     let api = APIClient.shared
 
     init() {
@@ -88,6 +89,10 @@ final class AppSession: ObservableObject {
     func logout() async {
         do { try await api.logout() } catch { }
         user = nil
+    }
+
+    func markFeedChanged() {
+        feedRevision &+= 1
     }
 
     func requireLogin() -> Bool {
