@@ -373,6 +373,8 @@ struct PostCard: View {
 
 /// Matches the server-side posts constraint.
 let postCharacterLimit = 3000
+let commentCharacterLimit = 2000
+let reportDescriptionLimit = 1000
 
 struct ComposerView: View {
     @EnvironmentObject private var session: AppSession
@@ -577,10 +579,21 @@ struct PostDetailView: View {
         .safeAreaInset(edge: .bottom) {
             if detail != nil {
                 HStack(spacing: 10) {
-                    OpenlyFieldContainer {
-                        TextField("اكتب تعليقًا", text: $commentText, axis: .vertical)
-                            .foregroundColor(OpenlyTheme.ink)
-                            .lineLimit(1...4)
+                    VStack(alignment: .leading, spacing: 4) {
+                        OpenlyFieldContainer {
+                            TextField("اكتب تعليقًا", text: $commentText, axis: .vertical)
+                                .foregroundColor(OpenlyTheme.ink)
+                                .lineLimit(1...4)
+                                .onChange(of: commentText) { value in
+                                    if value.count > commentCharacterLimit {
+                                        commentText = String(value.prefix(commentCharacterLimit))
+                                    }
+                                }
+                        }
+                        Text("\(commentText.count) / \(commentCharacterLimit)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(OpenlyTheme.subtle)
+                            .environment(\.layoutDirection, .leftToRight)
                     }
 
                     Button { Task { await sendComment() } } label: {
@@ -652,7 +665,17 @@ struct ReportView: View {
                     ForEach(reasons, id: \.0) { Text($0.1).tag($0.0) }
                 }
                 Section("تفاصيل إضافية") {
-                    TextEditor(text: $description).frame(minHeight: 110)
+                    TextEditor(text: $description)
+                        .frame(minHeight: 110)
+                        .onChange(of: description) { value in
+                            if value.count > reportDescriptionLimit {
+                                description = String(value.prefix(reportDescriptionLimit))
+                            }
+                        }
+                    Text("\(description.count) / \(reportDescriptionLimit)")
+                        .font(.caption)
+                        .foregroundColor(OpenlyTheme.subtle)
+                        .environment(\.layoutDirection, .leftToRight)
                 }
             }
             .scrollContentBackground(.hidden)

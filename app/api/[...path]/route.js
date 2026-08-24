@@ -1,9 +1,30 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createSupabaseServerClient, mapPost } from '@/lib/supabase'
+import { PASSWORD_RECOVERY_COOKIE } from '@/lib/publicOrigin'
+import {
+  COMMENT_MAX_LENGTH,
+  isStrongPassword,
+  isUuid,
+  isValidEmail,
+  normalizeEmail,
+  parseCursor,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  POST_MAX_LENGTH,
+  readJson,
+  REPORT_MAX_LENGTH
+} from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
-const json = (body, status = 200) => NextResponse.json(body, { status })
+const json = (body, status = 200) => NextResponse.json(body, {
+  status,
+  headers: {
+    'Cache-Control': 'private, no-store, max-age=0',
+    'X-Content-Type-Options': 'nosniff'
+  }
+})
 const code = value => String(value || '').trim().toUpperCase()
 const reasons = new Set(['spam', 'harassment', 'hate', 'threat', 'sexual', 'illegal', 'other'])
 const publicCodePattern = /^[A-HJ-NP-Z2-9]{4,8}$/
@@ -44,7 +65,7 @@ function userPayload(profile) {
 async function engagementFor(supabase, ids) {
   if (!ids.length) return []
   const { data, error } = await supabase.rpc('get_post_engagement', { p_post_ids: ids })
-  if (error) return []
+  if (error) throw error
   return (data || []).map(x => ({
     postId: x.post_id,
     likeCount: Number(x.like_count || 0),
@@ -92,6 +113,11 @@ export async function GET(request, { params }) {
     return json({ user: userPayload(profile) })
   }
 
+  if (path.join('/') === 'auth/password-mode') {
+    const cookieStore = await cookies()
+    return json({ recovery: cookieStore.get(PASSWORD_RECOVERY_COOKIE)?.value === '1' })
+  }
+
   if (path[0] === 'posts' && path.length === 1) {
     const author = url.searchParams.get('author')
     if (author) {
@@ -99,16 +125,11 @@ export async function GET(request, { params }) {
       if (error) return json({ error: 'تعذر تحميل المنشورات' }, 500)
       return json({ items: (data || []).map(mapPost), nextCursor: null })
     }
-    const cursor = url.searchParams.get('cursor')
-    let created = null
-    let id = null
-    if (cursor) {
-      const split = cursor.split('|')
-      if (split.length === 2) [created, id] = split
-    }
+    const cursor = parseCursor(url.searchParams.get('cursor'))
+    if (!cursor) return json({ error: 'مؤشر الصفحة غير صالح' }, 400)
     const { data, error } = await supabase.rpc('get_timeline', {
-      p_cursor_created_at: created,
-      p_cursor_id: id,
+      p_cursor_created_at: cursor.createdAt,
+      p_cursor_id: cursor.id,
       p_limit: 30
     })
     if (error) return json({ error: 'تعذر تحميل المنشورات' }, 500)
@@ -118,6 +139,7 @@ export async function GET(request, { params }) {
   }
 
   if (path[0] === 'posts' && path[1] && path.length === 2) {
+    if (!isUuid(path[1])) return json({ error: 'معرّف المنشور غير صالح' }, 400)
     const post = await getOnePost(supabase, path[1])
     if (!post) return json({ error: 'المنشور غير موجود' }, 404)
     const { data: rows, error } = await supabase
@@ -126,11 +148,12 @@ export async function GET(request, { params }) {
       .eq('post_id', path[1])
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
-    if (error) return json({ post, comments: [] })
+    if (error) return json({ error: 'تعذر تحميل التعليقات' }, 500)
     const authorIds = [...new Set((rows || []).map(x => x.author_id))]
-    const { data: profiles } = authorIds.length
+    const { data: profiles, error: profileError } = authorIds.length
       ? await supabase.from('profiles').select('id,public_code,identity_color').in('id', authorIds)
-      : { data: [] }
+      : { data: [], error: null }
+    if (profileError) return json({ error: 'تعذر تحميل أصحاب التعليقات' }, 500)
     const byId = Object.fromEntries((profiles || []).map(p => [p.id, p]))
     const comments = (rows || []).map(c => ({
       id: c.id,
@@ -146,10 +169,11 @@ export async function GET(request, { params }) {
   if (path[0] === 'search' && path.length === 1) {
     const q = String(url.searchParams.get('q') || '').trim().slice(0, 120)
     if (!q) return json({ posts: [], users: [] })
-    const [{ data: posts }, { data: users }] = await Promise.all([
+    const [{ data: posts, error: postsError }, { data: users, error: usersError }] = await Promise.all([
       supabase.rpc('search_posts', { p_query: q, p_limit: 30 }),
       supabase.from('profiles').select('public_code,identity_color').ilike('public_code', `%${code(q)}%`).limit(10)
     ])
+    if (postsError || usersError) return json({ error: 'تعذر إكمال البحث' }, 500)
     return json({
       posts: (posts || []).map(mapPost),
       users: (users || []).map(u => ({ publicCode: u.public_code, identityColor: u.identity_color }))
@@ -189,14 +213,6 @@ export async function GET(request, { params }) {
     })
   }
 
-  if (path.join('/') === 'me/followers-count') {
-    const user = await currentUser(supabase)
-    if (!user) return json({ error: 'غير مسجل' }, 401)
-    const { data, error } = await supabase.rpc('get_followers_count')
-    if (error) return json({ error: 'تعذر تحميل العدد' }, 500)
-    return json({ count: Number(data || 0) })
-  }
-
   if (path.join('/') === 'me/following') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
@@ -215,7 +231,21 @@ export async function GET(request, { params }) {
 
   if (path[0] === 'engagement' && path.length === 1) {
     const ids = String(url.searchParams.get('ids') || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 50)
-    return json({ items: await engagementFor(supabase, ids) })
+    if (!ids.length) return json({ items: [] })
+    if (ids.some(id => !isUuid(id))) return json({ error: 'معرّف منشور غير صالح' }, 400)
+    try {
+      return json({ items: await engagementFor(supabase, ids) })
+    } catch {
+      return json({ error: 'تعذر تحميل التفاعل' }, 500)
+    }
+  }
+
+  if (path.join('/') === 'notifications/count') {
+    const user = await currentUser(supabase)
+    if (!user) return json({ error: 'غير مسجل' }, 401)
+    const { data, error } = await supabase.rpc('get_unread_notification_count')
+    if (error) return json({ error: 'تعذر تحميل الإشعارات' }, 500)
+    return json({ unreadCount: Number(data || 0) })
   }
 
   if (path.join('/') === 'notifications') {
@@ -289,12 +319,15 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   const { path, supabase } = await ctx(params)
-  const body = await request.json().catch(() => ({}))
+  const parsed = await readJson(request)
+  if (parsed.error) return json({ error: parsed.error }, parsed.status)
+  const body = parsed.data
 
   if (path.join('/') === 'auth/login') {
-    const { email, password } = body
-    if (!email || !password) return json({ error: 'أدخل البريد وكلمة المرور' }, 400)
-    const { error } = await supabase.auth.signInWithPassword({ email: String(email), password: String(password) })
+    const email = normalizeEmail(body.email)
+    const password = String(body.password || '')
+    if (!isValidEmail(email) || !password || password.length > PASSWORD_MAX_LENGTH) return json({ error: 'أدخل البريد وكلمة المرور' }, 400)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return json({ error: error.code === 'email_not_confirmed' ? 'أكد بريدك الإلكتروني أولًا' : 'بيانات الدخول غير صحيحة' }, 400)
     return json({ ok: true })
   }
@@ -303,24 +336,49 @@ export async function POST(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'رابط إعادة التعيين منتهي أو غير صالح' }, 401)
     const password = String(body.password || '')
-    if (password.length < 8 || password.length > 128) return json({ error: 'كلمة المرور يجب أن تكون بين 8 و128 حرفًا' }, 400)
+    if (!isStrongPassword(password)) {
+      return json({ error: `كلمة المرور يجب أن تكون بين ${PASSWORD_MIN_LENGTH} و${PASSWORD_MAX_LENGTH} حرفًا وتضم حرفًا ورقمًا` }, 400)
+    }
+
+    const cookieStore = await cookies()
+    const isRecovery = cookieStore.get(PASSWORD_RECOVERY_COOKIE)?.value === '1'
+    if (!isRecovery) {
+      const currentPassword = String(body.currentPassword || '')
+      if (!currentPassword || currentPassword.length > PASSWORD_MAX_LENGTH || !user.email) {
+        return json({ error: 'أدخل كلمة المرور الحالية أولًا' }, 400)
+      }
+      const { error: verificationError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      })
+      if (verificationError) return json({ error: 'كلمة المرور الحالية غير صحيحة' }, 403)
+    }
+
     const { error } = await supabase.auth.updateUser({ password })
     if (error) return json({ error: 'تعذر تحديث كلمة المرور' }, 400)
-    return json({ ok: true })
+    const response = json({ ok: true })
+    response.cookies.set(PASSWORD_RECOVERY_COOKIE, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/api/auth',
+      maxAge: 0
+    })
+    return response
   }
 
   if (path.join('/') === 'auth/verify') {
-    const email = String(body.email || '').trim()
+    const email = normalizeEmail(body.email)
     const token = String(body.token || '').trim()
-    if (!email || !/^\d{6}$/.test(token)) return json({ error: 'أدخل كودًا صحيحًا من 6 أرقام' }, 400)
+    if (!isValidEmail(email) || !/^\d{6}$/.test(token)) return json({ error: 'أدخل كودًا صحيحًا من 6 أرقام' }, 400)
     const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
     if (error) return json({ error: error.code === 'otp_expired' ? 'انتهت صلاحية الكود. اطلب كودًا جديدًا.' : 'الكود غير صحيح' }, 400)
     return json({ ok: true })
   }
 
   if (path.join('/') === 'auth/resend-code') {
-    const email = String(body.email || '').trim()
-    if (!email) return json({ error: 'البريد مطلوب' }, 400)
+    const email = normalizeEmail(body.email)
+    if (!isValidEmail(email)) return json({ error: 'البريد غير صالح' }, 400)
     const { error } = await supabase.auth.resend({ type: 'signup', email })
     if (error && error.code === 'over_email_send_rate_limit') return json({ error: 'محاولات كثيرة. حاول بعد قليل.' }, 429)
     if (error) console.error('[resend-code]', error.code, error.message)
@@ -355,20 +413,23 @@ export async function POST(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 3000) return json({ error: 'النص يجب أن يكون بين 1 و3000 حرف' }, 400)
+    if (!text || text.length > POST_MAX_LENGTH) return json({ error: `النص يجب أن يكون بين 1 و${POST_MAX_LENGTH} حرف` }, 400)
     const { data, error } = await supabase.from('posts').insert({ author_id: user.id, body: text }).select('id').single()
     if (error) return json({ error: 'تعذر النشر' }, 400)
     return json({ id: data.id }, 201)
   }
 
   if (path[0] === 'posts' && path[1] && path[2] === 'comments') {
+    if (!isUuid(path[1])) return json({ error: 'معرّف المنشور غير صالح' }, 400)
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 2000) return json({ error: 'التعليق يجب أن يكون بين 1 و2000 حرف' }, 400)
+    if (!text || text.length > COMMENT_MAX_LENGTH) return json({ error: `التعليق يجب أن يكون بين 1 و${COMMENT_MAX_LENGTH} حرف` }, 400)
+    const parentCommentId = body.parentCommentId || null
+    if (parentCommentId && !isUuid(parentCommentId)) return json({ error: 'معرّف التعليق الأصلي غير صالح' }, 400)
     const { data, error } = await supabase
       .from('comments')
-      .insert({ post_id: path[1], author_id: user.id, body: text, parent_comment_id: body.parentCommentId || null })
+      .insert({ post_id: path[1], author_id: user.id, body: text, parent_comment_id: parentCommentId })
       .select('id')
       .single()
     if (error) return json({ error: 'تعذر إضافة التعليق' }, 400)
@@ -408,6 +469,7 @@ export async function POST(request, { params }) {
   }
 
   if (path[0] === 'posts' && path[1] && path[2] === 'like') {
+    if (!isUuid(path[1])) return json({ error: 'معرّف المنشور غير صالح' }, 400)
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const { data, error } = await supabase.rpc('set_post_like', { p_post_id: path[1], p_liked: !!body.enabled })
@@ -416,6 +478,7 @@ export async function POST(request, { params }) {
   }
 
   if (path[0] === 'posts' && path[1] && path[2] === 'bookmark') {
+    if (!isUuid(path[1])) return json({ error: 'معرّف المنشور غير صالح' }, 400)
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const { data, error } = await supabase.rpc('set_post_bookmark', { p_post_id: path[1], p_bookmarked: !!body.enabled })
@@ -427,8 +490,8 @@ export async function POST(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const targetType = body.targetType
-    if ((targetType !== 'post' && targetType !== 'comment') || !body.targetId || !reasons.has(body.reason)) return json({ error: 'بلاغ غير صالح' }, 400)
-    const description = body.description ? String(body.description).slice(0, 1000) : null
+    if ((targetType !== 'post' && targetType !== 'comment') || !isUuid(body.targetId) || !reasons.has(body.reason)) return json({ error: 'بلاغ غير صالح' }, 400)
+    const description = body.description ? String(body.description).trim().slice(0, REPORT_MAX_LENGTH) : null
     const { error } = await supabase.from('reports').insert({
       reporter_id: user.id,
       target_type: targetType,
@@ -445,19 +508,23 @@ export async function POST(request, { params }) {
 
 export async function PATCH(request, { params }) {
   const { path, supabase } = await ctx(params)
-  const body = await request.json().catch(() => ({}))
+  const parsed = await readJson(request)
+  if (parsed.error) return json({ error: parsed.error }, parsed.status)
+  const body = parsed.data
 
   if (path.join('/') === 'notifications') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const ids = Array.isArray(body.ids) ? body.ids.slice(0, 100) : []
     if (!ids.length) return json({ ok: true })
+    if (ids.some(id => !isUuid(id))) return json({ error: 'معرّف إشعار غير صالح' }, 400)
     const { error } = await supabase.rpc('mark_notifications_read', { p_ids: ids })
     if (error) return json({ error: 'تعذر تحديث الإشعارات' }, 400)
     return json({ ok: true })
   }
 
   if (path[0] === 'admin' && path[1] === 'reports' && path[2]) {
+    if (!isUuid(path[2])) return json({ error: 'معرّف البلاغ غير صالح' }, 400)
     const { data: admin } = await supabase.rpc('is_admin')
     if (!admin) return json({ error: 'غير مصرح' }, 403)
     const allowed = new Set(['delete-content', 'suspend-author', 'ban-author', 'resolve', 'dismiss'])
@@ -468,10 +535,11 @@ export async function PATCH(request, { params }) {
   }
 
   if (path[0] === 'posts' && path[1] && path.length === 2) {
+    if (!isUuid(path[1])) return json({ error: 'معرّف المنشور غير صالح' }, 400)
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 3000) return json({ error: 'النص يجب أن يكون بين 1 و3000 حرف' }, 400)
+    if (!text || text.length > POST_MAX_LENGTH) return json({ error: `النص يجب أن يكون بين 1 و${POST_MAX_LENGTH} حرف` }, 400)
     const { data, error } = await supabase.from('posts').update({ body: text }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
     if (error) return json({ error: 'تعذر تعديل المنشور' }, 400)
     if (!data) return json({ error: 'المنشور غير موجود' }, 404)
@@ -485,19 +553,20 @@ export async function DELETE(request, { params }) {
   const { path, supabase } = await ctx(params)
   const user = await currentUser(supabase)
   if (!user) return json({ error: 'غير مسجل' }, 401)
-  const now = new Date().toISOString()
 
   if (path[0] === 'posts' && path[1] && path.length === 2) {
-    const { data, error } = await supabase.from('posts').update({ deleted_at: now }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
+    if (!isUuid(path[1])) return json({ error: 'معرّف المنشور غير صالح' }, 400)
+    const { data, error } = await supabase.rpc('delete_own_post', { p_post_id: path[1] })
     if (error) return json({ error: 'تعذر حذف المنشور' }, 400)
-    if (!data) return json({ error: 'المنشور غير موجود' }, 404)
+    if (data !== true) return json({ error: 'المنشور غير موجود' }, 404)
     return json({ ok: true })
   }
 
   if (path[0] === 'comments' && path[1] && path.length === 2) {
-    const { data, error } = await supabase.from('comments').update({ deleted_at: now }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
+    if (!isUuid(path[1])) return json({ error: 'معرّف التعليق غير صالح' }, 400)
+    const { data, error } = await supabase.rpc('delete_own_comment', { p_comment_id: path[1] })
     if (error) return json({ error: 'تعذر حذف التعليق' }, 400)
-    if (!data) return json({ error: 'التعليق غير موجود' }, 404)
+    if (data !== true) return json({ error: 'التعليق غير موجود' }, 404)
     return json({ ok: true })
   }
 

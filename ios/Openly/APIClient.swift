@@ -210,6 +210,14 @@ final class APIClient {
         )
     }
 
+    func requestPasswordReset(email: String) async throws {
+        let _: ActionResponse = try await request(
+            "auth/request-password-reset",
+            method: "POST",
+            body: ["email": email]
+        )
+    }
+
     func logout() async throws {
         let _: ActionResponse = try await request("auth/logout", method: "POST", body: [:])
         await engagementBroker.clear()

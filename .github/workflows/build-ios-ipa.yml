@@ -7,15 +7,25 @@ on:
       - '.github/workflows/build-ios-ipa.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ipa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-native-ipa:
     runs-on: macos-15
+    timeout-minutes: 35
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          brew install xcodegen
+          xcodegen --version
 
       - name: Generate app icons
         working-directory: ios
@@ -43,6 +53,9 @@ jobs:
         working-directory: ios
         run: |
           test -d build/Build/Products/Release-iphoneos/Openly.app
+          plutil -lint build/Build/Products/Release-iphoneos/Openly.app/Info.plist
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)" = "ink.openly.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)" = "4"
           if grep -R "WKWebView\|WebKit" Openly --include='*.swift'; then
             echo "Web wrapper code found" >&2
             exit 1
@@ -55,10 +68,13 @@ jobs:
           mkdir Payload
           cp -R build/Build/Products/Release-iphoneos/Openly.app Payload/Openly.app
           zip -qry Openly-native.ipa Payload
+          shasum -a 256 Openly-native.ipa > Openly-native.ipa.sha256
 
       - name: Upload native IPA
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Openly-native-ipa
-          path: ios/Openly-native.ipa
+          path: |
+            ios/Openly-native.ipa
+            ios/Openly-native.ipa.sha256
           if-no-files-found: error

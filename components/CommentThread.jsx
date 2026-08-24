@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
 import { renderRichText } from '@/lib/richText'
+import { COMMENT_MAX_LENGTH } from '@/lib/validation'
 
-const MAX_LENGTH = 500
+const MAX_LENGTH = COMMENT_MAX_LENGTH
 
 // Replies nest, but only so far. Past a few levels the indent eats the column
 // on a phone and the thread stops being readable, so deeper replies keep
@@ -73,7 +74,7 @@ function Comment({ node, depth, postId, viewerCode, onChanged }) {
 
   return <div className={depth > 0 ? 'comment-branch' : undefined}>
     <article className="comment">
-      <Link href={`/u/${node.authorCode}`} className="post-avatar-link"><Avatar code={node.authorCode} color={node.authorColor} size={32}/></Link>
+      <Link href={`/u/${node.authorCode}`} className="post-avatar-link" aria-label={`صفحة ${node.authorCode}`}><Avatar code={node.authorCode} color={node.authorColor} size={32}/></Link>
 
       <div className="comment-main">
         <div className="post-top">

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
+import { readJson } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,12 @@ export async function POST(request) {
   // Only associate telemetry with an authenticated Openly account.
   if (!user) return new NextResponse(null, { status: 204 })
 
-  const body = await request.json().catch(() => ({}))
+  const parsed = await readJson(request, 16 * 1024)
+  if (parsed.error) return NextResponse.json({ error: parsed.error }, {
+    status: parsed.status,
+    headers: { 'Cache-Control': 'private, no-store, max-age=0' }
+  })
+  const body = parsed.data
   const pagePath = text(body.pagePath, 1024)
   if (!pagePath || !pagePath.startsWith('/')) return new NextResponse(null, { status: 204 })
 
@@ -54,7 +60,10 @@ export async function POST(request) {
 
   if (error) {
     console.error('device_visit_insert_failed', error.code)
-    return NextResponse.json({ error: 'تعذر حفظ بيانات الجهاز' }, { status: 500 })
+    return NextResponse.json({ error: 'تعذر حفظ بيانات الجهاز' }, {
+      status: 500,
+      headers: { 'Cache-Control': 'private, no-store, max-age=0' }
+    })
   }
 
   return new NextResponse(null, { status: 204 })

@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
+import { POST_MAX_LENGTH } from '@/lib/validation'
 
-const MAX_LENGTH = 500
+const MAX_LENGTH = POST_MAX_LENGTH
 
 export function Composer({ firstPost = false }) {
   const router = useRouter()

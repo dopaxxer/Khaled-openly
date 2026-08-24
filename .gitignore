@@ -1,6 +1,15 @@
 node_modules
 .next
 .vercel
-.env*.local
+.netlify
+.env
+.env.*
+!.env.example
 .DS_Store
 npm-debug.log*
+ios/Openly.xcodeproj
+ios/build*
+ios/Payload
+ios/*.ipa
+ios/*.ipa.sha256
+*.mobileprovision
