@@ -8,103 +8,103 @@ struct FeedView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        NavigationView {
-            Group {
-                if posts.isEmpty && isLoading {
-                    VStack(spacing: 18) {
-                        ForEach(0..<3, id: \.self) { _ in FeedSkeletonRow() }
-                    }
-                    .padding(.top, 8)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                } else if posts.isEmpty {
-                    VStack(spacing: 16) {
-                        EmptyState(
-                            icon: "text.bubble",
-                            title: errorMessage == nil ? "لا توجد منشورات بعد" : "تعذر تحميل المنشورات",
-                            message: errorMessage ?? "كن أول من يكتب."
-                        )
-                        if errorMessage != nil {
-                            Button("المحاولة مجددًا") { Task { await load(reset: true) } }
-                                .buttonStyle(OpenlySecondaryButtonStyle())
+        NavigationStack {
+            VStack(spacing: 0) {
+                OpenlyMobileHeader {
+                    HStack(spacing: 8) {
+                        if session.user != nil {
+                            NavigationLink(destination: NotificationsView()) {
+                                Image(systemName: "bell")
+                                    .font(.system(size: 19, weight: .regular))
+                                    .foregroundColor(OpenlyTheme.muted)
+                                    .frame(width: 38, height: 38)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if let user = session.user {
+                            NavigationLink(destination: UserProfileView(code: user.publicCode)) {
+                                IdentityBadge(code: user.publicCode, color: user.identityColor)
+                                    .padding(.horizontal, 11)
+                                    .frame(height: 36)
+                                    .background(OpenlyTheme.surface.opacity(0.72))
+                                    .clipShape(Capsule())
+                                    .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            NavigationLink(destination: LoginView()) {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(OpenlyTheme.muted)
+                                    .frame(width: 38, height: 38)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                } else {
-                    List {
-                        ForEach(posts) { post in
-                            PostCard(post: post)
-                                .listRowInsets(EdgeInsets())
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(OpenlyTheme.surface)
-                                .onAppear {
-                                    if post.id == posts.last?.id, nextCursor != nil {
-                                        Task { await load(reset: false) }
-                                    }
-                                }
-                        }
-                        if isLoading {
-                            HStack { Spacer(); ProgressView().controlSize(.small); Spacer() }
-                                .padding(.vertical, 18)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(OpenlyTheme.surface)
-                        } else if nextCursor == nil {
-                            Text("هذه كل المنشورات المتاحة.")
-                                .font(.system(size: 11))
-                                .foregroundColor(OpenlyTheme.subtle)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 24)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(OpenlyTheme.surface)
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .background(OpenlyTheme.surface)
-                    .refreshable { await load(reset: true) }
+                }
+
+                feedBody
+            }
+            .background(OpenlyTheme.surface)
+            .toolbar(.hidden, for: .navigationBar)
+            .task { if posts.isEmpty { await load(reset: true) } }
+        }
+    }
+
+    @ViewBuilder
+    private var feedBody: some View {
+        if posts.isEmpty && isLoading {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(0..<4, id: \.self) { _ in FeedSkeletonRow() }
                 }
             }
             .background(OpenlyTheme.surface)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    BrandLockup(markSize: 28)
+        } else if posts.isEmpty {
+            VStack(spacing: 4) {
+                Spacer(minLength: 20)
+                EmptyState(
+                    icon: errorMessage == nil ? "text.bubble" : "exclamationmark.triangle",
+                    title: errorMessage == nil ? "لا توجد منشورات بعد" : "تعذر تحميل المنشورات",
+                    message: errorMessage ?? "كن أول من يكتب."
+                )
+                if errorMessage != nil {
+                    Button("المحاولة مجددًا") { Task { await load(reset: true) } }
+                        .buttonStyle(OpenlySecondaryButtonStyle())
                 }
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if session.user != nil {
-                        NavigationLink(destination: NotificationsView()) {
-                            Image(systemName: "bell")
-                                .font(.system(size: 17, weight: .regular))
-                                .foregroundColor(OpenlyTheme.muted)
-                                .frame(width: 34, height: 34)
-                        }
+                Spacer()
+            }
+            .background(OpenlyTheme.surface)
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(posts) { post in
+                        PostCard(post: post) { Task { await load(reset: true) } }
+                            .onAppear {
+                                if post.id == posts.last?.id, nextCursor != nil {
+                                    Task { await load(reset: false) }
+                                }
+                            }
                     }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if let user = session.user {
-                        NavigationLink(destination: UserProfileView(code: user.publicCode)) {
-                            IdentityBadge(code: user.publicCode, color: user.identityColor)
-                                .padding(.horizontal, 8)
-                                .frame(height: 32)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .stroke(OpenlyTheme.line, lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        NavigationLink(destination: LoginView()) {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                                .font(.system(size: 17))
-                                .foregroundColor(OpenlyTheme.muted)
-                                .frame(width: 34, height: 34)
-                        }
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .padding(.vertical, 24)
+                            .frame(maxWidth: .infinity)
+                    } else if nextCursor == nil {
+                        Text("هذه كل المنشورات المتاحة.")
+                            .font(.system(size: 11))
+                            .foregroundColor(OpenlyTheme.subtle)
+                            .padding(.vertical, 26)
+                            .frame(maxWidth: .infinity)
                     }
                 }
             }
-            .task { if posts.isEmpty { await load(reset: true) } }
+            .background(OpenlyTheme.surface)
+            .refreshable { await load(reset: true) }
         }
-        .navigationViewStyle(.stack)
     }
 
     @MainActor
@@ -131,122 +131,168 @@ struct FeedView: View {
 
 private struct FeedSkeletonRow: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            RoundedRectangle(cornerRadius: 3).fill(OpenlyTheme.surfaceSoft).frame(width: 110, height: 12)
-            RoundedRectangle(cornerRadius: 3).fill(OpenlyTheme.surfaceSoft).frame(height: 15)
-            RoundedRectangle(cornerRadius: 3).fill(OpenlyTheme.surfaceSoft).frame(width: 230, height: 15)
-            RoundedRectangle(cornerRadius: 3).fill(OpenlyTheme.surfaceSoft).frame(width: 170, height: 11)
+        VStack(alignment: .leading, spacing: 13) {
+            HStack {
+                Capsule().fill(OpenlyTheme.surfaceSoft).frame(width: 105, height: 12)
+                Spacer()
+                Capsule().fill(OpenlyTheme.surfaceSoft).frame(width: 72, height: 10)
+            }
+            RoundedRectangle(cornerRadius: 4).fill(OpenlyTheme.surfaceSoft).frame(height: 16)
+            RoundedRectangle(cornerRadius: 4).fill(OpenlyTheme.surfaceSoft).frame(width: 250, height: 16)
+            Capsule().fill(OpenlyTheme.surfaceSoft).frame(width: 210, height: 11)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 18)
+        .padding(.vertical, 24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(OpenlyTheme.surface)
-        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
-    }
-}
-
-struct OpenlySecondaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundColor(.primary)
-            .padding(.horizontal, 16)
-            .frame(height: 40)
-            .background(Color.clear)
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(OpenlyTheme.line, lineWidth: 1))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+        .overlay(alignment: .top) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
     }
 }
 
 struct PostCard: View {
     @EnvironmentObject private var session: AppSession
     let post: Post
+    var onChanged: (() -> Void)? = nil
     @State private var engagement: Engagement?
     @State private var isChanging = false
     @State private var showReport = false
+    @State private var editing = false
+    @State private var editText = ""
+    @State private var gone = false
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                if let code = post.authorCode {
-                    NavigationLink(destination: UserProfileView(code: code)) {
-                        IdentityBadge(code: code, color: post.authorColor)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    IdentityBadge(code: "OPENLY", color: post.authorColor)
-                }
-                Spacer()
-                Text(OpenlyDate.relative(post.createdAt))
-                    .font(.system(size: 11))
-                    .foregroundColor(OpenlyTheme.subtle)
-            }
-
-            NavigationLink(destination: PostDetailView(postID: post.id)) {
-                Text(post.body)
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundColor(.primary)
-                    .lineSpacing(5)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .buttonStyle(.plain)
-
-            HStack(spacing: 18) {
-                NavigationLink(destination: PostDetailView(postID: post.id)) {
-                    actionLabel(
-                        icon: "bubble.left",
-                        text: (post.commentCount ?? 0) > 0 ? "\(post.commentCount ?? 0) تعليق" : "تعليق",
-                        active: false
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button { Task { await toggleLike() } } label: {
-                    actionLabel(
-                        icon: engagement?.viewerHasLiked == true ? "heart.fill" : "heart",
-                        text: (engagement?.likeCount ?? 0) > 0 ? "\(engagement?.likeCount ?? 0)" : "إعجاب",
-                        active: engagement?.viewerHasLiked == true
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(isChanging)
-
-                Button { Task { await toggleBookmark() } } label: {
-                    actionLabel(
-                        icon: engagement?.viewerHasBookmarked == true ? "bookmark.fill" : "bookmark",
-                        text: engagement?.viewerHasBookmarked == true ? "محفوظ" : "حفظ",
-                        active: engagement?.viewerHasBookmarked == true
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(isChanging)
-
-                Spacer(minLength: 0)
-
-                Button { showReport = true } label: {
-                    actionLabel(icon: "flag", text: "إبلاغ", active: false)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 18)
-        .background(OpenlyTheme.surface)
-        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
-        .task { await loadEngagement() }
-        .sheet(isPresented: $showReport) { ReportView(postID: post.id) }
+    private var isOwner: Bool {
+        session.user?.publicCode == post.authorCode
     }
 
-    private func actionLabel(icon: String, text: String, active: Bool) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .regular))
-            Text(text)
-                .font(.system(size: 11, weight: active ? .semibold : .regular))
+    var body: some View {
+        if !gone {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 10) {
+                    if let code = post.authorCode {
+                        NavigationLink(destination: UserProfileView(code: code)) {
+                            IdentityBadge(code: code, color: post.authorColor)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        IdentityBadge(code: "OPENLY", color: post.authorColor)
+                    }
+                    Spacer()
+                    Text(OpenlyDate.relative(post.createdAt))
+                        .font(.system(size: 11))
+                        .foregroundColor(OpenlyTheme.subtle)
+                }
+                .padding(.bottom, 12)
+
+                if editing {
+                    OpenlyPanel {
+                        VStack(spacing: 0) {
+                            TextEditor(text: $editText)
+                                .font(.system(size: 17))
+                                .foregroundColor(OpenlyTheme.foreground)
+                                .scrollContentBackground(.hidden)
+                                .padding(12)
+                                .frame(minHeight: 120)
+                            Rectangle().fill(OpenlyTheme.line).frame(height: 0.5)
+                            HStack {
+                                Button("إلغاء") { editing = false; editText = post.body }
+                                    .buttonStyle(OpenlySecondaryButtonStyle())
+                                Spacer()
+                                Button(isChanging ? "جارِ الحفظ…" : "حفظ") {
+                                    Task { await saveEdit() }
+                                }
+                                .buttonStyle(OpenlyPrimaryButtonStyle())
+                                .disabled(isChanging || editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                            .padding(12)
+                        }
+                    }
+                } else {
+                    NavigationLink(destination: PostDetailView(postID: post.id)) {
+                        Text(post.body)
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(OpenlyTheme.foreground)
+                            .lineSpacing(8)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                postActions
+                    .padding(.top, 16)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 24)
+            .background(OpenlyTheme.surface)
+            .overlay(alignment: .top) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
+            .task { await loadEngagement() }
+            .sheet(isPresented: $showReport) { ReportView(postID: post.id) }
         }
-        .foregroundColor(active ? OpenlyTheme.accent : OpenlyTheme.muted)
+    }
+
+    private var postActions: some View {
+        HStack(spacing: 0) {
+            NavigationLink(destination: PostDetailView(postID: post.id)) {
+                actionLabel(
+                    icon: "bubble.left",
+                    text: (post.commentCount ?? 0) > 0 ? "\(post.commentCount ?? 0) تعليق" : "تعليق",
+                    color: OpenlyTheme.muted
+                )
+            }
+            .buttonStyle(.plain)
+            Spacer(minLength: 8)
+
+            Button { Task { await toggleLike() } } label: {
+                actionLabel(
+                    icon: engagement?.viewerHasLiked == true ? "heart.fill" : "heart",
+                    text: (engagement?.likeCount ?? 0) > 0 ? "\(engagement?.likeCount ?? 0)" : "إعجاب",
+                    color: engagement?.viewerHasLiked == true ? Color(red: 212/255, green: 72/255, blue: 60/255) : OpenlyTheme.muted
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isChanging)
+            Spacer(minLength: 8)
+
+            Button { Task { await toggleBookmark() } } label: {
+                actionLabel(
+                    icon: engagement?.viewerHasBookmarked == true ? "bookmark.fill" : "bookmark",
+                    text: engagement?.viewerHasBookmarked == true ? "محفوظ" : "حفظ",
+                    color: engagement?.viewerHasBookmarked == true ? OpenlyTheme.accent : OpenlyTheme.muted
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isChanging)
+            Spacer(minLength: 8)
+
+            Menu {
+                if isOwner {
+                    Button {
+                        editText = post.body
+                        editing = true
+                    } label: { Label("تعديل", systemImage: "pencil") }
+                    Button(role: .destructive) { Task { await removePost() } } label: {
+                        Label("حذف", systemImage: "trash")
+                    }
+                } else {
+                    Button(role: .destructive) { showReport = true } label: {
+                        Label("إبلاغ", systemImage: "flag")
+                    }
+                }
+            } label: {
+                actionLabel(icon: "ellipsis", text: isOwner ? "إدارة" : "إبلاغ", color: OpenlyTheme.muted)
+            }
+        }
+    }
+
+    private func actionLabel(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 15, weight: .regular))
+            Text(text).font(.system(size: 11, weight: .semibold))
+        }
+        .foregroundColor(color)
+        .frame(minHeight: 32)
+        .contentShape(Rectangle())
     }
 
     @MainActor
@@ -258,11 +304,20 @@ struct PostCard: View {
     private func toggleLike() async {
         guard session.requireLogin() else { return }
         let next = !(engagement?.viewerHasLiked ?? false)
+        let previous = engagement
+        if var current = engagement {
+            current.viewerHasLiked = next
+            current.likeCount = max(0, current.likeCount + (next ? 1 : -1))
+            engagement = current
+        }
         isChanging = true
         do {
             try await session.api.setLike(postID: post.id, enabled: next)
             await loadEngagement()
-        } catch { session.alertMessage = error.localizedDescription }
+        } catch {
+            engagement = previous
+            session.alertMessage = error.localizedDescription
+        }
         isChanging = false
     }
 
@@ -270,10 +325,43 @@ struct PostCard: View {
     private func toggleBookmark() async {
         guard session.requireLogin() else { return }
         let next = !(engagement?.viewerHasBookmarked ?? false)
+        let previous = engagement
+        if var current = engagement {
+            current.viewerHasBookmarked = next
+            engagement = current
+        }
         isChanging = true
         do {
             try await session.api.setBookmark(postID: post.id, enabled: next)
             await loadEngagement()
+        } catch {
+            engagement = previous
+            session.alertMessage = error.localizedDescription
+        }
+        isChanging = false
+    }
+
+    @MainActor
+    private func saveEdit() async {
+        let value = editText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        isChanging = true
+        do {
+            try await session.api.updatePost(postID: post.id, body: value)
+            editing = false
+            onChanged?()
+        } catch { session.alertMessage = error.localizedDescription }
+        isChanging = false
+    }
+
+    @MainActor
+    private func removePost() async {
+        guard session.requireLogin() else { return }
+        isChanging = true
+        do {
+            try await session.api.deletePost(postID: post.id)
+            gone = true
+            onChanged?()
         } catch { session.alertMessage = error.localizedDescription }
         isChanging = false
     }
@@ -287,55 +375,96 @@ struct ComposerView: View {
     let onPublished: () -> Void
 
     var body: some View {
-        NavigationView {
-            Group {
+        NavigationStack {
+            ZStack {
+                CosmicBackground()
                 if session.user == nil {
                     LoginRequiredView(message: "سجّل الدخول لكتابة منشور جديد.")
                 } else {
-                    VStack(alignment: .leading, spacing: 14) {
-                        ScreenHeader("منشور جديد", subtitle: "سيظهر كلامك للجميع بهويتك الملوّنة.")
-                        TextEditor(text: $bodyText)
-                            .focused($isFocused)
-                            .font(.body)
-                            .padding(10)
-                            .frame(minHeight: 220)
-                            .background(OpenlyTheme.surface)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(OpenlyTheme.line, lineWidth: 1))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            .padding(.horizontal)
-                            .onChange(of: bodyText) { value in
-                                if value.count > 3000 { bodyText = String(value.prefix(3000)) }
-                            }
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ScreenHeader("منشور جديد", subtitle: "سيظهر كلامك للجميع بهويتك الملوّنة. لا توجد مسودات خاصة هنا.")
+                            OpenlyPanel {
+                                VStack(spacing: 0) {
+                                    HStack(spacing: 3) {
+                                        formattingButton("bold", token: "**")
+                                        formattingButton("italic", token: "*")
+                                        formattingButton("list.bullet", token: "\n• ")
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .frame(height: 48)
+                                    Rectangle().fill(OpenlyTheme.line).frame(height: 0.5)
 
-                        HStack {
-                            Text("\(bodyText.count) / 3000")
-                                .font(.caption)
-                                .foregroundColor(OpenlyTheme.muted)
-                            Spacer()
-                            Button {
-                                Task { await publish() }
-                            } label: {
-                                if isPublishing {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    Label("نشر", systemImage: "paperplane.fill")
+                                    TextEditor(text: $bodyText)
+                                        .focused($isFocused)
+                                        .font(.system(size: 18))
+                                        .foregroundColor(OpenlyTheme.foreground)
+                                        .scrollContentBackground(.hidden)
+                                        .padding(.horizontal, 18)
+                                        .padding(.vertical, 12)
+                                        .frame(minHeight: 150, maxHeight: 390)
+                                        .overlay(alignment: .topLeading) {
+                                            if bodyText.isEmpty {
+                                                Text("ماذا تريد أن تقول؟")
+                                                    .font(.system(size: 18))
+                                                    .foregroundColor(OpenlyTheme.subtle)
+                                                    .padding(.horizontal, 23)
+                                                    .padding(.vertical, 20)
+                                                    .allowsHitTesting(false)
+                                            }
+                                        }
+                                        .onChange(of: bodyText) { value in
+                                            if value.count > 3000 { bodyText = String(value.prefix(3000)) }
+                                        }
+
+                                    Rectangle().fill(OpenlyTheme.line).frame(height: 0.5)
+                                    HStack {
+                                        Text("\(bodyText.count) / 3000")
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundColor(bodyText.count > 2800 ? OpenlyTheme.danger : OpenlyTheme.subtle)
+                                            .environment(\.layoutDirection, .leftToRight)
+                                        Spacer()
+                                        Button {
+                                            Task { await publish() }
+                                        } label: {
+                                            HStack(spacing: 7) {
+                                                if isPublishing { ProgressView().tint(.white).controlSize(.small) }
+                                                else { Image(systemName: "paperplane") }
+                                                Text(isPublishing ? "جارِ النشر…" : "نشر")
+                                            }
+                                        }
+                                        .buttonStyle(OpenlyPrimaryButtonStyle())
+                                        .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishing)
+                                    }
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 12)
                                 }
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.primary)
-                            .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishing)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 32)
                         }
-                        .padding(.horizontal)
-                        Spacer()
                     }
-                    .background(OpenlyTheme.surface)
-                    .onAppear { isFocused = true }
                 }
             }
-            .navigationTitle("اكتب")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
+            .onAppear { if session.user != nil { isFocused = true } }
         }
-        .navigationViewStyle(.stack)
+    }
+
+    private func formattingButton(_ icon: String, token: String) -> some View {
+        Button {
+            bodyText += token
+            isFocused = true
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(OpenlyTheme.muted)
+                .frame(width: 34, height: 34)
+                .background(Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 
     @MainActor
@@ -363,67 +492,80 @@ struct PostDetailView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        Group {
+        ZStack {
+            OpenlyTheme.surface.ignoresSafeArea()
             if let detail {
-                List {
-                    Section {
-                        PostCard(post: detail.post)
-                            .listRowInsets(EdgeInsets())
-                    }
-                    Section("التعليقات") {
-                        if detail.comments.isEmpty {
-                            Text("لا توجد تعليقات بعد.")
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        PostCard(post: detail.post) { Task { await load() } }
+                        commentComposer
+                        HStack {
+                            Text("التعليقات")
+                                .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(OpenlyTheme.muted)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 28)
+                        .padding(.bottom, 10)
+
+                        if detail.comments.isEmpty {
+                            EmptyState(icon: "", title: "لا توجد تعليقات بعد", message: "ابدأ المحادثة بتعليق جديد.")
                         } else {
                             ForEach(detail.comments) { comment in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        IdentityBadge(code: comment.authorCode ?? "OPENLY", color: comment.authorColor)
-                                        Spacer()
-                                        Text(OpenlyDate.relative(comment.createdAt))
-                                            .font(.caption)
-                                            .foregroundColor(OpenlyTheme.subtle)
-                                    }
-                                    Text(comment.body)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                                .padding(.vertical, 5)
+                                CommentRow(comment: comment)
                             }
                         }
                     }
                 }
-                .listStyle(.insetGrouped)
             } else if let errorMessage {
                 EmptyState(icon: "exclamationmark.triangle", title: "تعذر فتح المنشور", message: errorMessage)
             } else {
                 ProgressView("جارِ التحميل")
+                    .foregroundColor(OpenlyTheme.muted)
             }
         }
         .navigationTitle("المحادثة")
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .bottom) {
-            if detail != nil {
-                HStack(spacing: 10) {
-                    TextField("اكتب تعليقًا", text: $commentText, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(1...4)
-                    Button { Task { await sendComment() } } label: {
-                        if isSending { ProgressView() }
-                        else { Image(systemName: "paperplane.fill") }
-                    }
-                    .disabled(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
-                }
+        .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
+        .task { await load() }
+    }
+
+    private var commentComposer: some View {
+        VStack(spacing: 12) {
+            TextEditor(text: $commentText)
+                .font(.system(size: 16))
+                .foregroundColor(OpenlyTheme.foreground)
+                .scrollContentBackground(.hidden)
                 .padding(10)
-                .background(.ultraThinMaterial)
+                .frame(minHeight: 105)
+                .background(OpenlyTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: OpenlyTheme.radiusLarge))
+                .overlay(RoundedRectangle(cornerRadius: OpenlyTheme.radiusLarge).stroke(OpenlyTheme.lineStrong, lineWidth: 1))
+                .onChange(of: commentText) { value in
+                    if value.count > 2000 { commentText = String(value.prefix(2000)) }
+                }
+            HStack {
+                Text("\(commentText.count) / 2000")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(OpenlyTheme.subtle)
+                Spacer()
+                Button(isSending ? "جارِ الإرسال…" : "تعليق") { Task { await sendComment() } }
+                    .buttonStyle(OpenlyPrimaryButtonStyle())
+                    .disabled(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
             }
         }
-        .task { await load() }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
+        .overlay(alignment: .top) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
     }
 
     @MainActor
     private func load() async {
-        do { detail = try await session.api.post(id: postID) }
-        catch { errorMessage = error.localizedDescription }
+        do {
+            detail = try await session.api.post(id: postID)
+            errorMessage = nil
+        } catch { errorMessage = error.localizedDescription }
     }
 
     @MainActor
@@ -438,6 +580,30 @@ struct PostDetailView: View {
             await load()
         } catch { session.alertMessage = error.localizedDescription }
         isSending = false
+    }
+}
+
+private struct CommentRow: View {
+    let comment: Comment
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                IdentityBadge(code: comment.authorCode ?? "OPENLY", color: comment.authorColor)
+                Spacer()
+                Text(OpenlyDate.relative(comment.createdAt))
+                    .font(.system(size: 11))
+                    .foregroundColor(OpenlyTheme.subtle)
+            }
+            Text(comment.body)
+                .font(.system(size: 16))
+                .foregroundColor(OpenlyTheme.foreground)
+                .lineSpacing(7)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 22)
+        .overlay(alignment: .top) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
     }
 }
 
@@ -460,22 +626,46 @@ struct ReportView: View {
     ]
 
     var body: some View {
-        NavigationView {
-            Form {
-                Picker("السبب", selection: $reason) {
-                    ForEach(reasons, id: \.0) { Text($0.1).tag($0.0) }
-                }
-                Section("تفاصيل إضافية") {
-                    TextEditor(text: $description).frame(minHeight: 110)
+        NavigationStack {
+            ZStack {
+                CosmicBackground()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        ScreenHeader("إبلاغ عن منشور", subtitle: "ساعدنا في إبقاء المساحة العامة واضحة وآمنة.")
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("السبب").font(.system(size: 14, weight: .semibold)).foregroundColor(OpenlyTheme.foreground)
+                            Picker("السبب", selection: $reason) {
+                                ForEach(reasons, id: \.0) { Text($0.1).tag($0.0) }
+                            }
+                            .pickerStyle(.menu)
+                            .tint(OpenlyTheme.accent)
+                        }
+                        .padding(.horizontal, 16)
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("تفاصيل إضافية").font(.system(size: 14, weight: .semibold)).foregroundColor(OpenlyTheme.foreground)
+                            TextEditor(text: $description)
+                                .scrollContentBackground(.hidden)
+                                .padding(10)
+                                .frame(minHeight: 120)
+                                .background(OpenlyTheme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(OpenlyTheme.lineStrong, lineWidth: 1))
+                        }
+                        .padding(.horizontal, 16)
+
+                        Button(isSending ? "جارِ الإرسال…" : "إرسال البلاغ") { Task { await submit() } }
+                            .buttonStyle(OpenlyPrimaryButtonStyle())
+                            .disabled(isSending)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                    }
                 }
             }
-            .navigationTitle("إبلاغ عن منشور")
+            .navigationTitle("إبلاغ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("إلغاء") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("إرسال") { Task { await submit() } }.disabled(isSending)
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("إغلاق") { dismiss() } }
             }
         }
     }

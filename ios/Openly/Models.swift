@@ -34,9 +34,9 @@ struct Comment: Codable, Identifiable, Hashable {
 struct Engagement: Codable, Identifiable, Hashable {
     var id: String { postId }
     let postId: String
-    let likeCount: Int
-    let viewerHasLiked: Bool
-    let viewerHasBookmarked: Bool
+    var likeCount: Int
+    var viewerHasLiked: Bool
+    var viewerHasBookmarked: Bool
 }
 
 struct NotificationItem: Codable, Identifiable, Hashable {

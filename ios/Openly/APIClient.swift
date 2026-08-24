@@ -21,7 +21,6 @@ private struct ErrorResponse: Decodable {
 final class APIClient {
     static let shared = APIClient()
 
-    // Openly's native iOS client uses the deployed JSON API directly.
     private let baseURL = URL(string: "https://khaled-openly.vercel.app/api/")!
     private let session: URLSession
     private let decoder = JSONDecoder()
@@ -59,7 +58,7 @@ final class APIClient {
         var request = URLRequest(url: try makeURL(path: path, query: query))
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Openly-iOS/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Openly-iOS/1.1", forHTTPHeaderField: "User-Agent")
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -120,6 +119,20 @@ final class APIClient {
         let _: ActionResponse = try await request("auth/logout", method: "POST", body: [:])
     }
 
+    func updateProfile(publicCode: String, identityColor: String, status: String, bio: String) async throws -> UserSummary {
+        let response: UserResponse = try await request(
+            "profile",
+            method: "POST",
+            body: [
+                "publicCode": publicCode,
+                "identityColor": identityColor,
+                "status": status,
+                "bio": bio
+            ]
+        )
+        return response.user
+    }
+
     func feed(cursor: String? = nil, author: String? = nil) async throws -> FeedResponse {
         var query: [URLQueryItem] = []
         if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
@@ -134,6 +147,18 @@ final class APIClient {
 
     func post(id: String) async throws -> PostDetailResponse {
         try await request("posts/\(id)")
+    }
+
+    func updatePost(postID: String, body: String) async throws {
+        let _: ActionResponse = try await request(
+            "posts/\(postID)",
+            method: "PATCH",
+            body: ["body": body]
+        )
+    }
+
+    func deletePost(postID: String) async throws {
+        let _: ActionResponse = try await request("posts/\(postID)", method: "DELETE")
     }
 
     func addComment(postID: String, body: String, parentID: String? = nil) async throws {
