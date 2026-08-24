@@ -84,8 +84,6 @@ async function getOnePost(supabase, id) {
 export async function GET(request, { params }) {
   const { path, supabase } = await ctx(params)
   const url = new URL(request.url)
-  // auth/callback moved to app/api/auth/callback/route.js — it needs the
-  // real public origin behind Vercel's proxy, which request.url can't give it.
 
   if (path.join('/') === 'auth/me') {
     const user = await currentUser(supabase)
@@ -269,7 +267,7 @@ export async function GET(request, { params }) {
     if (!admin) return json({ error: 'غير مصرح' }, 403)
     const { data, error } = await supabase
       .from('reports')
-      .select('id,target_type,target_id,reason,detail,status,created_at')
+      .select('id,target_type,target_id,reason,description,status,created_at')
       .order('created_at', { ascending: false })
       .limit(100)
     if (error) return json({ error: 'تعذر تحميل البلاغات' }, 500)
@@ -279,7 +277,7 @@ export async function GET(request, { params }) {
         targetType: r.target_type,
         targetId: r.target_id,
         reason: r.reason,
-        description: r.detail,
+        description: r.description,
         status: r.status,
         createdAt: r.created_at
       }))
@@ -300,10 +298,6 @@ export async function POST(request, { params }) {
     if (error) return json({ error: error.code === 'email_not_confirmed' ? 'أكد بريدك الإلكتروني أولًا' : 'بيانات الدخول غير صحيحة' }, 400)
     return json({ ok: true })
   }
-
-  // auth/register and auth/request-password-reset moved to their own files
-  // under app/api/auth/ — both need getPublicOrigin(), not request.url's
-  // origin, which can be an internal address behind Vercel's proxy.
 
   if (path.join('/') === 'auth/update-password') {
     const user = await currentUser(supabase)
@@ -361,7 +355,7 @@ export async function POST(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 500) return json({ error: 'النص يجب أن يكون بين 1 و500 حرف' }, 400)
+    if (!text || text.length > 3000) return json({ error: 'النص يجب أن يكون بين 1 و3000 حرف' }, 400)
     const { data, error } = await supabase.from('posts').insert({ author_id: user.id, body: text }).select('id').single()
     if (error) return json({ error: 'تعذر النشر' }, 400)
     return json({ id: data.id }, 201)
@@ -371,7 +365,7 @@ export async function POST(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 500) return json({ error: 'التعليق غير صالح' }, 400)
+    if (!text || text.length > 2000) return json({ error: 'التعليق يجب أن يكون بين 1 و2000 حرف' }, 400)
     const { data, error } = await supabase
       .from('comments')
       .insert({ post_id: path[1], author_id: user.id, body: text, parent_comment_id: body.parentCommentId || null })
@@ -416,30 +410,16 @@ export async function POST(request, { params }) {
   if (path[0] === 'posts' && path[1] && path[2] === 'like') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const query = supabase.from('post_likes')
-    if (body.enabled) {
-      // A second like is the same state, not a failure: post_likes has no
-      // UPDATE policy, so a duplicate key is tolerated rather than upserted.
-      const { error } = await query.insert({ user_id: user.id, post_id: path[1] })
-      if (error && error.code !== '23505') return json({ error: 'تعذر حفظ الإعجاب' }, 400)
-    } else {
-      const { error } = await query.delete().eq('user_id', user.id).eq('post_id', path[1])
-      if (error) return json({ error: 'تعذر حفظ الإعجاب' }, 400)
-    }
+    const { data, error } = await supabase.rpc('set_post_like', { p_post_id: path[1], p_liked: !!body.enabled })
+    if (error || data !== true) return json({ error: 'تعذر حفظ الإعجاب' }, 400)
     return json({ ok: true })
   }
 
   if (path[0] === 'posts' && path[1] && path[2] === 'bookmark') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const query = supabase.from('bookmarks')
-    if (body.enabled) {
-      const { error } = await query.insert({ user_id: user.id, post_id: path[1] })
-      if (error && error.code !== '23505') return json({ error: 'تعذر حفظ المنشور' }, 400)
-    } else {
-      const { error } = await query.delete().eq('user_id', user.id).eq('post_id', path[1])
-      if (error) return json({ error: 'تعذر حفظ المنشور' }, 400)
-    }
+    const { data, error } = await supabase.rpc('set_post_bookmark', { p_post_id: path[1], p_bookmarked: !!body.enabled })
+    if (error || data !== true) return json({ error: 'تعذر حفظ المنشور' }, 400)
     return json({ ok: true })
   }
 
@@ -448,13 +428,13 @@ export async function POST(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const targetType = body.targetType
     if ((targetType !== 'post' && targetType !== 'comment') || !body.targetId || !reasons.has(body.reason)) return json({ error: 'بلاغ غير صالح' }, 400)
-    const detail = body.description ? String(body.description).slice(0, 1000) : null
+    const description = body.description ? String(body.description).slice(0, 1000) : null
     const { error } = await supabase.from('reports').insert({
       reporter_id: user.id,
       target_type: targetType,
       target_id: body.targetId,
       reason: body.reason,
-      detail
+      description
     })
     if (error) return json({ error: 'تعذر إرسال البلاغ' }, 400)
     return json({ ok: true }, 201)
@@ -472,7 +452,7 @@ export async function PATCH(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const ids = Array.isArray(body.ids) ? body.ids.slice(0, 100) : []
     if (!ids.length) return json({ ok: true })
-    const { error } = await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('recipient_id', user.id).in('id', ids)
+    const { error } = await supabase.rpc('mark_notifications_read', { p_ids: ids })
     if (error) return json({ error: 'تعذر تحديث الإشعارات' }, 400)
     return json({ ok: true })
   }
@@ -491,9 +471,7 @@ export async function PATCH(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 500) return json({ error: 'النص يجب أن يكون بين 1 و500 حرف' }, 400)
-    // Ownership is re-derived from the session and applied as a filter, so a
-    // forged id simply matches no row rather than editing someone else's post.
+    if (!text || text.length > 3000) return json({ error: 'النص يجب أن يكون بين 1 و3000 حرف' }, 400)
     const { data, error } = await supabase.from('posts').update({ body: text }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
     if (error) return json({ error: 'تعذر تعديل المنشور' }, 400)
     if (!data) return json({ error: 'المنشور غير موجود' }, 404)
@@ -509,8 +487,6 @@ export async function DELETE(request, { params }) {
   if (!user) return json({ error: 'غير مسجل' }, 401)
   const now = new Date().toISOString()
 
-  // Soft delete, matching how the feed and threads already filter: the row
-  // stays so replies and moderation history keep resolving.
   if (path[0] === 'posts' && path[1] && path.length === 2) {
     const { data, error } = await supabase.from('posts').update({ deleted_at: now }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
     if (error) return json({ error: 'تعذر حذف المنشور' }, 400)
