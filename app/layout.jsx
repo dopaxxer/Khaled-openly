@@ -5,9 +5,9 @@ import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 
 export const metadata = {
-  title: 'Openly',
+  title: 'open',
   description: 'شبكة نصية عامة بلا رسائل خاصة وبلا خوارزمية ترتيب.',
-  applicationName: 'Openly',
+  applicationName: 'open',
   robots: { index: true, follow: true },
   manifest: '/manifest.webmanifest'
 }
@@ -16,8 +16,8 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f5f5f4' },
-    { media: '(prefers-color-scheme: dark)', color: '#05070f' }
+    { media: '(prefers-color-scheme: light)', color: '#f3f1ec' },
+    { media: '(prefers-color-scheme: dark)', color: '#111113' }
   ]
 }
 

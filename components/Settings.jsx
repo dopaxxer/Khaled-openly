@@ -80,7 +80,7 @@ export function ThemeControl() {
 
   return <section aria-labelledby="theme-heading">
     <h2 className="page-title" id="theme-heading" style={{ fontSize: 16 }}>المظهر</h2>
-    <p className="small muted mt8">كيف يظهر Openly على هذا الجهاز.</p>
+    <p className="small muted mt8">كيف يظهر التطبيق على هذا الجهاز.</p>
 
     <div className="row wrap mt16" role="radiogroup" aria-label="وضع الإضاءة" style={{ gap: 8 }}>
       {OPTIONS.map(option => {

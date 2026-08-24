@@ -12,9 +12,9 @@ const nav = [
 ]
 
 function Brand() {
-  return <Link href="/" className="brand" aria-label="Openly — الرئيسية" dir="ltr">
+  return <Link href="/" className="brand" aria-label="open — الرئيسية" dir="ltr">
     <span className="brand-mark" aria-hidden="true">O</span>
-    <span>Openly</span>
+    <span>open</span>
   </Link>
 }
 
