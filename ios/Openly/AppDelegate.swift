@@ -3,6 +3,11 @@ import SwiftUI
 @main
 struct OpenlyApp: App {
     @StateObject private var session = AppSession()
+    @AppStorage("openly.appearance") private var appearanceRaw = OpenlyAppearance.system.rawValue
+
+    private var selectedAppearance: OpenlyAppearance {
+        OpenlyAppearance(rawValue: appearanceRaw) ?? .system
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -10,7 +15,47 @@ struct OpenlyApp: App {
                 .environmentObject(session)
                 .environment(\.layoutDirection, .rightToLeft)
                 .tint(OpenlyTheme.accent)
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(selectedAppearance.colorScheme)
+        }
+    }
+}
+
+enum OpenlyAppearance: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: return "تلقائي"
+        case .light: return "فاتح"
+        case .dark: return "داكن"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .system: return "يتبع مظهر الآيفون"
+        case .light: return "واجهة Openly الفاتحة"
+        case .dark: return "واجهة Openly الليلية"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .system: return "circle.lefthalf.filled"
+        case .light: return "sun.max"
+        case .dark: return "moon.stars"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
         }
     }
 }
@@ -54,21 +99,34 @@ final class AppSession: ObservableObject {
     }
 }
 
+private func adaptiveColor(light: (Int, Int, Int), dark: (Int, Int, Int)) -> Color {
+    Color(uiColor: UIColor { traits in
+        let value = traits.userInterfaceStyle == .dark ? dark : light
+        return UIColor(
+            red: CGFloat(value.0) / 255,
+            green: CGFloat(value.1) / 255,
+            blue: CGFloat(value.2) / 255,
+            alpha: 1
+        )
+    })
+}
+
 enum OpenlyTheme {
-    // Values sampled from the supplied mobile reference screenshots.
-    static let background = Color(red: 8 / 255, green: 10 / 255, blue: 21 / 255)
-    static let surface = background
-    static let surfaceSoft = Color(red: 13 / 255, green: 16 / 255, blue: 32 / 255)
-    static let elevated = Color(red: 17 / 255, green: 20 / 255, blue: 39 / 255)
-    static let line = Color(red: 27 / 255, green: 31 / 255, blue: 54 / 255)
-    static let lineStrong = Color(red: 48 / 255, green: 55 / 255, blue: 87 / 255)
-    static let ink = Color(red: 244 / 255, green: 245 / 255, blue: 250 / 255)
-    static let muted = Color(red: 156 / 255, green: 164 / 255, blue: 189 / 255)
-    static let subtle = Color(red: 111 / 255, green: 120 / 255, blue: 152 / 255)
-    static let accent = Color(red: 124 / 255, green: 146 / 255, blue: 247 / 255)
-    static let accentSoft = Color(red: 67 / 255, green: 81 / 255, blue: 137 / 255)
-    static let accentForeground = Color(red: 7 / 255, green: 10 / 255, blue: 20 / 255)
-    static let danger = Color(red: 248 / 255, green: 113 / 255, blue: 113 / 255)
+    // Light keeps the clean paper treatment used by earlier Openly builds.
+    // Dark keeps the supplied blue-black reference treatment.
+    static let background = adaptiveColor(light: (250, 250, 248), dark: (8, 10, 21))
+    static let surface = adaptiveColor(light: (255, 255, 255), dark: (8, 10, 21))
+    static let surfaceSoft = adaptiveColor(light: (244, 244, 241), dark: (13, 16, 32))
+    static let elevated = adaptiveColor(light: (248, 248, 246), dark: (17, 20, 39))
+    static let line = adaptiveColor(light: (232, 232, 227), dark: (27, 31, 54))
+    static let lineStrong = adaptiveColor(light: (208, 211, 221), dark: (48, 55, 87))
+    static let ink = adaptiveColor(light: (22, 23, 26), dark: (244, 245, 250))
+    static let muted = adaptiveColor(light: (92, 95, 106), dark: (156, 164, 189))
+    static let subtle = adaptiveColor(light: (132, 136, 151), dark: (111, 120, 152))
+    static let accent = adaptiveColor(light: (94, 119, 238), dark: (124, 146, 247))
+    static let accentSoft = adaptiveColor(light: (132, 151, 238), dark: (67, 81, 137))
+    static let accentForeground = adaptiveColor(light: (255, 255, 255), dark: (7, 10, 20))
+    static let danger = adaptiveColor(light: (190, 45, 45), dark: (248, 113, 113))
     static let card = surfaceSoft
 }
 
