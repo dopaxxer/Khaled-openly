@@ -1,22 +1,41 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
 name: Swift
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/swift.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/swift.yml'
 
 jobs:
   build:
-
-    runs-on: macos-latest
-
+    runs-on: macos-15
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: swift build -v
-    - name: Run tests
-      run: swift test -v
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build SwiftUI app
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -project Openly.xcodeproj \
+            -scheme Openly \
+            -configuration Debug \
+            -sdk iphoneos \
+            -derivedDataPath build-swift-check \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
