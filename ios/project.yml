@@ -7,7 +7,7 @@ settings:
   base:
     SWIFT_VERSION: 5.0
     MARKETING_VERSION: 1.0.0
-    CURRENT_PROJECT_VERSION: 4
+    CURRENT_PROJECT_VERSION: "4"
     DEVELOPMENT_LANGUAGE: ar
 targets:
   Openly:
@@ -38,7 +38,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ink.openly.app
         PRODUCT_NAME: Openly
         MARKETING_VERSION: 1.0.0
-        CURRENT_PROJECT_VERSION: 4
+        CURRENT_PROJECT_VERSION: "4"
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: ""
