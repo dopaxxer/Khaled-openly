@@ -18,13 +18,104 @@ private struct ErrorResponse: Decodable {
     let error: String
 }
 
+/// SwiftUI can create several post rows at nearly the same time. Without a
+/// broker every row fires its own `/engagement` request, and rows recreated by
+/// scrolling repeat the same request. This actor coalesces calls arriving in a
+/// short window and keeps a tiny per-post cache. Viewer-specific data never
+/// leaves the process and is cleared whenever authentication changes.
+private actor EngagementBroker {
+    private struct Entry {
+        let value: Engagement
+        let fetchedAt: Date
+    }
+
+    private var cache: [String: Entry] = [:]
+    private var pendingIDs = Set<String>()
+    private var waiters: [String: [CheckedContinuation<Engagement?, Error>]] = [:]
+    private var flushTask: Task<Void, Never>?
+    private let maxAge: TimeInterval = 20
+
+    func values(
+        for ids: [String],
+        fetch: @escaping ([String]) async throws -> [Engagement]
+    ) async throws -> [Engagement] {
+        let unique = Array(Set(ids))
+        return try await withThrowingTaskGroup(of: Engagement?.self) { group in
+            for id in unique {
+                group.addTask { try await self.value(for: id, fetch: fetch) }
+            }
+            var values: [Engagement] = []
+            for try await value in group {
+                if let value { values.append(value) }
+            }
+            return values
+        }
+    }
+
+    private func value(
+        for id: String,
+        fetch: @escaping ([String]) async throws -> [Engagement]
+    ) async throws -> Engagement? {
+        if let entry = cache[id], Date().timeIntervalSince(entry.fetchedAt) < maxAge {
+            return entry.value
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            pendingIDs.insert(id)
+            waiters[id, default: []].append(continuation)
+
+            if flushTask == nil {
+                flushTask = Task {
+                    try? await Task.sleep(nanoseconds: 25_000_000)
+                    await self.flush(fetch: fetch)
+                }
+            }
+        }
+    }
+
+    private func flush(fetch: @escaping ([String]) async throws -> [Engagement]) async {
+        let ids = Array(pendingIDs)
+        pendingIDs.removeAll()
+        flushTask = nil
+        guard !ids.isEmpty else { return }
+
+        do {
+            let values = try await fetch(ids)
+            let byID = Dictionary(uniqueKeysWithValues: values.map { ($0.postId, $0) })
+            let now = Date()
+
+            for id in ids {
+                let value = byID[id]
+                if let value { cache[id] = Entry(value: value, fetchedAt: now) }
+                let continuations = waiters.removeValue(forKey: id) ?? []
+                continuations.forEach { $0.resume(returning: value) }
+            }
+        } catch {
+            for id in ids {
+                let continuations = waiters.removeValue(forKey: id) ?? []
+                continuations.forEach { $0.resume(throwing: error) }
+            }
+        }
+    }
+
+    func invalidate(_ id: String) {
+        cache.removeValue(forKey: id)
+    }
+
+    func clear() {
+        cache.removeAll()
+    }
+}
+
 final class APIClient {
     static let shared = APIClient()
 
-    // Openly's native iOS client uses the deployed JSON API directly.
+    // Stable production API. Supabase credentials stay server-side on Vercel;
+    // the native app only talks to this first-party JSON endpoint.
     private let baseURL = URL(string: "https://khaled-openly.vercel.app/api/")!
     private let session: URLSession
     private let decoder = JSONDecoder()
+    private let engagementBroker = EngagementBroker()
 
     private init() {
         let configuration = URLSessionConfiguration.default
@@ -34,6 +125,7 @@ final class APIClient {
         configuration.requestCachePolicy = .reloadRevalidatingCacheData
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60
+        configuration.waitsForConnectivity = true
         session = URLSession(configuration: configuration)
     }
 
@@ -90,6 +182,7 @@ final class APIClient {
             method: "POST",
             body: ["email": email, "password": password]
         )
+        await engagementBroker.clear()
     }
 
     func register(email: String, password: String) async throws -> ActionResponse {
@@ -106,6 +199,7 @@ final class APIClient {
             method: "POST",
             body: ["email": email, "token": token]
         )
+        await engagementBroker.clear()
     }
 
     func resendCode(email: String) async throws {
@@ -118,6 +212,7 @@ final class APIClient {
 
     func logout() async throws {
         let _: ActionResponse = try await request("auth/logout", method: "POST", body: [:])
+        await engagementBroker.clear()
     }
 
     func feed(cursor: String? = nil, author: String? = nil) async throws -> FeedResponse {
@@ -148,11 +243,14 @@ final class APIClient {
 
     func engagements(ids: [String]) async throws -> [Engagement] {
         guard !ids.isEmpty else { return [] }
-        let response: EngagementResponse = try await request(
-            "engagement",
-            query: [URLQueryItem(name: "ids", value: ids.joined(separator: ","))]
-        )
-        return response.items
+        return try await engagementBroker.values(for: ids) { [weak self] missingIDs in
+            guard let self else { throw APIError.invalidResponse }
+            let response: EngagementResponse = try await self.request(
+                "engagement",
+                query: [URLQueryItem(name: "ids", value: missingIDs.joined(separator: ","))]
+            )
+            return response.items
+        }
     }
 
     func setLike(postID: String, enabled: Bool) async throws {
@@ -161,6 +259,7 @@ final class APIClient {
             method: "POST",
             body: ["enabled": enabled]
         )
+        await engagementBroker.invalidate(postID)
     }
 
     func setBookmark(postID: String, enabled: Bool) async throws {
@@ -169,6 +268,7 @@ final class APIClient {
             method: "POST",
             body: ["enabled": enabled]
         )
+        await engagementBroker.invalidate(postID)
     }
 
     func search(_ query: String) async throws -> SearchResponse {
