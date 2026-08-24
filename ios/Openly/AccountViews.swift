@@ -57,7 +57,7 @@ struct SearchView: View {
                     }
                     .listStyle(.plain)
                 } else {
-                    EmptyState(icon: "text.magnifyingglass", title: "ابحث في Openly", message: "ابحث عن الكلمات العامة أو أكواد الهوية.")
+                    EmptyState(icon: "text.magnifyingglass", title: "ابحث في open", message: "ابحث عن الكلمات العامة أو أكواد الهوية.")
                     Spacer()
                 }
             }
@@ -326,7 +326,7 @@ struct RegisterView: View {
                             }
                             .disabled(!formIsValid || isSubmitting)
                         } footer: {
-                            Text("سيمنحك Openly كودًا ولونًا ثابتين دون اسم عرض أو صورة شخصية.")
+                            Text("سيمنحك التطبيق كودًا ولونًا ثابتين دون اسم عرض أو صورة شخصية.")
                         }
                     }
                 }

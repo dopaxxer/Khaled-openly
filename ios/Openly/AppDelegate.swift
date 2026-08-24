@@ -100,7 +100,7 @@ struct RootView: View {
                         BrandLockup(markSize: 38)
                         ProgressView()
                             .controlSize(.small)
-                        Text("جارِ فتح Openly")
+                        Text("جارِ فتح open")
                             .font(.footnote)
                             .foregroundColor(OpenlyTheme.muted)
                     }
@@ -110,7 +110,7 @@ struct RootView: View {
             }
         }
         .alert(
-            "Openly",
+            "open",
             isPresented: Binding(
                 get: { session.alertMessage != nil },
                 set: { if !$0 { session.alertMessage = nil } }
