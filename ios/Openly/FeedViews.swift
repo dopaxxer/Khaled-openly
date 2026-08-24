@@ -371,8 +371,14 @@ struct PostCard: View {
     }
 }
 
-/// Matches the server-side posts constraint.
-let postCharacterLimit = 3000
+/// Matches the database constraint the API enforces:
+/// `posts_body_check` allows 1..500 characters, and the route rejects anything
+/// longer. Letting the field run past that only lets someone write text the
+/// publish will throw away.
+let postCharacterLimit = 500
+
+/// `comments_body_check` carries the same 1..500 bound.
+let commentCharacterLimit = 500
 
 struct ComposerView: View {
     @EnvironmentObject private var session: AppSession
@@ -581,6 +587,11 @@ struct PostDetailView: View {
                         TextField("اكتب تعليقًا", text: $commentText, axis: .vertical)
                             .foregroundColor(OpenlyTheme.ink)
                             .lineLimit(1...4)
+                            .onChange(of: commentText) { value in
+                                if value.count > commentCharacterLimit {
+                                    commentText = String(value.prefix(commentCharacterLimit))
+                                }
+                            }
                     }
 
                     Button { Task { await sendComment() } } label: {
