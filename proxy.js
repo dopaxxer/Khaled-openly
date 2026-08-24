@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rjucldqvuyeahjqrlene.supabase.co'
-const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_jnnQqwOVGdK2g1Y7LfjnHg_APSaqz5r'
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jaipfjwxddpefwfqsnrj.supabase.co'
+const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_E-A5Oh81tq0YRwuM0NuoXg_eAsMSsvv'
 
 // Supabase access tokens are short-lived. Without a refresh on the way through,
 // a returning visitor with a valid refresh token still renders as signed out
