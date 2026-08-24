@@ -21,6 +21,20 @@ npm start
 - `NEXT_PUBLIC_SUPABASE_URL`: رابط مشروع Supabase.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: المفتاح القابل للنشر للمشروع.
 
+### بريد التحقق عبر Resend
+
+إعدادات Supabase Auth الإنتاجية:
+
+- Sender: `Openly <auth@openly.ink>`
+- SMTP host: `smtp.resend.com`
+- SMTP port: `465`
+- SMTP username: `resend`
+- SMTP password: مفتاح Resend السري؛ يُحفظ في لوحة Supabase فقط ولا يُضاف إلى GitHub.
+- Site URL: `https://khaled-openly.vercel.app`
+- Redirect URL: `https://khaled-openly.vercel.app/api/auth/callback`
+
+انسخ محتوى `supabase/email-templates/confirmation.html` إلى قالب **Confirm signup** في Supabase حتى تحتوي الرسالة على `{{ .Token }}` الذي تتوقعه شاشتا الموقع وiOS.
+
 ## النشر
 
 - Vercel: إطار العمل Next.js، أمر البناء `npm run build`، وإصدار Node.js 24.

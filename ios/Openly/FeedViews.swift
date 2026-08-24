@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FeedView: View {
     @EnvironmentObject private var session: AppSession
+    @Environment(\.scenePhase) private var scenePhase
     @State private var posts: [Post] = []
     @State private var nextCursor: String?
     @State private var isLoading = false
@@ -65,7 +66,21 @@ struct FeedView: View {
             }
             .background(OpenlyTheme.background.ignoresSafeArea())
             .navigationBarHidden(true)
-            .task { if posts.isEmpty { await load(reset: true) } }
+            .task {
+                await load(reset: true)
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 30_000_000_000)
+                    guard !Task.isCancelled, scenePhase == .active else { continue }
+                    await load(reset: true)
+                }
+            }
+            .onChange(of: scenePhase) { phase in
+                guard phase == .active else { return }
+                Task { await load(reset: true) }
+            }
+            .onChange(of: session.feedRevision) { _ in
+                Task { await load(reset: true) }
+            }
         }
         .navigationViewStyle(.stack)
     }
@@ -195,6 +210,7 @@ private struct HomeComposerCard: View {
             _ = try await session.api.createPost(body: text)
             bodyText = ""
             isFocused = false
+            session.markFeedChanged()
             onPublished()
         } catch {
             session.alertMessage = error.localizedDescription
@@ -500,6 +516,7 @@ struct ComposerView: View {
             _ = try await session.api.createPost(body: text)
             bodyText = ""
             isFocused = false
+            session.markFeedChanged()
             onPublished()
         } catch { session.alertMessage = error.localizedDescription }
         isPublishing = false
