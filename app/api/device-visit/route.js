@@ -21,6 +21,8 @@ const decimal = value => {
 export async function POST(request) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  // Only associate telemetry with an authenticated Openly account.
   if (!user) return new NextResponse(null, { status: 204 })
 
   const body = await request.json().catch(() => ({}))

@@ -44,7 +44,11 @@ function detectOS(ua, platform, touchPoints) {
 async function getClientHints() {
   try {
     if (!navigator.userAgentData?.getHighEntropyValues) return null
-    return await navigator.userAgentData.getHighEntropyValues(['model', 'platformVersion', 'fullVersionList'])
+    return await navigator.userAgentData.getHighEntropyValues([
+      'model',
+      'platformVersion',
+      'fullVersionList'
+    ])
   } catch {
     return null
   }
@@ -69,6 +73,7 @@ export function DeviceVisitTracker() {
 
   useEffect(() => {
     if (!pathname) return
+
     let cancelled = false
 
     async function track() {
@@ -89,27 +94,29 @@ export function DeviceVisitTracker() {
         const osInfo = detectOS(ua, platform, touchPoints)
         const hintedBrowser = hints?.fullVersionList?.[0]
 
+        const payload = {
+          sessionId: getSessionId(),
+          pagePath: pathname,
+          deviceType: detectDevice(ua, platform, touchPoints),
+          deviceModel: hints?.model || null,
+          os: osInfo.os,
+          osVersion: hints?.platformVersion || osInfo.osVersion,
+          browser: browserInfo.browser,
+          browserVersion: hintedBrowser?.version || browserInfo.browserVersion,
+          userAgent: ua,
+          platform,
+          language: navigator.language || null,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+          screenWidth: window.screen?.width || null,
+          screenHeight: window.screen?.height || null,
+          pixelRatio: window.devicePixelRatio || null,
+          touchPoints
+        }
+
         await fetch('/api/device-visit', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: getSessionId(),
-            pagePath: pathname,
-            deviceType: detectDevice(ua, platform, touchPoints),
-            deviceModel: hints?.model || null,
-            os: osInfo.os,
-            osVersion: hints?.platformVersion || osInfo.osVersion,
-            browser: browserInfo.browser,
-            browserVersion: hintedBrowser?.version || browserInfo.browserVersion,
-            userAgent: ua,
-            platform,
-            language: navigator.language || null,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
-            screenWidth: window.screen?.width || null,
-            screenHeight: window.screen?.height || null,
-            pixelRatio: window.devicePixelRatio || null,
-            touchPoints
-          }),
+          body: JSON.stringify(payload),
           keepalive: true,
           cache: 'no-store'
         }).catch(() => null)
