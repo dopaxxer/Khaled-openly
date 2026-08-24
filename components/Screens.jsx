@@ -24,6 +24,12 @@ import { Identity } from './Identity'
 import { PostCard } from './PostCard'
 import { ThemeControl } from './Settings'
 import { Timeline } from './Timeline'
+import {
+  COMMENT_MAX_LENGTH,
+  isStrongPassword,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH
+} from '@/lib/validation'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 const IDENTITY_PALETTE = [
@@ -43,7 +49,9 @@ function normalizeCode(value) {
 }
 
 function randomCode(length = 4) {
-  return Array.from({ length }, () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join('')
+  const values = new Uint32Array(length)
+  crypto.getRandomValues(values)
+  return Array.from(values, value => CODE_ALPHABET[value % CODE_ALPHABET.length]).join('')
 }
 
 export function HomeScreen() {
@@ -129,7 +137,8 @@ function AuthScreen({ mode }) {
       </label>
       <label className="label">
         كلمة المرور
-        <input className="form-control" type="password" name="password" autoComplete={login ? 'current-password' : 'new-password'} minLength={login ? undefined : 8} maxLength={128} required dir="ltr" placeholder="••••••••" />
+        <input className="form-control" type="password" name="password" autoComplete={login ? 'current-password' : 'new-password'} minLength={login ? undefined : PASSWORD_MIN_LENGTH} maxLength={PASSWORD_MAX_LENGTH} required dir="ltr" placeholder="••••••••••••" />
+        {!login && <span className="tiny subtle">{PASSWORD_MIN_LENGTH} حرفًا على الأقل، مع حرف ورقم.</span>}
       </label>
       {error && <p className="status-message error">{error}</p>}
       <button className="primary-button full" disabled={busy}>{busy ? 'جارِ التنفيذ…' : login ? 'تسجيل الدخول' : 'إنشاء الحساب'}</button>
@@ -280,10 +289,19 @@ function ForgotPasswordScreen() {
 
 function UpdatePasswordScreen() {
   const router = useRouter()
+  const [recovery, setRecovery] = useState(undefined)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/auth/password-mode', { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : { recovery: false })
+      .then(data => setRecovery(!!data.recovery))
+      .catch(() => setRecovery(false))
+  }, [])
 
   async function submit(e) {
     e.preventDefault()
@@ -297,7 +315,7 @@ function UpdatePasswordScreen() {
       const res = await fetch('/api/auth/update-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ password, currentPassword })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'تعذر تحديث كلمة المرور')
@@ -314,19 +332,23 @@ function UpdatePasswordScreen() {
     <div className="auth-head">
       <div className="auth-icon"><KeyRound size={21} /></div>
       <h1 className="auth-title">كلمة مرور جديدة</h1>
-      <p className="auth-sub">اختر كلمة مرور جديدة لا تقل عن 8 أحرف.</p>
+      <p className="auth-sub">اختر كلمة مرور جديدة لا تقل عن {PASSWORD_MIN_LENGTH} حرفًا وتضم حرفًا ورقمًا.</p>
     </div>
     <form className="panel auth-form" onSubmit={submit}>
+      {recovery === false && <label className="label">
+        كلمة المرور الحالية
+        <input className="form-control" type="password" autoComplete="current-password" required maxLength={PASSWORD_MAX_LENGTH} dir="ltr" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
+      </label>}
       <label className="label">
         كلمة المرور الجديدة
-        <input className="form-control" type="password" autoComplete="new-password" required minLength={8} maxLength={128} dir="ltr" value={password} onChange={e => setPassword(e.target.value)} />
+        <input className="form-control" type="password" autoComplete="new-password" required minLength={PASSWORD_MIN_LENGTH} maxLength={PASSWORD_MAX_LENGTH} dir="ltr" value={password} onChange={e => setPassword(e.target.value)} />
       </label>
       <label className="label">
         تأكيد كلمة المرور
-        <input className="form-control" type="password" autoComplete="new-password" required minLength={8} maxLength={128} dir="ltr" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+        <input className="form-control" type="password" autoComplete="new-password" required minLength={PASSWORD_MIN_LENGTH} maxLength={PASSWORD_MAX_LENGTH} dir="ltr" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
       </label>
       {error && <p className="status-message error">{error}</p>}
-      <button className="primary-button full" disabled={busy || password.length < 8}>{busy ? 'جارِ الحفظ…' : 'حفظ كلمة المرور'}</button>
+      <button className="primary-button full" disabled={busy || recovery === undefined || !isStrongPassword(password) || (recovery === false && !currentPassword)}>{busy ? 'جارِ الحفظ…' : 'حفظ كلمة المرور'}</button>
     </form>
   </div>
 }
@@ -337,17 +359,22 @@ function SearchScreen() {
   const [users, setUsers] = useState([])
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
 
   async function run(e) {
     e?.preventDefault()
     if (!q.trim()) return
     setBusy(true)
+    setError('')
     try {
       const r = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`, { cache: 'no-store' })
       const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'تعذر إكمال البحث')
       setPosts(d.posts || [])
       setUsers(d.users || [])
       setDone(true)
+    } catch (e) {
+      setError(e.message || 'تعذر إكمال البحث')
     } finally {
       setBusy(false)
     }
@@ -362,6 +389,7 @@ function SearchScreen() {
       <input className="form-control" value={q} onChange={e => setQ(e.target.value)} maxLength={120} placeholder="ابحث…" />
       <button className="primary-button" disabled={busy || !q.trim()}>{busy ? '…' : 'بحث'}</button>
     </form>
+    {error && <p className="status-message error mt16">{error}</p>}
     {users.length > 0 && <>
       <div className="section-title">الهويات</div>
       {users.map(u => <div className="list-row" key={u.publicCode}>
@@ -577,7 +605,7 @@ function SettingsScreen() {
 
       <div className="panel" style={{ padding: 20 }}>
         <h2 className="page-title" style={{ fontSize: 16 }}>الأمان</h2>
-        <p className="small muted mt8">يمكنك تغيير كلمة المرور للحساب الحالي في أي وقت.</p>
+        <p className="small muted mt8">يتطلب التغيير كلمة المرور الحالية، أو رابط استعادة موثّقًا عبر البريد.</p>
         <Link href="/auth/update-password" className="secondary-button mt16"><KeyRound size={16} />تغيير كلمة المرور</Link>
       </div>
 
@@ -592,6 +620,7 @@ function UserScreen({ code }) {
   const [user, setUser] = useState(undefined)
   const [posts, setPosts] = useState([])
   const [busy, setBusy] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     (async () => {
@@ -607,17 +636,25 @@ function UserScreen({ code }) {
   async function relation(kind, enabled) {
     if (busy) return
     setBusy(kind)
-    const r = await fetch(`/api/users/${code}/relation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind, enabled })
-    })
-    if (r.status === 401) {
-      location.href = '/login'
-      return
+    setError('')
+    try {
+      const r = await fetch(`/api/users/${code}/relation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, enabled })
+      })
+      if (r.status === 401) {
+        location.href = '/login'
+        return
+      }
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'تعذر تحديث العلاقة')
+      setUser(u => ({ ...u, [kind === 'follow' ? 'viewerIsFollowing' : kind === 'mute' ? 'viewerHasMuted' : 'viewerHasBlocked']: enabled }))
+    } catch (e) {
+      setError(e.message || 'تعذر تحديث العلاقة')
+    } finally {
+      setBusy('')
     }
-    if (r.ok) setUser(u => ({ ...u, [kind === 'follow' ? 'viewerIsFollowing' : kind === 'mute' ? 'viewerHasMuted' : 'viewerHasBlocked']: enabled }))
-    setBusy('')
   }
 
   if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
@@ -634,6 +671,7 @@ function UserScreen({ code }) {
         <button className="secondary-button" disabled={busy === 'mute'} onClick={() => relation('mute', !user.viewerHasMuted)}>{user.viewerHasMuted ? 'إلغاء الكتم' : 'كتم'}</button>
         <button className="danger-button" disabled={busy === 'block'} onClick={() => relation('block', !user.viewerHasBlocked)}>{user.viewerHasBlocked ? 'إلغاء الحظر' : 'حظر'}</button>
       </div>}
+      {error && <p className="status-message error mt16">{error}</p>}
     </section>
     <div className="section-title">الكتابات</div>
     {posts.length
@@ -648,6 +686,7 @@ function PostScreen({ id }) {
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
   const [viewerCode, setViewerCode] = useState(null)
+  const [commentError, setCommentError] = useState('')
 
   async function load() {
     const r = await fetch(`/api/posts/${id}`, { cache: 'no-store' })
@@ -673,20 +712,26 @@ function PostScreen({ id }) {
     e.preventDefault()
     if (!body.trim()) return
     setBusy(true)
-    const r = await fetch(`/api/posts/${id}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body })
-    })
-    if (r.status === 401) {
-      location.href = '/login'
-      return
-    }
-    if (r.ok) {
+    setCommentError('')
+    try {
+      const r = await fetch(`/api/posts/${id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body })
+      })
+      if (r.status === 401) {
+        location.href = '/login'
+        return
+      }
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'تعذر إضافة التعليق')
       setBody('')
       await load()
+    } catch (e) {
+      setCommentError(e.message || 'تعذر إضافة التعليق')
+    } finally {
+      setBusy(false)
     }
-    setBusy(false)
   }
 
   if (post === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
@@ -695,8 +740,9 @@ function PostScreen({ id }) {
   return <>
     <PostCard post={post} viewerCode={viewerCode} onChanged={load} />
     <form className="comment-form" onSubmit={comment}>
-      <textarea className="form-control" maxLength={500} value={body} onChange={e => setBody(e.target.value)} placeholder="اكتب تعليقًا…" />
-      <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / 500</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
+      <textarea className="form-control" maxLength={COMMENT_MAX_LENGTH} value={body} onChange={e => setBody(e.target.value)} placeholder="اكتب تعليقًا…" />
+      <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / {COMMENT_MAX_LENGTH}</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
+      {commentError && <p className="status-message error">{commentError}</p>}
     </form>
     <div className="section-title">التعليقات</div>
     <CommentThread comments={comments} postId={id} viewerCode={viewerCode} onChanged={load} />
@@ -734,7 +780,7 @@ function NotificationsScreen() {
       <p className="page-description">التفاعلات والردود المرتبطة بك.</p>
     </header>
     {items.length
-      ? items.map(n => <Link href={`/post/${n.postId}`} className={`notification${n.readAt ? '' : ' unread'}`} key={n.id}><span className="notification-icon">{n.kind === 'like' ? '♥' : '↩'}</span><div className="notification-main"><p><Identity code={n.actorCode} color={n.actorColor} /> {n.kind === 'like' ? 'أعجب بمنشورك' : 'رد على منشورك'}</p><time>{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(n.createdAt))}</time></div></Link>)
+      ? items.map(n => <Link href={`/post/${n.postId}`} className={`notification${n.readAt ? '' : ' unread'}`} key={n.id}><span className="notification-icon">{n.kind === 'like' ? '♥' : '↩'}</span><div className="notification-main"><p><Identity code={n.actorCode} color={n.actorColor} linked={false} /> {n.kind === 'like' ? 'أعجب بمنشورك' : 'رد على منشورك'}</p><time>{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(n.createdAt))}</time></div></Link>)
       : <div className="empty-state"><p>لا توجد إشعارات.</p></div>}
   </>
 }

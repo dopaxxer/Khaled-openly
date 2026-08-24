@@ -2,10 +2,16 @@
   "name": "openly",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test",
+    "check": "npm test && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.4",

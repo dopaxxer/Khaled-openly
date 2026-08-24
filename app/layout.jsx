@@ -3,6 +3,9 @@ import './ios-polish.css'
 import { AppShell } from '@/components/AppShell'
 import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
+import { headers } from 'next/headers'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'open',
@@ -21,10 +24,11 @@ export const viewport = {
   ]
 }
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const nonce = (await headers()).get('x-nonce') || undefined
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}/></head>
+      <head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}/></head>
       <body>
         <DeviceVisitTracker />
         <AppShell>{children}</AppShell>

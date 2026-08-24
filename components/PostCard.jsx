@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
 import { renderRichText } from '@/lib/richText'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
+import { POST_MAX_LENGTH } from '@/lib/validation'
 
 export function PostCard({ post, initialEngagement = null, viewerCode = null, onChanged = null }) {
   const router = useRouter()
@@ -13,6 +14,7 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
   const [busy, setBusy] = useState('')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(post.body)
+  const [displayBody, setDisplayBody] = useState(post.body)
   const [gone, setGone] = useState(false)
   const [ownerError, setOwnerError] = useState('')
   const editRef = useRef(null)
@@ -39,9 +41,15 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
       .catch(() => {})
   }, [post.id, initialEngagement])
 
+  useEffect(() => {
+    setDisplayBody(post.body)
+    setDraft(post.body)
+  }, [post.body])
+
   async function toggle(action, enabled) {
     if (busy) return
     setBusy(action)
+    setOwnerError('')
     const previous = eng
     const optimistic = action === 'like'
       ? { ...eng, viewerHasLiked: enabled, likeCount: Math.max(0, eng.likeCount + (enabled ? 1 : -1)) }
@@ -50,8 +58,11 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
     try {
       const res = await fetch(`/api/posts/${post.id}/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) })
       if (res.status === 401) { setEng(previous); router.push('/login'); return }
-      if (!res.ok) throw new Error()
-    } catch { setEng(previous) } finally { setBusy('') }
+      if (!res.ok) throw new Error((await res.json()).error || 'تعذر حفظ التفاعل')
+    } catch (error) {
+      setEng(previous)
+      setOwnerError(error.message || 'تعذر حفظ التفاعل')
+    } finally { setBusy('') }
   }
 
   async function saveEdit() {
@@ -63,7 +74,8 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
       const res = await fetch(`/api/posts/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: text }) })
       if (res.status === 401) { router.push('/login'); return }
       if (!res.ok) throw new Error((await res.json()).error || 'تعذر التعديل')
-      post.body = text
+      setDisplayBody(text)
+      setDraft(text)
       setEditing(false)
       onChanged?.()
     } catch (e) { setOwnerError(e.message) } finally { setBusy('') }
@@ -86,7 +98,7 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
 
   const time = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.createdAt))
   return <article className="post-card">
-    <Link href={`/u/${post.authorCode}`} className="post-avatar-link"><Avatar code={post.authorCode} color={post.authorColor} size={40}/></Link>
+    <Link href={`/u/${post.authorCode}`} className="post-avatar-link" aria-label={`صفحة ${post.authorCode}`}><Avatar code={post.authorCode} color={post.authorColor} size={40}/></Link>
 
     <div className="post-main">
       <div className="post-top">
@@ -102,13 +114,14 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
               <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => formatDraft('italic')}><Italic size={16}/></button>
               <button type="button" className="toolbar-button" aria-label="قائمة نقطية" title="قائمة نقطية" onClick={() => formatDraft('list')}><List size={16}/></button>
             </div>
-            <textarea ref={editRef} value={draft} onChange={e => setDraft(e.target.value)} maxLength={500} rows={5} aria-label="تعديل المنشور"/>
+            <textarea ref={editRef} value={draft} onChange={e => setDraft(e.target.value)} maxLength={POST_MAX_LENGTH} rows={5} aria-label="تعديل المنشور"/>
+            <span className="tiny subtle" dir="ltr">{draft.length} / {POST_MAX_LENGTH}</span>
             <div className="row wrap owner-edit-actions">
               <button className="primary-button" onClick={saveEdit} disabled={busy === 'edit' || !draft.trim()}>{busy === 'edit' ? 'جارِ الحفظ…' : 'حفظ'}</button>
-              <button className="secondary-button" onClick={() => { setDraft(post.body); setEditing(false); setOwnerError('') }}>إلغاء</button>
+              <button className="secondary-button" onClick={() => { setDraft(displayBody); setEditing(false); setOwnerError('') }}>إلغاء</button>
             </div>
           </div>
-        : <Link href={`/post/${post.id}`}><div className="post-body">{renderRichText(post.body)}</div></Link>}
+        : <Link href={`/post/${post.id}`}><div className="post-body">{renderRichText(displayBody)}</div></Link>}
 
       {ownerError && <p className="status-message error mt12">{ownerError}</p>}
 

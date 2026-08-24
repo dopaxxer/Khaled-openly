@@ -30,7 +30,7 @@ export function AppShell({ children }) {
       .then(async data => {
         setUser(data.user || null)
         if (data.user) {
-          const n = await fetch('/api/notifications', { cache: 'no-store', signal: controller.signal }).catch(() => null)
+          const n = await fetch('/api/notifications/count', { cache: 'no-store', signal: controller.signal }).catch(() => null)
           if (n?.ok) setUnread((await n.json()).unreadCount || 0)
         } else setUnread(0)
       })

@@ -371,6 +371,7 @@ struct LoginView: View {
     @State private var password = ""
     @State private var isSubmitting = false
     @State private var showRegister = false
+    @State private var showForgotPassword = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -445,9 +446,7 @@ struct LoginView: View {
                     .opacity(email.isEmpty || password.isEmpty ? 0.78 : 1)
                     .padding(.bottom, 28)
 
-                    Button("نسيت كلمة المرور؟") {
-                        session.alertMessage = "يمكن إضافة استعادة كلمة المرور عند ربط مسارها بالخادم."
-                    }
+                    Button("نسيت كلمة المرور؟") { showForgotPassword = true }
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(OpenlyTheme.muted)
                     .frame(maxWidth: .infinity)
@@ -465,13 +464,95 @@ struct LoginView: View {
         .background(OpenlyTheme.background.ignoresSafeArea())
         .navigationBarHidden(true)
         .sheet(isPresented: $showRegister) { RegisterView() }
+        .sheet(isPresented: $showForgotPassword) { ForgotPasswordView(initialEmail: email) }
     }
 
     @MainActor
     private func login() async {
         isSubmitting = true
-        do { try await session.login(email: email, password: password) }
+        do {
+            try await session.login(email: email, password: password)
+            dismiss()
+        }
         catch { session.alertMessage = error.localizedDescription }
+        isSubmitting = false
+    }
+}
+
+private let passwordMinimumLength = 12
+
+private func passwordIsStrong(_ value: String) -> Bool {
+    value.count >= passwordMinimumLength && value.count <= 128 &&
+        value.contains(where: \.isLetter) && value.contains(where: \.isNumber)
+}
+
+struct ForgotPasswordView: View {
+    @EnvironmentObject private var session: AppSession
+    @Environment(\.dismiss) private var dismiss
+    @State private var email: String
+    @State private var isSubmitting = false
+    @State private var sent = false
+
+    init(initialEmail: String = "") {
+        _email = State(initialValue: initialEmail)
+    }
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 22) {
+                if sent {
+                    EmptyState(
+                        icon: "envelope.badge",
+                        title: "تحقق من بريدك",
+                        message: "إذا كان هناك حساب بهذا البريد، أرسلنا رابطًا آمنًا لاختيار كلمة مرور جديدة."
+                    )
+                    Button("إغلاق") { dismiss() }
+                        .buttonStyle(OpenlyPrimaryButtonStyle())
+                        .padding(.horizontal, 24)
+                } else {
+                    ScreenHeader("استعادة كلمة المرور", subtitle: "أدخل البريد المرتبط بحسابك وسنرسل لك رابط الاستعادة.")
+                    OpenlyFieldContainer {
+                        TextField("البريد الإلكتروني", text: $email)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .foregroundColor(OpenlyTheme.ink)
+                            .environment(\.layoutDirection, .leftToRight)
+                    }
+                    .padding(.horizontal, 20)
+
+                    Button { Task { await submit() } } label: {
+                        if isSubmitting {
+                            ProgressView().tint(OpenlyTheme.accentForeground)
+                        } else {
+                            Text("إرسال رابط الاستعادة")
+                        }
+                    }
+                    .buttonStyle(OpenlyPrimaryButtonStyle())
+                    .disabled(!email.contains("@") || isSubmitting)
+                    .padding(.horizontal, 20)
+                    Spacer()
+                }
+            }
+            .background(OpenlyTheme.background.ignoresSafeArea())
+            .navigationTitle("استعادة الحساب")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("إغلاق") { dismiss() } }
+            }
+        }
+    }
+
+    @MainActor
+    private func submit() async {
+        isSubmitting = true
+        do {
+            try await session.api.requestPasswordReset(email: email)
+            sent = true
+        } catch {
+            session.alertMessage = error.localizedDescription
+        }
         isSubmitting = false
     }
 }
@@ -512,7 +593,7 @@ struct RegisterView: View {
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundColor(OpenlyTheme.ink)
                             OpenlyFieldContainer {
-                                SecureField("8 أحرف على الأقل", text: $password)
+                                SecureField("12 حرفًا على الأقل، مع حرف ورقم", text: $password)
                                     .foregroundColor(OpenlyTheme.ink)
                             }
 
@@ -553,7 +634,7 @@ struct RegisterView: View {
     }
 
     private var formIsValid: Bool {
-        email.contains("@") && password.count >= 8 && password == confirmation
+        email.contains("@") && passwordIsStrong(password) && password == confirmation
     }
 
     @MainActor

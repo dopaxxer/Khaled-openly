@@ -2,25 +2,36 @@ name: Swift
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
+      - claude/website-design-modernize-lkp0ts
     paths:
       - 'ios/**'
       - '.github/workflows/swift.yml'
   pull_request:
-    branches: ["main"]
     paths:
       - 'ios/**'
       - '.github/workflows/swift.yml'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: swift-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          brew install xcodegen
+          xcodegen --version
 
       - name: Generate Xcode project
         working-directory: ios
