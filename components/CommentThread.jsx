@@ -3,8 +3,10 @@ import Link from 'next/link'
 import { CornerDownLeft, Flag, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
-import { Identity } from './Identity'
+import { Avatar } from './Avatar'
 import { renderRichText } from '@/lib/richText'
+
+const MAX_LENGTH = 500
 
 // Replies nest, but only so far. Past a few levels the indent eats the column
 // on a phone and the thread stops being readable, so deeper replies keep
@@ -71,37 +73,42 @@ function Comment({ node, depth, postId, viewerCode, onChanged }) {
 
   return <div className={depth > 0 ? 'comment-branch' : undefined}>
     <article className="comment">
-      <div className="row between">
-        <Identity code={node.authorCode} color={node.authorColor}/>
-        <time className="tiny subtle" dateTime={node.createdAt}>{time}</time>
-      </div>
-      <div className="comment-body">{renderRichText(node.body)}</div>
+      <Link href={`/u/${node.authorCode}`} className="post-avatar-link"><Avatar code={node.authorCode} color={node.authorColor} size={32}/></Link>
 
-      <div className="comment-actions">
-        <button className="action-button" onClick={() => setReplying(v => !v)}>
-          <CornerDownLeft size={16} strokeWidth={1.7}/><span>رد</span>
-        </button>
-        {isOwner
-          ? <button className="action-button danger-action" onClick={remove} disabled={busy === 'delete'}>
-              <Trash2 size={16} strokeWidth={1.7}/><span>{busy === 'delete' ? 'جارِ الحذف…' : 'حذف'}</span>
-            </button>
-          : <Link href={`/report/comment/${node.id}`} className="action-button">
-              <Flag size={16} strokeWidth={1.7}/><span>إبلاغ</span>
-            </Link>}
-      </div>
-
-      {error && <p className="status-message error mt12">{error}</p>}
-
-      {replying && <form className="reply-form" onSubmit={submitReply}>
-        <textarea className="form-control" value={body} onChange={e => setBody(e.target.value)} maxLength={2000} rows={3} autoFocus placeholder="اكتب ردك…" aria-label="نص الرد"/>
-        <div className="row between mt12">
-          <span className="tiny subtle" dir="ltr">{body.length} / 2000</span>
-          <div className="row">
-            <button className="primary-button" disabled={busy === 'reply' || !body.trim()}>{busy === 'reply' ? 'جارِ الإرسال…' : 'إرسال'}</button>
-            <button className="secondary-button" type="button" onClick={() => { setReplying(false); setBody('') }}>إلغاء</button>
-          </div>
+      <div className="comment-main">
+        <div className="post-top">
+          <Link href={`/u/${node.authorCode}`} className="post-author">{node.authorCode}</Link>
+          <span className="dot-sep" aria-hidden="true">·</span>
+          <time className="tiny subtle" dateTime={node.createdAt}>{time}</time>
         </div>
-      </form>}
+        <div className="comment-body">{renderRichText(node.body)}</div>
+
+        <div className="comment-actions">
+          <button className="action-button" onClick={() => setReplying(v => !v)}>
+            <CornerDownLeft size={16} strokeWidth={1.7}/><span>رد</span>
+          </button>
+          {isOwner
+            ? <button className="action-button danger-action" onClick={remove} disabled={busy === 'delete'}>
+                <Trash2 size={16} strokeWidth={1.7}/><span>{busy === 'delete' ? 'جارِ الحذف…' : 'حذف'}</span>
+              </button>
+            : <Link href={`/report/comment/${node.id}`} className="action-button">
+                <Flag size={16} strokeWidth={1.7}/><span>إبلاغ</span>
+              </Link>}
+        </div>
+
+        {error && <p className="status-message error mt12">{error}</p>}
+
+        {replying && <form className="reply-form" onSubmit={submitReply}>
+          <textarea className="form-control" value={body} onChange={e => setBody(e.target.value)} maxLength={MAX_LENGTH} rows={3} autoFocus placeholder="اكتب ردك…" aria-label="نص الرد"/>
+          <div className="row between mt12">
+            <span className="tiny subtle" dir="ltr">{body.length} / {MAX_LENGTH}</span>
+            <div className="row">
+              <button className="primary-button" disabled={busy === 'reply' || !body.trim()}>{busy === 'reply' ? 'جارِ الإرسال…' : 'إرسال'}</button>
+              <button className="secondary-button" type="button" onClick={() => { setReplying(false); setBody('') }}>إلغاء</button>
+            </div>
+          </div>
+        </form>}
+      </div>
     </article>
 
     {node.children.map(child => (

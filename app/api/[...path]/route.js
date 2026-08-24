@@ -361,7 +361,7 @@ export async function POST(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 3000) return json({ error: 'النص يجب أن يكون بين 1 و3000 حرف' }, 400)
+    if (!text || text.length > 500) return json({ error: 'النص يجب أن يكون بين 1 و500 حرف' }, 400)
     const { data, error } = await supabase.from('posts').insert({ author_id: user.id, body: text }).select('id').single()
     if (error) return json({ error: 'تعذر النشر' }, 400)
     return json({ id: data.id }, 201)
@@ -371,7 +371,7 @@ export async function POST(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 2000) return json({ error: 'التعليق غير صالح' }, 400)
+    if (!text || text.length > 500) return json({ error: 'التعليق غير صالح' }, 400)
     const { data, error } = await supabase
       .from('comments')
       .insert({ post_id: path[1], author_id: user.id, body: text, parent_comment_id: body.parentCommentId || null })
@@ -482,7 +482,7 @@ export async function PATCH(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
-    if (!text || text.length > 3000) return json({ error: 'النص يجب أن يكون بين 1 و3000 حرف' }, 400)
+    if (!text || text.length > 500) return json({ error: 'النص يجب أن يكون بين 1 و500 حرف' }, 400)
     // Ownership is re-derived from the session and applied as a filter, so a
     // forged id simply matches no row rather than editing someone else's post.
     const { data, error } = await supabase.from('posts').update({ body: text }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()

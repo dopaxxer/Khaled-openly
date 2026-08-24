@@ -695,8 +695,8 @@ function PostScreen({ id }) {
   return <>
     <PostCard post={post} viewerCode={viewerCode} onChanged={load} />
     <form className="comment-form" onSubmit={comment}>
-      <textarea className="form-control" maxLength={2000} value={body} onChange={e => setBody(e.target.value)} placeholder="اكتب تعليقًا…" />
-      <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / 2000</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
+      <textarea className="form-control" maxLength={500} value={body} onChange={e => setBody(e.target.value)} placeholder="اكتب تعليقًا…" />
+      <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / 500</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
     </form>
     <div className="section-title">التعليقات</div>
     <CommentThread comments={comments} postId={id} viewerCode={viewerCode} onChanged={load} />

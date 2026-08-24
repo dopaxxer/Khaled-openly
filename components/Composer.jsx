@@ -1,15 +1,26 @@
 'use client'
 import { ArrowLeft, Bold, Italic, List, Send } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Avatar } from './Avatar'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
+
+const MAX_LENGTH = 500
 
 export function Composer({ firstPost = false }) {
   const router = useRouter()
   const [body, setBody] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [viewer, setViewer] = useState(null)
   const textareaRef = useRef(null)
+
+  useEffect(() => {
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : { user: null })
+      .then(d => setViewer(d.user || null))
+      .catch(() => {})
+  }, [])
 
   // Starts small and grows with the text instead of opening as one large box —
   // the CSS max-height caps it so a long post scrolls internally rather than
@@ -72,18 +83,21 @@ export function Composer({ firstPost = false }) {
         <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => format('italic')}><Italic size={16}/></button>
         <button type="button" className="toolbar-button" aria-label="قائمة نقطية" title="قائمة نقطية" onClick={() => format('list')}><List size={16}/></button>
       </div>
-      <textarea
-        ref={textareaRef}
-        autoFocus
-        value={body}
-        onChange={e => { setBody(e.target.value); grow(e.target) }}
-        maxLength={3000}
-        rows={3}
-        placeholder="ماذا تريد أن تقول؟"
-        aria-label="نص المنشور"
-      />
+      <div className="composer-row">
+        {viewer && <Avatar code={viewer.publicCode} color={viewer.identityColor} size={40}/>}
+        <textarea
+          ref={textareaRef}
+          autoFocus
+          value={body}
+          onChange={e => { setBody(e.target.value); grow(e.target) }}
+          maxLength={MAX_LENGTH}
+          rows={3}
+          placeholder="ماذا تريد أن تقول؟"
+          aria-label="نص المنشور"
+        />
+      </div>
       <div className="composer-foot">
-        <span className={`tiny ${body.length > 2800 ? 'danger-text' : 'subtle'}`} dir="ltr">{body.length} / 3000</span>
+        <span className={`tiny ${body.length > MAX_LENGTH - 40 ? 'danger-text' : 'subtle'}`} dir="ltr">{body.length} / {MAX_LENGTH}</span>
         <button className="primary-button" onClick={publish} disabled={busy || !body.trim()}>
           <Send size={16} aria-hidden="true"/>
           {busy ? 'جارِ النشر…' : 'نشر'}

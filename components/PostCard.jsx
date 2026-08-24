@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Bold, Bookmark, Flag, Heart, Italic, List, MessageCircle, Pencil, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { Identity } from './Identity'
+import { Avatar } from './Avatar'
 import { renderRichText } from '@/lib/richText'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
 
@@ -86,35 +86,43 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
 
   const time = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.createdAt))
   return <article className="post-card">
-    <div className="post-top"><Identity code={post.authorCode} color={post.authorColor}/><time className="tiny subtle" dateTime={post.createdAt}>{time}</time></div>
+    <Link href={`/u/${post.authorCode}`} className="post-avatar-link"><Avatar code={post.authorCode} color={post.authorColor} size={40}/></Link>
 
-    {editing
-      ? <div className="owner-edit composer panel">
-          <div className="composer-toolbar" role="toolbar" aria-label="تنسيق النص">
-            <button type="button" className="toolbar-button" aria-label="عريض" title="عريض" onClick={() => formatDraft('bold')}><Bold size={16}/></button>
-            <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => formatDraft('italic')}><Italic size={16}/></button>
-            <button type="button" className="toolbar-button" aria-label="قائمة نقطية" title="قائمة نقطية" onClick={() => formatDraft('list')}><List size={16}/></button>
+    <div className="post-main">
+      <div className="post-top">
+        <Link href={`/u/${post.authorCode}`} className="post-author">{post.authorCode}</Link>
+        <span className="dot-sep" aria-hidden="true">·</span>
+        <time className="tiny subtle" dateTime={post.createdAt}>{time}</time>
+      </div>
+
+      {editing
+        ? <div className="owner-edit composer panel">
+            <div className="composer-toolbar" role="toolbar" aria-label="تنسيق النص">
+              <button type="button" className="toolbar-button" aria-label="عريض" title="عريض" onClick={() => formatDraft('bold')}><Bold size={16}/></button>
+              <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => formatDraft('italic')}><Italic size={16}/></button>
+              <button type="button" className="toolbar-button" aria-label="قائمة نقطية" title="قائمة نقطية" onClick={() => formatDraft('list')}><List size={16}/></button>
+            </div>
+            <textarea ref={editRef} value={draft} onChange={e => setDraft(e.target.value)} maxLength={500} rows={5} aria-label="تعديل المنشور"/>
+            <div className="row wrap owner-edit-actions">
+              <button className="primary-button" onClick={saveEdit} disabled={busy === 'edit' || !draft.trim()}>{busy === 'edit' ? 'جارِ الحفظ…' : 'حفظ'}</button>
+              <button className="secondary-button" onClick={() => { setDraft(post.body); setEditing(false); setOwnerError('') }}>إلغاء</button>
+            </div>
           </div>
-          <textarea ref={editRef} value={draft} onChange={e => setDraft(e.target.value)} maxLength={3000} rows={5} aria-label="تعديل المنشور"/>
-          <div className="row wrap owner-edit-actions">
-            <button className="primary-button" onClick={saveEdit} disabled={busy === 'edit' || !draft.trim()}>{busy === 'edit' ? 'جارِ الحفظ…' : 'حفظ'}</button>
-            <button className="secondary-button" onClick={() => { setDraft(post.body); setEditing(false); setOwnerError('') }}>إلغاء</button>
-          </div>
-        </div>
-      : <Link href={`/post/${post.id}`}><div className="post-body">{renderRichText(post.body)}</div></Link>}
+        : <Link href={`/post/${post.id}`}><div className="post-body">{renderRichText(post.body)}</div></Link>}
 
-    {ownerError && <p className="status-message error mt12">{ownerError}</p>}
+      {ownerError && <p className="status-message error mt12">{ownerError}</p>}
 
-    <div className="post-actions">
-      <Link href={`/post/${post.id}`} className="action-button"><MessageCircle size={16} strokeWidth={1.7}/><span>{post.commentCount ? `${post.commentCount} تعليق` : 'تعليق'}</span></Link>
-      <button className={`action-button like${eng.viewerHasLiked ? ' active' : ''}`} onClick={() => toggle('like', !eng.viewerHasLiked)} disabled={busy === 'like'} aria-pressed={eng.viewerHasLiked}><Heart size={16} strokeWidth={1.7} fill={eng.viewerHasLiked ? 'currentColor' : 'none'}/><span>{eng.likeCount || 'إعجاب'}</span></button>
-      <button className={`action-button bookmark${eng.viewerHasBookmarked ? ' active' : ''}`} onClick={() => toggle('bookmark', !eng.viewerHasBookmarked)} disabled={busy === 'bookmark'} aria-pressed={eng.viewerHasBookmarked}><Bookmark size={16} strokeWidth={1.7} fill={eng.viewerHasBookmarked ? 'currentColor' : 'none'}/><span>{eng.viewerHasBookmarked ? 'محفوظ' : 'حفظ'}</span></button>
-      {isOwner
-        ? <>
-            <button className="action-button" onClick={() => setEditing(true)} disabled={editing}><Pencil size={16} strokeWidth={1.7}/><span>تعديل</span></button>
-            <button className="action-button danger-action" onClick={remove} disabled={busy === 'delete'}><Trash2 size={16} strokeWidth={1.7}/><span>{busy === 'delete' ? 'جارِ الحذف…' : 'حذف'}</span></button>
-          </>
-        : <Link href={`/report/post/${post.id}`} className="action-button"><Flag size={16} strokeWidth={1.7}/><span>إبلاغ</span></Link>}
+      <div className="post-actions">
+        <Link href={`/post/${post.id}`} className="action-button"><MessageCircle size={16} strokeWidth={1.7}/><span>{post.commentCount ? `${post.commentCount} تعليق` : 'تعليق'}</span></Link>
+        <button className={`action-button like${eng.viewerHasLiked ? ' active' : ''}`} onClick={() => toggle('like', !eng.viewerHasLiked)} disabled={busy === 'like'} aria-pressed={eng.viewerHasLiked}><Heart size={16} strokeWidth={1.7} fill={eng.viewerHasLiked ? 'currentColor' : 'none'}/><span>{eng.likeCount || 'إعجاب'}</span></button>
+        <button className={`action-button bookmark${eng.viewerHasBookmarked ? ' active' : ''}`} onClick={() => toggle('bookmark', !eng.viewerHasBookmarked)} disabled={busy === 'bookmark'} aria-pressed={eng.viewerHasBookmarked}><Bookmark size={16} strokeWidth={1.7} fill={eng.viewerHasBookmarked ? 'currentColor' : 'none'}/><span>{eng.viewerHasBookmarked ? 'محفوظ' : 'حفظ'}</span></button>
+        {isOwner
+          ? <>
+              <button className="action-button" onClick={() => setEditing(true)} disabled={editing}><Pencil size={16} strokeWidth={1.7}/><span>تعديل</span></button>
+              <button className="action-button danger-action" onClick={remove} disabled={busy === 'delete'}><Trash2 size={16} strokeWidth={1.7}/><span>{busy === 'delete' ? 'جارِ الحذف…' : 'حذف'}</span></button>
+            </>
+          : <Link href={`/report/post/${post.id}`} className="action-button"><Flag size={16} strokeWidth={1.7}/><span>إبلاغ</span></Link>}
+      </div>
     </div>
   </article>
 }
