@@ -112,8 +112,6 @@ private func adaptiveColor(light: (Int, Int, Int), dark: (Int, Int, Int)) -> Col
 }
 
 enum OpenlyTheme {
-    // Light keeps the clean paper treatment used by earlier Openly builds.
-    // Dark keeps the supplied blue-black reference treatment.
     static let background = adaptiveColor(light: (250, 250, 248), dark: (8, 10, 21))
     static let surface = adaptiveColor(light: (255, 255, 255), dark: (8, 10, 21))
     static let surfaceSoft = adaptiveColor(light: (244, 244, 241), dark: (13, 16, 32))
@@ -195,6 +193,15 @@ struct AppHeader: View {
         HStack(spacing: 12) {
             BrandLockup(markSize: 34)
             Spacer()
+
+            NavigationLink(destination: SettingsView()) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 21, weight: .regular))
+                    .foregroundColor(OpenlyTheme.muted)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+
             if session.user != nil {
                 Button {
                     Task { await session.logout() }
