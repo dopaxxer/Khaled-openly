@@ -194,8 +194,9 @@ export async function GET(request, { params }) {
   if (path.join('/') === 'me/followers-count') {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', user.id)
-    return json({ count: count || 0 })
+    const { data, error } = await supabase.rpc('get_followers_count')
+    if (error) return json({ error: 'تعذر تحميل العدد' }, 500)
+    return json({ count: Number(data || 0) })
   }
 
   if (path.join('/') === 'me/following') {
@@ -268,7 +269,7 @@ export async function GET(request, { params }) {
     if (!admin) return json({ error: 'غير مصرح' }, 403)
     const { data, error } = await supabase
       .from('reports')
-      .select('id,target_type,target_id,reason,description,status,created_at')
+      .select('id,target_type,target_id,reason,detail,status,created_at')
       .order('created_at', { ascending: false })
       .limit(100)
     if (error) return json({ error: 'تعذر تحميل البلاغات' }, 500)
@@ -278,7 +279,7 @@ export async function GET(request, { params }) {
         targetType: r.target_type,
         targetId: r.target_id,
         reason: r.reason,
-        description: r.description,
+        description: r.detail,
         status: r.status,
         createdAt: r.created_at
       }))
@@ -348,7 +349,7 @@ export async function POST(request, { params }) {
     if (!identityColorPattern.test(identityColor)) return json({ error: 'لون الهوية غير صالح' }, 400)
     const { error } = await supabase
       .from('profiles')
-      .update({ public_code: publicCode, identity_color: identityColor, status, bio, updated_at: new Date().toISOString() })
+      .update({ public_code: publicCode, identity_color: identityColor, status, bio })
       .eq('id', user.id)
     if (error?.code === '23505') return json({ error: 'هذا الكود مستخدم بالفعل. اختر كودًا آخر.' }, 409)
     if (error) return json({ error: 'تعذر حفظ الهوية' }, 400)
@@ -413,7 +414,7 @@ export async function POST(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const enabled = !!body.enabled
-    const query = supabase.from('likes')
+    const query = supabase.from('post_likes')
     const { error } = enabled
       ? await query.upsert({ user_id: user.id, post_id: path[1] })
       : await query.delete().eq('user_id', user.id).eq('post_id', path[1])
@@ -438,13 +439,13 @@ export async function POST(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const targetType = body.targetType
     if ((targetType !== 'post' && targetType !== 'comment') || !body.targetId || !reasons.has(body.reason)) return json({ error: 'بلاغ غير صالح' }, 400)
-    const description = body.description ? String(body.description).slice(0, 1000) : null
+    const detail = body.description ? String(body.description).slice(0, 1000) : null
     const { error } = await supabase.from('reports').insert({
       reporter_id: user.id,
       target_type: targetType,
       target_id: body.targetId,
       reason: body.reason,
-      description
+      detail
     })
     if (error) return json({ error: 'تعذر إرسال البلاغ' }, 400)
     return json({ ok: true }, 201)
