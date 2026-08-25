@@ -77,28 +77,47 @@ async function engagementFor(supabase, ids) {
 async function getOnePost(supabase, id) {
   const { data: post } = await supabase
     .from('posts')
-    .select('id,author_id,body,created_at,deleted_at')
+    .select('id,author_id,body,created_at,deleted_at,track_id')
     .eq('id', id)
     .is('deleted_at', null)
     .maybeSingle()
   if (!post) return null
-  const { data: author } = await supabase
-    .from('profiles')
-    .select('public_code,identity_color')
-    .eq('id', post.author_id)
-    .maybeSingle()
-  const { count } = await supabase
-    .from('comments')
-    .select('*', { count: 'exact', head: true })
-    .eq('post_id', id)
-    .is('deleted_at', null)
+  const [authorResult, commentResult, trackResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('public_code,identity_color')
+      .eq('id', post.author_id)
+      .maybeSingle(),
+    supabase
+      .from('comments')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', id)
+      .is('deleted_at', null),
+    post.track_id
+      ? supabase
+          .from('music_tracks')
+          .select('id,title,artist_name,artwork_url,preview_url,external_url')
+          .eq('id', post.track_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null })
+  ])
+  const author = authorResult.data
+  const track = trackResult.data
   return {
     id: post.id,
     body: post.body,
     createdAt: post.created_at,
     authorCode: author?.public_code,
     authorColor: author?.identity_color,
-    commentCount: count || 0
+    commentCount: commentResult.count || 0,
+    track: track ? {
+      id: track.id,
+      title: track.title,
+      artist: track.artist_name,
+      artworkUrl: track.artwork_url,
+      previewUrl: track.preview_url,
+      externalUrl: track.external_url
+    } : null
   }
 }
 
@@ -419,9 +438,14 @@ export async function POST(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
     if (!text || text.length > POST_MAX_LENGTH) return json({ error: `النص يجب أن يكون بين 1 و${POST_MAX_LENGTH} حرف` }, 400)
+    const trackId = body.trackId == null ? null : String(body.trackId).trim()
+    if (trackId !== null && !isUuid(trackId)) return json({ error: 'معرّف الأغنية غير صالح' }, 400)
     // create_post inserts the row and resolves its mentions in one
     // transaction, so a post can never be published without them.
-    const { data, error } = await supabase.rpc('create_post', { p_body: text })
+    const { data, error } = await supabase.rpc('create_post', {
+      p_body: text,
+      p_track_id: trackId
+    })
     if (error || !data) return json({ error: 'تعذر النشر' }, 400)
     return json({ id: data }, 201)
   }
@@ -547,9 +571,15 @@ export async function PATCH(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
     if (!text || text.length > POST_MAX_LENGTH) return json({ error: `النص يجب أن يكون بين 1 و${POST_MAX_LENGTH} حرف` }, 400)
+    const trackId = body.trackId == null ? null : String(body.trackId).trim()
+    if (trackId !== null && !isUuid(trackId)) return json({ error: 'معرّف الأغنية غير صالح' }, 400)
     // update_own_post rewrites the body and re-resolves mentions together, so
     // an edit that adds or drops a mention stays consistent.
-    const { data, error } = await supabase.rpc('update_own_post', { p_post_id: path[1], p_body: text })
+    const { data, error } = await supabase.rpc('update_own_post', {
+      p_post_id: path[1],
+      p_body: text,
+      p_track_id: trackId
+    })
     if (error) return json({ error: 'تعذر تعديل المنشور' }, 400)
     if (data !== true) return json({ error: 'المنشور غير موجود' }, 404)
     return json({ ok: true })

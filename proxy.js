@@ -15,6 +15,7 @@ function contentSecurityPolicy(nonce) {
     `style-src-elem 'self' 'nonce-${nonce}'`,
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' blob: data: https://*.mzstatic.com",
+    "media-src 'self' https://*.mzstatic.com",
     "font-src 'self'",
     "connect-src 'self'",
     "frame-src 'none'",

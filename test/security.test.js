@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { getPublicOrigin, safeInternalPath } from '../lib/publicOrigin.js'
 import { isStrongPassword, isValidEmail, parseCursor, readJson } from '../lib/validation.js'
@@ -50,4 +51,13 @@ test('bodyless actions accept a zero-length runtime stream', async () => {
     text: async () => ''
   }
   assert.deepEqual(await readJson(request), { data: {} })
+})
+
+test('CSP permits Apple previews without weakening script-src', () => {
+  const source = readFileSync(new URL('../proxy.js', import.meta.url), 'utf8')
+  assert.match(source, /"media-src 'self' https:\/\/\*\.mzstatic\.com"/)
+
+  const scriptDirective = source.match(/`script-src[^`]+`/)?.[0]
+  assert.ok(scriptDirective, 'script-src directive is present')
+  assert.doesNotMatch(scriptDirective, /unsafe-inline/)
 })

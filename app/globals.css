@@ -643,6 +643,97 @@ select:focus-visible {
 .composer-message { margin-block: var(--space-4) !important; margin-inline: var(--space-5) !important; }
 .composer-skip { margin-block: var(--space-4) !important; margin-inline: var(--space-5) !important; }
 
+.composer-attachments {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-5);
+  border-block-start: 1px solid var(--line);
+}
+
+.composer-add-track { justify-self: start; min-block-size: 38px; padding-block: 7px; padding-inline: var(--space-4); }
+
+.composer-track-search {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-soft);
+}
+
+.track-search-field { position: relative; display: block; }
+.track-search-field > svg {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--space-4);
+  z-index: 1;
+  color: var(--subtle);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.track-search-field .form-control { padding-inline-start: 42px; background: var(--surface); }
+
+.composer-track-results { margin-block-start: 0; max-block-size: 280px; overflow-y: auto; background: var(--surface); }
+.composer-track-result-main,
+.composer-track-meta,
+.track-attachment-meta {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+.composer-track-result-main strong,
+.composer-track-meta strong,
+.track-attachment-meta strong,
+.composer-track-result-main span,
+.composer-track-meta span,
+.track-attachment-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-track-selection {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-inline-size: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--surface-soft);
+}
+
+.composer-track-error { padding-block: var(--space-2); }
+
+.track-artwork {
+  inline-size: 48px;
+  block-size: 48px;
+  flex: none;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.track-artwork-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--surface-soft);
+  color: var(--subtle);
+}
+
+.track-remove-button,
+.track-play-button {
+  display: inline-grid;
+  inline-size: 38px;
+  block-size: 38px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+}
+
 .post-card {
   display: flex;
   align-items: flex-start;
@@ -687,6 +778,26 @@ select:focus-visible {
 
 .post-body li,
 .comment-body li { margin-block: 2px; }
+
+.track-attachment {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-inline-size: 0;
+  max-inline-size: 520px;
+  margin-block-start: var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--surface-soft);
+}
+
+.track-attachment-meta strong { font-size: var(--text-ui); font-weight: 650; }
+.track-attachment-meta span { color: var(--subtle); font-size: var(--text-meta); }
+.track-play-button { color: var(--accent); }
+.track-audio { display: none; }
 
 .post-actions {
   display: flex;

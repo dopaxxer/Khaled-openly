@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
 import { MentionField } from './MentionField'
+import { TrackAttachment } from './TrackAttachment'
 import { renderRichText } from '@/lib/richText'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
 import { POST_MAX_LENGTH } from '@/lib/validation'
@@ -72,7 +73,11 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
     setBusy('edit')
     setOwnerError('')
     try {
-      const res = await fetch(`/api/posts/${post.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: text }) })
+      const res = await fetch(`/api/posts/${post.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: text, trackId: post.track?.id || null })
+      })
       if (res.status === 401) { router.push('/login'); return }
       if (!res.ok) throw new Error((await res.json()).error || 'تعذر التعديل')
       setDisplayBody(text)
@@ -129,6 +134,8 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
             <Link href={`/post/${post.id}`} className="post-open-overlay" aria-label="فتح المنشور والتعليقات" />
             <div className="post-body">{renderRichText(displayBody, { mentions: post.mentions })}</div>
           </div>}
+
+      {post.track && <TrackAttachment track={post.track}/>}
 
       {ownerError && <p className="status-message error mt12">{ownerError}</p>}
 

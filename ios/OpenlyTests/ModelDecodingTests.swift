@@ -50,6 +50,49 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNil(post.mentions)
     }
 
+    func testPostDecodesWithoutTrackField() throws {
+        let post = try decode(Post.self, """
+        {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "body": "plain text remains valid",
+          "createdAt": "2026-08-24T12:00:00.000Z",
+          "authorCode": "BCDE",
+          "authorColor": "#3F7CAC",
+          "commentCount": 0,
+          "mentions": []
+        }
+        """)
+
+        XCTAssertNil(post.track)
+    }
+
+    func testPostDecodesWithTrack() throws {
+        let post = try decode(Post.self, """
+        {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "body": "a post with one song",
+          "createdAt": "2026-08-24T12:00:00.000Z",
+          "authorCode": "BCDE",
+          "authorColor": "#3F7CAC",
+          "commentCount": 0,
+          "mentions": [],
+          "track": {
+            "id": "22222222-2222-4222-8222-222222222222",
+            "title": "Test Song",
+            "artist": "Test Artist",
+            "artworkUrl": "https://is1-ssl.mzstatic.com/test.jpg",
+            "previewUrl": "https://audio-ssl.mzstatic.com/test.m4a",
+            "externalUrl": "https://music.apple.com/test"
+          }
+        }
+        """)
+
+        XCTAssertEqual(post.track?.id, "22222222-2222-4222-8222-222222222222")
+        XCTAssertEqual(post.track?.title, "Test Song")
+        XCTAssertEqual(post.track?.artist, "Test Artist")
+        XCTAssertEqual(post.track?.previewUrl, "https://audio-ssl.mzstatic.com/test.m4a")
+    }
+
     func testCommentDecodesWithMentions() throws {
         let comment = try decode(Comment.self, """
         {

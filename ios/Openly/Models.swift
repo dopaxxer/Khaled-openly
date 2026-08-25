@@ -13,6 +13,15 @@ struct UserSummary: Codable, Identifiable, Hashable {
     let isSelf: Bool?
 }
 
+struct PostTrack: Codable, Hashable {
+    let id: String
+    let title: String
+    let artist: String
+    let artworkUrl: String?
+    let previewUrl: String?
+    let externalUrl: String?
+}
+
 struct Post: Codable, Identifiable, Hashable {
     let id: String
     let body: String
@@ -21,6 +30,7 @@ struct Post: Codable, Identifiable, Hashable {
     let authorColor: String?
     let commentCount: Int?
     let mentions: [MentionRef]?
+    let track: PostTrack?
 }
 
 struct Comment: Codable, Identifiable, Hashable {

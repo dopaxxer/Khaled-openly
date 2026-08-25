@@ -207,8 +207,14 @@ final class APIClient {
         return try await request("posts", query: query)
     }
 
-    func createPost(body: String) async throws -> String? {
-        let response: ActionResponse = try await request("posts", method: "POST", body: ["body": body])
+    func createPost(body: String, trackId: String? = nil) async throws -> String? {
+        var payload: [String: Any] = ["body": body]
+        if let trackId {
+            payload["trackId"] = trackId
+        } else {
+            payload["trackId"] = NSNull()
+        }
+        let response: ActionResponse = try await request("posts", method: "POST", body: payload)
         return response.id
     }
 

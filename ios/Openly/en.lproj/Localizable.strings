@@ -250,3 +250,7 @@
 "تنسيق النص" = "Text formatting";
 "اليوم" = "Today";
 "أمس" = "Yesterday";
+
+/* Post track preview */
+"post_track_play" = "Play song preview";
+"post_track_pause" = "Pause song preview";

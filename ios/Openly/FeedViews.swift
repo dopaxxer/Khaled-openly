@@ -1,4 +1,71 @@
+import AVFoundation
 import SwiftUI
+
+@MainActor
+final class AudioPreviewPlayer: ObservableObject {
+    static let shared = AudioPreviewPlayer()
+
+    @Published private(set) var activeTrackID: String?
+    private var player: AVPlayer?
+    private var endObserver: NSObjectProtocol?
+
+    private init() {}
+
+    func toggle(trackID: String, previewURL: String) {
+        guard let url = URL(string: previewURL), url.scheme?.lowercased() == "https" else { return }
+
+        if activeTrackID == trackID {
+            stop()
+            return
+        }
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default)
+            try session.setActive(true)
+        } catch {
+            return
+        }
+
+        clearEndObserver()
+        player?.pause()
+
+        let item = AVPlayerItem(url: url)
+        let nextPlayer = AVPlayer(playerItem: item)
+        player = nextPlayer
+        activeTrackID = trackID
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.finish(trackID: trackID)
+            }
+        }
+        nextPlayer.play()
+    }
+
+    func stop() {
+        player?.pause()
+        player?.seek(to: .zero)
+        player = nil
+        activeTrackID = nil
+        clearEndObserver()
+    }
+
+    private func finish(trackID: String) {
+        guard activeTrackID == trackID else { return }
+        stop()
+    }
+
+    private func clearEndObserver() {
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+            self.endObserver = nil
+        }
+    }
+}
 
 struct FeedView: View {
     @EnvironmentObject private var session: AppSession
@@ -310,6 +377,10 @@ struct PostCard: View {
             // thread instead.
             MentionText(post.body, mentions: post.mentions)
 
+            if let track = post.track {
+                PostTrackAttachment(track: track)
+            }
+
             NavigationLink(destination: PostDetailView(postID: post.id)) {
                 HStack(spacing: 6) {
                     Text("افتح المحادثة")
@@ -411,6 +482,102 @@ struct PostCard: View {
             await loadEngagement()
         } catch { session.alertMessage = error.localizedDescription }
         isChanging = false
+    }
+}
+
+private struct PostTrackAttachment: View {
+    @ObservedObject private var previewPlayer = AudioPreviewPlayer.shared
+    let track: PostTrack
+
+    private var isPlaying: Bool {
+        previewPlayer.activeTrackID == track.id
+    }
+
+    private var previewURL: String? {
+        guard let value = track.previewUrl,
+              let url = URL(string: value),
+              url.scheme?.lowercased() == "https" else { return nil }
+        return value
+    }
+
+    private var actionLabel: LocalizedStringKey {
+        isPlaying ? "post_track_pause" : "post_track_play"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            PostTrackArtwork(url: track.artworkUrl)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(track.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(OpenlyTheme.ink)
+                    .lineLimit(1)
+                Text(track.artist)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(OpenlyTheme.subtle)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let previewURL {
+                Button {
+                    previewPlayer.toggle(trackID: track.id, previewURL: previewURL)
+                } label: {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(OpenlyTheme.accent)
+                        .frame(width: 40, height: 40)
+                        .background(OpenlyTheme.background)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(OpenlyTheme.lineStrong, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(actionLabel))
+            }
+        }
+        .padding(10)
+        .background(OpenlyTheme.surfaceSoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(OpenlyTheme.line, lineWidth: 1)
+        )
+    }
+}
+
+private struct PostTrackArtwork: View {
+    let url: String?
+
+    var body: some View {
+        Group {
+            if let value = url,
+               let remote = URL(string: value),
+               remote.scheme?.lowercased() == "https" {
+                AsyncImage(url: remote) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        fallback
+                    }
+                }
+            } else {
+                fallback
+            }
+        }
+        .frame(width: 48, height: 48)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityHidden(true)
+    }
+
+    private var fallback: some View {
+        ZStack {
+            OpenlyTheme.background
+            Image(systemName: "music.note")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(OpenlyTheme.subtle)
+        }
     }
 }
 

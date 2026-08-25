@@ -1,5 +1,5 @@
 'use client'
-import { ArrowLeft, Bold, Italic, List, Send } from 'lucide-react'
+import { ArrowLeft, Bold, Italic, List, Music2, Search, Send, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
@@ -15,7 +15,16 @@ export function Composer({ firstPost = false }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [viewer, setViewer] = useState(null)
+  const [showTrackSearch, setShowTrackSearch] = useState(false)
+  const [trackQuery, setTrackQuery] = useState('')
+  const [trackResults, setTrackResults] = useState([])
+  const [trackSearching, setTrackSearching] = useState(false)
+  const [trackSearchDone, setTrackSearchDone] = useState(false)
+  const [trackSaving, setTrackSaving] = useState('')
+  const [trackError, setTrackError] = useState('')
+  const [selectedTrack, setSelectedTrack] = useState(null)
   const textareaRef = useRef(null)
+  const trackSearchTicket = useRef(0)
 
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' })
@@ -23,6 +32,49 @@ export function Composer({ firstPost = false }) {
       .then(d => setViewer(d.user || null))
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const term = trackQuery.trim()
+    if (!showTrackSearch || !term) {
+      setTrackResults([])
+      setTrackSearching(false)
+      setTrackSearchDone(false)
+      return
+    }
+
+    const ticket = ++trackSearchTicket.current
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
+      setTrackSearching(true)
+      setTrackSearchDone(false)
+      setTrackError('')
+      try {
+        const response = await fetch(
+          `/api/v1/music/tracks/search?q=${encodeURIComponent(term)}`,
+          { cache: 'no-store', signal: controller.signal }
+        )
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error || 'تعذر البحث عن الأغاني')
+        if (ticket === trackSearchTicket.current) {
+          setTrackResults(Array.isArray(data.items) ? data.items : [])
+          setTrackSearchDone(true)
+        }
+      } catch (searchError) {
+        if (searchError.name !== 'AbortError' && ticket === trackSearchTicket.current) {
+          setTrackResults([])
+          setTrackSearchDone(true)
+          setTrackError(searchError.message || 'تعذر البحث عن الأغاني')
+        }
+      } finally {
+        if (ticket === trackSearchTicket.current) setTrackSearching(false)
+      }
+    }, 260)
+
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [showTrackSearch, trackQuery])
 
   // Starts small and grows with the text instead of opening as one large box —
   // the CSS max-height caps it so a long post scrolls internally rather than
@@ -49,6 +101,34 @@ export function Composer({ firstPost = false }) {
     })
   }
 
+  async function chooseTrack(track) {
+    if (trackSaving) return
+    const key = `${track.provider}:${track.externalId}`
+    setTrackSaving(key)
+    setTrackError('')
+    try {
+      const response = await fetch('/api/v1/music/tracks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: track.provider, externalId: track.externalId })
+      })
+      const data = await response.json().catch(() => ({}))
+      if (response.status === 401) {
+        router.push('/login')
+        return
+      }
+      if (!response.ok || !data.track?.id) throw new Error(data.error || 'تعذر إرفاق الأغنية')
+      setSelectedTrack(data.track)
+      setShowTrackSearch(false)
+      setTrackQuery('')
+      setTrackResults([])
+    } catch (trackSaveError) {
+      setTrackError(trackSaveError.message || 'تعذر إرفاق الأغنية')
+    } finally {
+      setTrackSaving('')
+    }
+  }
+
   async function publish() {
     if (!body.trim() || busy) return
     setBusy(true)
@@ -57,7 +137,7 @@ export function Composer({ firstPost = false }) {
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body })
+        body: JSON.stringify({ body, trackId: selectedTrack?.id || null })
       })
       const data = await res.json()
       if (res.status === 401) {
@@ -98,6 +178,92 @@ export function Composer({ firstPost = false }) {
           placeholder="ماذا تريد أن تقول؟ اكتب @ للإشارة إلى كود"
           aria-label="نص المنشور"
         />
+      </div>
+      <div className="composer-attachments">
+        {selectedTrack
+          ? <div className="composer-track-selection">
+              {selectedTrack.artworkUrl
+                ? <img
+                    className="track-artwork"
+                    src={selectedTrack.artworkUrl}
+                    alt=""
+                    width={48}
+                    height={48}
+                    referrerPolicy="no-referrer"
+                  />
+                : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
+              <span className="composer-track-meta" dir="auto">
+                <strong>{selectedTrack.title}</strong>
+                <span className="tiny subtle">{selectedTrack.artist}</span>
+              </span>
+              <button
+                type="button"
+                className="track-remove-button"
+                aria-label="إزالة الأغنية المرفقة"
+                onClick={() => { setSelectedTrack(null); setTrackError('') }}
+              ><X size={17}/></button>
+            </div>
+          : <>
+              <button
+                type="button"
+                className="secondary-button composer-add-track"
+                onClick={() => { setShowTrackSearch(open => !open); setTrackError('') }}
+                aria-expanded={showTrackSearch}
+              >
+                <Music2 size={16}/>
+                أضف أغنية
+              </button>
+
+              {showTrackSearch && <div className="composer-track-search panel">
+                <label className="track-search-field">
+                  <Search size={16} aria-hidden="true"/>
+                  <input
+                    className="form-control"
+                    value={trackQuery}
+                    onChange={event => setTrackQuery(event.target.value)}
+                    placeholder="ابحث باسم الأغنية أو الفنان"
+                    aria-label="البحث في كتالوج الأغاني"
+                    autoFocus
+                  />
+                </label>
+
+                {trackSearching && <p className="tiny subtle">جارِ البحث في كتالوج الموسيقى…</p>}
+                {!trackQuery.trim() && <p className="tiny subtle">اكتب اسم أغنية أو فنان، ثم اختر نتيجة واحدة.</p>}
+                {trackSearchDone && !trackSearching && !trackResults.length && !trackError && <p className="tiny subtle">لا توجد نتائج مطابقة.</p>}
+
+                {trackResults.length > 0 && <ul className="result-list composer-track-results">
+                  {trackResults.map(track => {
+                    const key = `${track.provider}:${track.externalId}`
+                    return <li key={key}>
+                      <button
+                        type="button"
+                        className="result-row"
+                        onClick={() => chooseTrack(track)}
+                        disabled={!!trackSaving}
+                      >
+                        {track.artworkUrl
+                          ? <img
+                              className="track-artwork"
+                              src={track.artworkUrl}
+                              alt=""
+                              width={48}
+                              height={48}
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                          : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
+                        <span className="composer-track-result-main" dir="auto">
+                          <strong>{track.title}</strong>
+                          <span className="tiny subtle">{track.artist}</span>
+                        </span>
+                        <span className="tiny subtle">{trackSaving === key ? 'جارِ الإرفاق…' : 'اختيار'}</span>
+                      </button>
+                    </li>
+                  })}
+                </ul>}
+              </div>}
+            </>}
+        {trackError && <p className="status-message error composer-track-error">{trackError}</p>}
       </div>
       <div className="composer-foot">
         <span className={`tiny ${body.length > MAX_LENGTH - 40 ? 'danger-text' : 'subtle'}`} dir="ltr">{body.length} / {MAX_LENGTH}</span>

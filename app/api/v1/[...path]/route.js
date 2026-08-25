@@ -189,7 +189,7 @@ export async function GET(request, { params }) {
     })
   }
 
-  if (route === 'music/catalog') {
+  if (route === 'music/catalog' || route === 'music/tracks/search') {
     const user = await requireUser(supabase)
     if (!user) return unauthorized()
     const limited = guard(request, 'musicSearch', user.id)
