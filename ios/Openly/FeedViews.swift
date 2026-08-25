@@ -423,6 +423,7 @@ struct ComposerView: View {
     @EnvironmentObject private var session: AppSession
     @StateObject private var suggestions = MentionSuggestionModel()
     @State private var bodyText = ""
+    @State private var caretRequest: Int?
     @State private var isPublishing = false
     @FocusState private var isFocused: Bool
     let onPublished: () -> Void
@@ -459,6 +460,7 @@ struct ComposerView: View {
                                 // does not expose on iOS 16.
                                 MentionTextEditor(
                                     text: $bodyText,
+                                    caret: $caretRequest,
                                     placeholder: "ماذا تريد أن تقول؟ اكتب @ للإشارة إلى كود",
                                     maxLength: postCharacterLimit,
                                     autoFocus: true
@@ -475,6 +477,7 @@ struct ComposerView: View {
                                         code: item.publicCode
                                     )
                                     bodyText = result.text
+                                    caretRequest = result.caret
                                     suggestions.clear()
                                 }
 

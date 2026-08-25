@@ -244,8 +244,12 @@ struct MentionText: View {
 /// not expose the selection on iOS 16.
 struct MentionTextEditor: UIViewRepresentable {
     @Binding var text: String
+    /// Set by the composer when it rewrites the text itself, so the caret can
+    /// be placed after the inserted code. Cleared once applied — without it
+    /// the caret would fall back to wherever it was before the rewrite, which
+    /// is the wrong place in a now-longer string.
+    @Binding var caret: Int?
     var placeholder: String
-    var minHeight: CGFloat = 140
     var maxLength: Int
     var autoFocus: Bool = false
     var onQueryChange: (MentionParser.ActiveQuery?) -> Void
@@ -288,14 +292,19 @@ struct MentionTextEditor: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UITextView, context: Context) {
+        let limit = (text as NSString).length
+
         if view.text != text {
             let selected = view.selectedRange
             view.text = text
-            let limit = (text as NSString).length
-            view.selectedRange = NSRange(
-                location: min(selected.location, limit),
-                length: 0
-            )
+            view.selectedRange = NSRange(location: min(selected.location, limit), length: 0)
+        }
+
+        if let requested = caret {
+            view.selectedRange = NSRange(location: min(max(0, requested), limit), length: 0)
+            // Clearing during the update pass would re-enter SwiftUI, so hand
+            // it back on the next runloop turn.
+            DispatchQueue.main.async { caret = nil }
         }
         view.textColor = UIColor { $0.userInterfaceStyle == .dark ? .white : .black }
         context.coordinator.placeholderLabel?.isHidden = !text.isEmpty
