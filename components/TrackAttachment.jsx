@@ -68,7 +68,10 @@ export function TrackAttachment({ track }) {
         />
       : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
 
-    <span className="track-attachment-meta" dir="auto">
+    {/* Catalog metadata is content, not interface copy. Without the marker the
+        language bridge would run a song called "حفظ" through its dictionary and
+        render it as "Save". */}
+    <span className="track-attachment-meta" dir="auto" data-user-content="">
       <strong>{track.title}</strong>
       <span>{track.artist}</span>
     </span>
