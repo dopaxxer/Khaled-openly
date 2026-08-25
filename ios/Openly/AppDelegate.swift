@@ -181,7 +181,7 @@ struct MainTabView: View {
                 .tabItem { Label("اكتب", systemImage: "square.and.pencil") }
                 .tag(2)
 
-            MusicDiscoveryView()
+            MutualMusicView()
                 .tabItem { Label("موسيقى", systemImage: "music.note") }
                 .tag(3)
 
