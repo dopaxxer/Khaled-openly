@@ -90,7 +90,6 @@ struct MusicProfile: Codable, Hashable {
     let showTracks: Bool?
     let showArtists: Bool?
     let showGenres: Bool?
-    /// Optional so a rolling native release can decode older server payloads.
     let tracks: [MusicTrack]?
     let artists: [MusicArtist]
     let genres: [MusicGenre]
@@ -131,9 +130,9 @@ struct MusicMatch: Codable, Identifiable, Hashable {
     let sharedGenreCount: Int
     let sharedArtists: [MusicArtist]
     let sharedGenres: [MusicGenre]
-    let interested: Bool?
-    let matched: Bool?
-    let matchedAt: String?
+    var interested: Bool?
+    var matched: Bool?
+    var matchedAt: String?
 }
 
 struct MusicMatchState: Codable, Hashable {
