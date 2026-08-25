@@ -5,6 +5,7 @@ import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { LanguageBridge } from '@/components/LanguageBridge'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import { headers } from 'next/headers'
+import { Analytics } from '@vercel/analytics/next'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +35,7 @@ export default async function RootLayout({ children }) {
         <LanguageBridge />
         <DeviceVisitTracker />
         <AppShell>{children}</AppShell>
+        <Analytics />
       </body>
     </html>
   )
