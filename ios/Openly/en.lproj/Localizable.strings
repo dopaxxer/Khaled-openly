@@ -102,7 +102,10 @@
 "نوع القائمة" = "List type";
 "اقتراحات" = "Suggestions";
 "الماتشات" = "Connections";
+"الماتشات%@" = "Connections%@";
 "التوافقات" = "Connections";
+"%lld ماتش" = "%lld connection(s)";
+"%ld ماتش" = "%ld connection(s)";
 "الكل" = "All";
 "لا توجد اقتراحات بعد" = "No suggestions yet";
 "أضف فنانين وتصنيفات وفعّل الظهور في المطابقة." = "Add artists and genres, then enable compatibility discovery.";
@@ -118,6 +121,7 @@
 "إلغاء التوافق" = "Remove connection";
 "تطابق متبادل" = "Mutual connection";
 "توافق متبادل" = "Mutual connection";
+"تطابق %@" = "Connected %@";
 "إلغاء الاهتمام" = "Remove interest";
 "مهتم بهذا التوافق" = "Interested in this connection";
 "اختيارك سري. لن يعرف الطرف الآخر إلا إذا اختارك أيضًا." = "Your choice is private. The other person will only know if they choose you too.";
