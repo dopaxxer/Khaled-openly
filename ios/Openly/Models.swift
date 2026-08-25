@@ -60,6 +60,13 @@ struct MusicGenre: Codable, Identifiable, Hashable {
         case localizedArabicName = "nameAr"
     }
 
+    init(id: String, slug: String, name: String, nameAr: String) {
+        self.id = id
+        self.slug = slug
+        self.name = name
+        self.localizedArabicName = nameAr
+    }
+
     /// Existing views already read `nameAr`. Keep that API stable while making
     /// it respect the language selected inside Openly.
     var nameAr: String {
