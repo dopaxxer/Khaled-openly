@@ -54,6 +54,41 @@ struct MusicPreferencesView: View {
                     .foregroundColor(OpenlyTheme.muted)
                     .lineSpacing(4)
 
+                NavigationLink(destination: FavoriteTracksView()) {
+                    HStack(spacing: 14) {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(OpenlyTheme.accentSoft)
+                            .frame(width: 48, height: 48)
+                            .overlay(
+                                Image(systemName: "music.note.list")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(OpenlyTheme.accent)
+                            )
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("الأغاني المفضلة")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(OpenlyTheme.ink)
+                            Text("اختر أغاني حقيقية مع الغلاف والفنان والألبوم")
+                                .font(.system(size: 13))
+                                .foregroundColor(OpenlyTheme.muted)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 8)
+                        Text("\((profile.tracks ?? []).count) / \(MusicNormalize.maxTracksPerProfile)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(OpenlyTheme.subtle)
+                            .environment(\.layoutDirection, .leftToRight)
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(OpenlyTheme.subtle)
+                    }
+                    .padding(16)
+                    .background(OpenlyTheme.elevated)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(OpenlyTheme.lineStrong, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
                 sectionCard("الظهور") {
                     Toggle(isOn: Binding(
                         get: { profile.discoveryOptIn },
