@@ -53,7 +53,25 @@ struct MusicGenre: Codable, Identifiable, Hashable {
     let id: String
     let slug: String
     let name: String
-    let nameAr: String
+    private let localizedArabicName: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, slug, name
+        case localizedArabicName = "nameAr"
+    }
+
+    init(id: String, slug: String, name: String, nameAr: String) {
+        self.id = id
+        self.slug = slug
+        self.name = name
+        self.localizedArabicName = nameAr
+    }
+
+    /// Existing views already read `nameAr`. Keep that API stable while making
+    /// it respect the language selected inside Openly.
+    var nameAr: String {
+        OpenlyLocale.currentLanguageCode == "en" ? name : localizedArabicName
+    }
 }
 
 struct MusicTrack: Codable, Identifiable, Hashable {
@@ -263,6 +281,16 @@ struct ActionResponse: Codable {
     let email: String?
 }
 
+enum OpenlyLocale {
+    static var currentLanguageCode: String {
+        UserDefaults.standard.string(forKey: "openly.language") == "en" ? "en" : "ar"
+    }
+
+    static var locale: Locale {
+        Locale(identifier: currentLanguageCode)
+    }
+}
+
 enum OpenlyDate {
     private static let parser: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -275,7 +303,7 @@ enum OpenlyDate {
     static func relative(_ value: String) -> String {
         guard let date = parser.date(from: value) ?? fallback.date(from: value) else { return "" }
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "ar")
+        formatter.locale = OpenlyLocale.locale
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: Date())
     }
@@ -284,7 +312,7 @@ enum OpenlyDate {
         guard let value,
               let date = parser.date(from: value) ?? fallback.date(from: value) else { return "" }
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ar")
+        formatter.locale = OpenlyLocale.locale
         formatter.dateStyle = .medium
         return formatter.string(from: date)
     }

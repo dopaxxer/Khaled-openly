@@ -4,20 +4,50 @@ import SwiftUI
 struct OpenlyApp: App {
     @StateObject private var session = AppSession()
     @AppStorage("openly.appearance") private var appearanceRaw = OpenlyAppearance.system.rawValue
+    @AppStorage("openly.language") private var languageRaw = OpenlyLanguage.arabic.rawValue
 
     private var selectedAppearance: OpenlyAppearance {
         OpenlyAppearance(rawValue: appearanceRaw) ?? .system
+    }
+
+    private var selectedLanguage: OpenlyLanguage {
+        OpenlyLanguage(rawValue: languageRaw) ?? .arabic
     }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(session)
-                .environment(\.layoutDirection, .rightToLeft)
+                .environment(\.locale, selectedLanguage.locale)
+                .environment(\.layoutDirection, selectedLanguage.layoutDirection)
                 .tint(OpenlyTheme.accent)
                 .preferredColorScheme(selectedAppearance.colorScheme)
         }
     }
+}
+
+enum OpenlyLanguage: String, CaseIterable, Identifiable {
+    case arabic = "ar"
+    case english = "en"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .arabic: return "العربية"
+        case .english: return "English"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .arabic: return "واجهة عربية من اليمين إلى اليسار"
+        case .english: return "English interface, left to right"
+        }
+    }
+
+    var locale: Locale { Locale(identifier: rawValue) }
+    var layoutDirection: LayoutDirection { self == .arabic ? .rightToLeft : .leftToRight }
 }
 
 enum OpenlyAppearance: String, CaseIterable, Identifiable {
@@ -303,11 +333,11 @@ struct ScreenHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 27, weight: .bold))
                 .foregroundColor(OpenlyTheme.ink)
             if let subtitle {
-                Text(subtitle)
+                Text(LocalizedStringKey(subtitle))
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(OpenlyTheme.muted)
                     .lineSpacing(4)
@@ -351,10 +381,10 @@ struct EmptyState: View {
                     .font(.system(size: 28, weight: .regular))
                     .foregroundColor(OpenlyTheme.muted)
             }
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(OpenlyTheme.ink)
-            Text(message)
+            Text(LocalizedStringKey(message))
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(OpenlyTheme.muted)
                 .multilineTextAlignment(.center)

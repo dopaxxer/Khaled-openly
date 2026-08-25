@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { LanguageControl } from './LanguageBridge'
 import { COLOR_THEME_STORAGE_KEY, COLOR_THEMES, THEME_STORAGE_KEY, isColorTheme, isThemePreference } from '@/lib/theme'
 
 const OPTIONS = [
@@ -78,42 +79,45 @@ export function ThemeControl() {
     applyColor(next)
   }
 
-  return <section aria-labelledby="theme-heading">
-    <h2 className="page-title" id="theme-heading" style={{ fontSize: 16 }}>المظهر</h2>
-    <p className="small muted mt8">كيف يظهر التطبيق على هذا الجهاز.</p>
+  return <>
+    <LanguageControl />
+    <section aria-labelledby="theme-heading">
+      <h2 className="page-title" id="theme-heading" style={{ fontSize: 16 }}>المظهر</h2>
+      <p className="small muted mt8">كيف يظهر التطبيق على هذا الجهاز.</p>
 
-    <div className="row wrap mt16" role="radiogroup" aria-label="وضع الإضاءة" style={{ gap: 8 }}>
-      {OPTIONS.map(option => {
-        const active = preference === option.value
-        return <button
-          key={option.value}
-          type="button"
-          role="radio"
-          aria-checked={active}
-          onClick={() => chooseMode(option.value)}
-          className={active ? 'primary-button' : 'secondary-button'}
-        >
-          {option.label}
-        </button>
-      })}
-    </div>
+      <div className="row wrap mt16" role="radiogroup" aria-label="وضع الإضاءة" style={{ gap: 8 }}>
+        {OPTIONS.map(option => {
+          const active = preference === option.value
+          return <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => chooseMode(option.value)}
+            className={active ? 'primary-button' : 'secondary-button'}
+          >
+            {option.label}
+          </button>
+        })}
+      </div>
 
-    <p className="small muted mt20">لون التمييز</p>
-    <div className="row wrap mt8" role="radiogroup" aria-label="لون التمييز" style={{ gap: 10 }}>
-      {COLOR_THEMES.map(theme => {
-        const active = color === theme.value
-        return <button
-          key={theme.value}
-          type="button"
-          role="radio"
-          aria-checked={active}
-          aria-label={theme.label}
-          title={theme.label}
-          onClick={() => chooseColor(theme.value)}
-          className={`swatch${active ? ' active' : ''}`}
-          style={{ backgroundColor: theme.swatch }}
-        />
-      })}
-    </div>
-  </section>
+      <p className="small muted mt20">لون التمييز</p>
+      <div className="row wrap mt8" role="radiogroup" aria-label="لون التمييز" style={{ gap: 10 }}>
+        {COLOR_THEMES.map(theme => {
+          const active = color === theme.value
+          return <button
+            key={theme.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            aria-label={theme.label}
+            title={theme.label}
+            onClick={() => chooseColor(theme.value)}
+            className={`swatch${active ? ' active' : ''}`}
+            style={{ backgroundColor: theme.swatch }}
+          />
+        })}
+      </div>
+    </section>
+  </>
 }
