@@ -9,8 +9,16 @@ import {
 import {
   ARTIST_NAME_MAX_LENGTH,
   MAX_ARTISTS_PER_PROFILE,
-  MAX_GENRES_PER_PROFILE
+  MAX_GENRES_PER_PROFILE,
+  MAX_TRACKS_PER_PROFILE
 } from '@/lib/musicNormalize'
+import {
+  lookupAppleTrack,
+  MUSIC_CATALOG_QUERY_MAX_LENGTH,
+  MUSIC_CATALOG_RESULT_LIMIT,
+  MUSIC_PROVIDER_APPLE,
+  searchAppleTracks
+} from '@/lib/musicCatalog'
 import { consumeRateLimit, RATE_LIMITS, rateLimitKey } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
@@ -76,8 +84,25 @@ function musicProfile(payload) {
   return {
     discoveryOptIn: !!value.discoveryOptIn,
     preferencesPublic: !!value.preferencesPublic,
+    tracks: Array.isArray(value.tracks) ? value.tracks : [],
     artists: Array.isArray(value.artists) ? value.artists : [],
     genres: Array.isArray(value.genres) ? value.genres : []
+  }
+}
+
+function savedTrack(row) {
+  return {
+    id: row.id,
+    provider: row.provider,
+    externalId: row.external_id,
+    title: row.title,
+    artist: row.artist_name,
+    album: row.album_name,
+    artworkUrl: row.artwork_url,
+    externalUrl: row.external_url,
+    previewUrl: row.preview_url,
+    durationMs: row.duration_ms,
+    genre: row.primary_genre
   }
 }
 
@@ -90,6 +115,16 @@ function idList(value, cap) {
   const ids = value.map(entry => String(entry || ''))
   if (ids.some(id => !isUuid(id))) return { error: 'معرّف غير صالح' }
   return { ids: [...new Set(ids)] }
+}
+
+async function withCatalogTimeout(work) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 7000)
+  try {
+    return await work(controller.signal)
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export async function GET(request, { params }) {
@@ -152,6 +187,24 @@ export async function GET(request, { params }) {
         listenerCount: Number(row.listener_count || 0)
       }))
     })
+  }
+
+  if (route === 'music/catalog') {
+    const user = await requireUser(supabase)
+    if (!user) return unauthorized()
+    const limited = guard(request, 'musicSearch', user.id)
+    if (limited) return limited
+
+    const query = String(url.searchParams.get('q') || '').trim().slice(0, MUSIC_CATALOG_QUERY_MAX_LENGTH)
+    if (!query) return ok({ items: [], provider: MUSIC_PROVIDER_APPLE })
+    const limit = boundedInt(url.searchParams.get('limit'), MUSIC_CATALOG_RESULT_LIMIT, 1, MUSIC_CATALOG_RESULT_LIMIT)
+
+    try {
+      const items = await withCatalogTimeout(signal => searchAppleTracks(query, limit, signal))
+      return ok({ items, provider: MUSIC_PROVIDER_APPLE })
+    } catch {
+      return fail(502, 'catalog_unavailable', 'تعذر الوصول إلى كتالوج الموسيقى الآن')
+    }
   }
 
   if (route === 'music/preferences') {
@@ -221,6 +274,7 @@ export async function GET(request, { params }) {
       profile: {
         publicCode: data.publicCode,
         identityColor: data.identityColor,
+        tracks: Array.isArray(data.tracks) ? data.tracks : [],
         artists: Array.isArray(data.artists) ? data.artists : [],
         genres: Array.isArray(data.genres) ? data.genres : []
       }
@@ -271,6 +325,44 @@ export async function POST(request, { params }) {
     return ok({ artist: { id: row.id, name: row.display_name }, created: !!row.created })
   }
 
+  if (route === 'music/tracks') {
+    const user = await requireUser(supabase)
+    if (!user) return unauthorized()
+    const limited = guard(request, 'musicWrite', user.id)
+    if (limited) return limited
+
+    const provider = String(body.provider || '').trim().toLowerCase()
+    const externalId = String(body.externalId || '').trim()
+    if (provider !== MUSIC_PROVIDER_APPLE || !/^\d{1,20}$/.test(externalId)) {
+      return fail(400, 'invalid_request', 'الأغنية أو مزود الموسيقى غير صالح')
+    }
+
+    let track
+    try {
+      track = await withCatalogTimeout(signal => lookupAppleTrack(externalId, signal))
+    } catch {
+      return fail(502, 'catalog_unavailable', 'تعذر التحقق من الأغنية الآن')
+    }
+    if (!track) return fail(404, 'track_not_found', 'لم تعد الأغنية موجودة في الكتالوج')
+
+    const { data, error } = await supabase.rpc('add_music_track', {
+      p_provider: track.provider,
+      p_external_id: track.externalId,
+      p_title: track.title,
+      p_artist_name: track.artist,
+      p_album_name: track.album,
+      p_artwork_url: track.artworkUrl,
+      p_external_url: track.externalUrl,
+      p_preview_url: track.previewUrl,
+      p_duration_ms: track.durationMs,
+      p_primary_genre: track.genre
+    })
+    if (error) return fail(400, 'track_rejected', 'تعذر حفظ بيانات الأغنية')
+    const row = (data || [])[0]
+    if (!row) return fail(400, 'track_rejected', 'تعذر حفظ بيانات الأغنية')
+    return ok({ track: savedTrack(row) })
+  }
+
   return notFound()
 }
 
@@ -297,6 +389,14 @@ export async function PUT(request, { params }) {
       p_preferences_public: body.preferencesPublic
     })
     if (error) return fail(400, 'settings_rejected', 'تعذر حفظ الإعدادات')
+    return ok({ profile: musicProfile(data) })
+  }
+
+  if (route === 'music/preferences/tracks') {
+    const list = idList(body.trackIds, MAX_TRACKS_PER_PROFILE)
+    if (list.error) return fail(400, 'invalid_request', list.error)
+    const { data, error } = await supabase.rpc('set_music_tracks', { p_track_ids: list.ids })
+    if (error) return fail(400, 'tracks_rejected', 'تعذر حفظ الأغاني')
     return ok({ profile: musicProfile(data) })
   }
 
