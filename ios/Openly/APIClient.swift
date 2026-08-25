@@ -334,6 +334,116 @@ final class APIClient {
         return response.items
     }
 
+    // MARK: - Version 1 endpoints
+    //
+    // The same contract the website uses. Paths are rooted at /api/, so "v1/..."
+    // resolves to the versioned handler.
+
+    func mentionSuggestions(query: String) async throws -> [MentionRef] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !trimmed.isEmpty else { return [] }
+        let response: MentionSuggestionResponse = try await request(
+            "v1/mentions/suggest",
+            query: [URLQueryItem(name: "q", value: trimmed)]
+        )
+        return response.items
+    }
+
+    func resolveMentions(text: String) async throws -> [MentionRef] {
+        let response: MentionSuggestionResponse = try await request(
+            "v1/mentions/resolve",
+            method: "POST",
+            body: ["text": text]
+        )
+        return response.items
+    }
+
+    func musicGenres(query: String? = nil) async throws -> [MusicGenre] {
+        var items: [URLQueryItem] = []
+        if let query, !query.isEmpty { items.append(URLQueryItem(name: "q", value: query)) }
+        let response: MusicGenresResponse = try await request("v1/music/genres", query: items)
+        return response.items
+    }
+
+    func searchMusicArtists(query: String) async throws -> [MusicArtist] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let response: MusicArtistsResponse = try await request(
+            "v1/music/artists",
+            query: [URLQueryItem(name: "q", value: trimmed)]
+        )
+        return response.items
+    }
+
+    func addMusicArtist(name: String) async throws -> MusicArtist {
+        let response: MusicArtistCreateResponse = try await request(
+            "v1/music/artists",
+            method: "POST",
+            body: ["name": name.trimmingCharacters(in: .whitespacesAndNewlines)]
+        )
+        return response.artist
+    }
+
+    func musicProfile() async throws -> MusicProfile {
+        let response: MusicProfileResponse = try await request("v1/music/preferences")
+        return response.profile ?? .empty
+    }
+
+    func updateMusicSettings(discoveryOptIn: Bool, preferencesPublic: Bool) async throws -> MusicProfile {
+        let response: MusicProfileResponse = try await request(
+            "v1/music/preferences",
+            method: "PUT",
+            body: ["discoveryOptIn": discoveryOptIn, "preferencesPublic": preferencesPublic]
+        )
+        return response.profile ?? .empty
+    }
+
+    func updateMusicArtists(ids: [String]) async throws -> MusicProfile {
+        let response: MusicProfileResponse = try await request(
+            "v1/music/preferences/artists",
+            method: "PUT",
+            body: ["artistIds": ids]
+        )
+        return response.profile ?? .empty
+    }
+
+    func updateMusicGenres(ids: [String]) async throws -> MusicProfile {
+        let response: MusicProfileResponse = try await request(
+            "v1/music/preferences/genres",
+            method: "PUT",
+            body: ["genreIds": ids]
+        )
+        return response.profile ?? .empty
+    }
+
+    func clearMusicPreferences() async throws -> MusicProfile {
+        let response: MusicProfileResponse = try await request(
+            "v1/music/preferences",
+            method: "DELETE"
+        )
+        return response.profile ?? .empty
+    }
+
+    func discoverMusicPeople(
+        artistID: String? = nil,
+        genreID: String? = nil,
+        limit: Int = 20,
+        offset: Int = 0
+    ) async throws -> MusicDiscoveryResponse {
+        var items = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset))
+        ]
+        if let artistID { items.append(URLQueryItem(name: "artistId", value: artistID)) }
+        if let genreID { items.append(URLQueryItem(name: "genreId", value: genreID)) }
+        return try await request("v1/music/discover", query: items)
+    }
+
+    func publicMusicProfile(code: String) async throws -> PublicMusicProfile? {
+        let response: PublicMusicProfileResponse = try await request("v1/users/\(code)/music")
+        return response.profile
+    }
+
     func report(postID: String, reason: String, description: String) async throws {
         let _: ActionResponse = try await request(
             "reports",

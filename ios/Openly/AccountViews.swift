@@ -215,6 +215,10 @@ struct NotificationsView: View {
         case "like": return "أعجب \(actor) بمنشورك"
         case "comment", "reply": return "ردّ \(actor) على منشورك"
         case "follow": return "بدأ \(actor) بمتابعتك"
+        case "mention":
+            return item.commentId == nil
+                ? "أشار إليك \(actor) في منشور"
+                : "أشار إليك \(actor) في تعليق"
         default: return "تفاعل \(actor) مع محتواك"
         }
     }
@@ -286,6 +290,11 @@ struct AccountView: View {
 
                             NavigationLink(destination: FollowingView()) {
                                 AccountMenuRow(icon: "person.2", title: "الأكواد التي أتابعها")
+                            }
+                            .buttonStyle(.plain)
+
+                            NavigationLink(destination: MusicPreferencesView()) {
+                                AccountMenuRow(icon: "music.note", title: "ذوقي الموسيقي")
                             }
                             .buttonStyle(.plain)
 
@@ -727,6 +736,7 @@ struct UserProfileView: View {
     let code: String
     @State private var user: UserSummary?
     @State private var posts: [Post] = []
+    @State private var music: PublicMusicProfile?
     @State private var isLoading = true
 
     var body: some View {
@@ -775,6 +785,30 @@ struct UserProfileView: View {
                     .padding(.vertical, 28)
                     .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
 
+                    // Only present when this identity chose to publish its
+                    // list; otherwise the request simply returns nothing.
+                    if let music, !music.artists.isEmpty || !music.genres.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("الذوق الموسيقي")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(OpenlyTheme.ink)
+                            if !music.genres.isEmpty {
+                                Text(music.genres.map(\.nameAr).joined(separator: "، "))
+                                    .font(.system(size: 15))
+                                    .foregroundColor(OpenlyTheme.muted)
+                            }
+                            if !music.artists.isEmpty {
+                                Text(music.artists.map(\.name).joined(separator: "، "))
+                                    .font(.system(size: 15))
+                                    .foregroundColor(OpenlyTheme.ink)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 20)
+                        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
+                    }
+
                     if posts.isEmpty {
                         EmptyState(icon: "text.bubble", title: "لا توجد منشورات", message: "لا توجد كتابات لهذه الهوية بعد.")
                     } else {
@@ -800,9 +834,11 @@ struct UserProfileView: View {
         do {
             async let profile = session.api.user(code: code)
             async let feed = session.api.feed(author: code)
+            async let taste = session.api.publicMusicProfile(code: code)
             user = try await profile
             let feedResult = try await feed
             posts = feedResult.items
+            music = (try? await taste) ?? nil
         } catch { session.alertMessage = error.localizedDescription }
         isLoading = false
     }

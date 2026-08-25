@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createSupabaseServerClient, mapPost } from '@/lib/supabase'
+import { createSupabaseServerClient, mapPost, mentionsBySource, withMentions } from '@/lib/supabase'
 import { PASSWORD_RECOVERY_COOKIE } from '@/lib/publicOrigin'
 import {
   COMMENT_MAX_LENGTH,
@@ -123,7 +123,7 @@ export async function GET(request, { params }) {
     if (author) {
       const { data, error } = await supabase.rpc('get_user_posts', { p_public_code: code(author), p_limit: 100 })
       if (error) return json({ error: 'تعذر تحميل المنشورات' }, 500)
-      return json({ items: (data || []).map(mapPost), nextCursor: null })
+      return json({ items: await withMentions(supabase, (data || []).map(mapPost), 'post'), nextCursor: null })
     }
     const cursor = parseCursor(url.searchParams.get('cursor'))
     if (!cursor) return json({ error: 'مؤشر الصفحة غير صالح' }, 400)
@@ -133,7 +133,7 @@ export async function GET(request, { params }) {
       p_limit: 30
     })
     if (error) return json({ error: 'تعذر تحميل المنشورات' }, 500)
-    const items = (data || []).map(mapPost)
+    const items = await withMentions(supabase, (data || []).map(mapPost), 'post')
     const last = items.at(-1)
     return json({ items, nextCursor: items.length === 30 && last ? `${last.createdAt}|${last.id}` : null })
   }
@@ -155,15 +155,20 @@ export async function GET(request, { params }) {
       : { data: [], error: null }
     if (profileError) return json({ error: 'تعذر تحميل أصحاب التعليقات' }, 500)
     const byId = Object.fromEntries((profiles || []).map(p => [p.id, p]))
+    const [commentMentions, postMentions] = await Promise.all([
+      mentionsBySource(supabase, 'comment', (rows || []).map(c => c.id)),
+      mentionsBySource(supabase, 'post', [post.id])
+    ])
     const comments = (rows || []).map(c => ({
       id: c.id,
       body: c.body,
       createdAt: c.created_at,
       parentCommentId: c.parent_comment_id,
       authorCode: byId[c.author_id]?.public_code,
-      authorColor: byId[c.author_id]?.identity_color
+      authorColor: byId[c.author_id]?.identity_color,
+      mentions: commentMentions[c.id] || []
     }))
-    return json({ post, comments })
+    return json({ post: { ...post, mentions: postMentions[post.id] || [] }, comments })
   }
 
   if (path[0] === 'search' && path.length === 1) {
@@ -175,7 +180,7 @@ export async function GET(request, { params }) {
     ])
     if (postsError || usersError) return json({ error: 'تعذر إكمال البحث' }, 500)
     return json({
-      posts: (posts || []).map(mapPost),
+      posts: await withMentions(supabase, (posts || []).map(mapPost), 'post'),
       users: (users || []).map(u => ({ publicCode: u.public_code, identityColor: u.identity_color }))
     })
   }
@@ -274,7 +279,7 @@ export async function GET(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const { data, error } = await supabase.rpc('get_bookmarked_posts', { p_limit: 50 })
     if (error) return json({ error: 'تعذر تحميل المحفوظات' }, 500)
-    return json({ items: (data || []).map(mapPost), nextCursor: null })
+    return json({ items: await withMentions(supabase, (data || []).map(mapPost), 'post'), nextCursor: null })
   }
 
   if (path.join('/') === 'privacy') {
@@ -414,9 +419,11 @@ export async function POST(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
     if (!text || text.length > POST_MAX_LENGTH) return json({ error: `النص يجب أن يكون بين 1 و${POST_MAX_LENGTH} حرف` }, 400)
-    const { data, error } = await supabase.from('posts').insert({ author_id: user.id, body: text }).select('id').single()
-    if (error) return json({ error: 'تعذر النشر' }, 400)
-    return json({ id: data.id }, 201)
+    // create_post inserts the row and resolves its mentions in one
+    // transaction, so a post can never be published without them.
+    const { data, error } = await supabase.rpc('create_post', { p_body: text })
+    if (error || !data) return json({ error: 'تعذر النشر' }, 400)
+    return json({ id: data }, 201)
   }
 
   if (path[0] === 'posts' && path[1] && path[2] === 'comments') {
@@ -427,13 +434,13 @@ export async function POST(request, { params }) {
     if (!text || text.length > COMMENT_MAX_LENGTH) return json({ error: `التعليق يجب أن يكون بين 1 و${COMMENT_MAX_LENGTH} حرف` }, 400)
     const parentCommentId = body.parentCommentId || null
     if (parentCommentId && !isUuid(parentCommentId)) return json({ error: 'معرّف التعليق الأصلي غير صالح' }, 400)
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({ post_id: path[1], author_id: user.id, body: text, parent_comment_id: parentCommentId })
-      .select('id')
-      .single()
-    if (error) return json({ error: 'تعذر إضافة التعليق' }, 400)
-    return json({ id: data.id }, 201)
+    const { data, error } = await supabase.rpc('create_comment', {
+      p_post_id: path[1],
+      p_parent_comment_id: parentCommentId,
+      p_body: text
+    })
+    if (error || !data) return json({ error: 'تعذر إضافة التعليق' }, 400)
+    return json({ id: data }, 201)
   }
 
   if (path[0] === 'users' && path[1] && path[2] === 'relation') {
@@ -540,9 +547,11 @@ export async function PATCH(request, { params }) {
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const text = String(body.body || '').trim()
     if (!text || text.length > POST_MAX_LENGTH) return json({ error: `النص يجب أن يكون بين 1 و${POST_MAX_LENGTH} حرف` }, 400)
-    const { data, error } = await supabase.from('posts').update({ body: text }).eq('id', path[1]).eq('author_id', user.id).is('deleted_at', null).select('id').maybeSingle()
+    // update_own_post rewrites the body and re-resolves mentions together, so
+    // an edit that adds or drops a mention stays consistent.
+    const { data, error } = await supabase.rpc('update_own_post', { p_post_id: path[1], p_body: text })
     if (error) return json({ error: 'تعذر تعديل المنشور' }, 400)
-    if (!data) return json({ error: 'المنشور غير موجود' }, 404)
+    if (data !== true) return json({ error: 'المنشور غير موجود' }, 404)
     return json({ ok: true })
   }
 

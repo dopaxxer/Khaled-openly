@@ -1,13 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CircleUserRound, House, LogIn, Search, SquarePen } from 'lucide-react'
+import { Bell, CircleUserRound, Compass, House, LogIn, Search, SquarePen } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 const nav = [
   { href: '/', label: 'الرئيسية', icon: House },
   { href: '/search', label: 'بحث', icon: Search },
   { href: '/write', label: 'اكتب', icon: SquarePen },
+  { href: '/discover/music', label: 'موسيقى', icon: Compass },
   { href: '/me', label: 'حسابي', icon: CircleUserRound }
 ]
 

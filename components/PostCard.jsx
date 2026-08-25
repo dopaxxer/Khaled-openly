@@ -4,6 +4,7 @@ import { Bold, Bookmark, Flag, Heart, Italic, List, MessageCircle, Pencil, Trash
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
+import { MentionField } from './MentionField'
 import { renderRichText } from '@/lib/richText'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
 import { POST_MAX_LENGTH } from '@/lib/validation'
@@ -114,14 +115,20 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
               <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => formatDraft('italic')}><Italic size={16}/></button>
               <button type="button" className="toolbar-button" aria-label="قائمة نقطية" title="قائمة نقطية" onClick={() => formatDraft('list')}><List size={16}/></button>
             </div>
-            <textarea ref={editRef} value={draft} onChange={e => setDraft(e.target.value)} maxLength={POST_MAX_LENGTH} rows={5} aria-label="تعديل المنشور"/>
+            <MentionField textareaRef={editRef} className="" value={draft} onChange={setDraft} maxLength={POST_MAX_LENGTH} rows={5} aria-label="تعديل المنشور"/>
             <span className="tiny subtle" dir="ltr">{draft.length} / {POST_MAX_LENGTH}</span>
             <div className="row wrap owner-edit-actions">
               <button className="primary-button" onClick={saveEdit} disabled={busy === 'edit' || !draft.trim()}>{busy === 'edit' ? 'جارِ الحفظ…' : 'حفظ'}</button>
               <button className="secondary-button" onClick={() => { setDraft(displayBody); setEditing(false); setOwnerError('') }}>إلغاء</button>
             </div>
           </div>
-        : <Link href={`/post/${post.id}`}><div className="post-body">{renderRichText(displayBody)}</div></Link>}
+        : <div className="post-body-wrap">
+            {/* A mention inside the body is a real link, so the body cannot be
+                wrapped in one. The overlay keeps "tap anywhere to open the
+                post" working without nesting anchors. */}
+            <Link href={`/post/${post.id}`} className="post-open-overlay" aria-label="فتح المنشور والتعليقات" />
+            <div className="post-body">{renderRichText(displayBody, { mentions: post.mentions })}</div>
+          </div>}
 
       {ownerError && <p className="status-message error mt12">{ownerError}</p>}
 

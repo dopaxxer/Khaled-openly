@@ -4,6 +4,7 @@ import { CornerDownLeft, Flag, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
+import { MentionField } from './MentionField'
 import { renderRichText } from '@/lib/richText'
 import { COMMENT_MAX_LENGTH } from '@/lib/validation'
 
@@ -73,7 +74,7 @@ function Comment({ node, depth, postId, viewerCode, onChanged }) {
   const time = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(node.createdAt))
 
   return <div className={depth > 0 ? 'comment-branch' : undefined}>
-    <article className="comment">
+    <article className="comment" id={`comment-${node.id}`}>
       <Link href={`/u/${node.authorCode}`} className="post-avatar-link" aria-label={`صفحة ${node.authorCode}`}><Avatar code={node.authorCode} color={node.authorColor} size={32}/></Link>
 
       <div className="comment-main">
@@ -82,7 +83,7 @@ function Comment({ node, depth, postId, viewerCode, onChanged }) {
           <span className="dot-sep" aria-hidden="true">·</span>
           <time className="tiny subtle" dateTime={node.createdAt}>{time}</time>
         </div>
-        <div className="comment-body">{renderRichText(node.body)}</div>
+        <div className="comment-body">{renderRichText(node.body, { mentions: node.mentions })}</div>
 
         <div className="comment-actions">
           <button className="action-button" onClick={() => setReplying(v => !v)}>
@@ -100,7 +101,7 @@ function Comment({ node, depth, postId, viewerCode, onChanged }) {
         {error && <p className="status-message error mt12">{error}</p>}
 
         {replying && <form className="reply-form" onSubmit={submitReply}>
-          <textarea className="form-control" value={body} onChange={e => setBody(e.target.value)} maxLength={MAX_LENGTH} rows={3} autoFocus placeholder="اكتب ردك…" aria-label="نص الرد"/>
+          <MentionField value={body} onChange={setBody} maxLength={MAX_LENGTH} rows={3} autoFocus placeholder="اكتب ردك… استخدم @ للإشارة" aria-label="نص الرد"/>
           <div className="row between mt12">
             <span className="tiny subtle" dir="ltr">{body.length} / {MAX_LENGTH}</span>
             <div className="row">

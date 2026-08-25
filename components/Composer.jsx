@@ -3,6 +3,7 @@ import { ArrowLeft, Bold, Italic, List, Send } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
+import { MentionField } from './MentionField'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
 import { POST_MAX_LENGTH } from '@/lib/validation'
 
@@ -86,14 +87,15 @@ export function Composer({ firstPost = false }) {
       </div>
       <div className="composer-row">
         {viewer && <Avatar code={viewer.publicCode} color={viewer.identityColor} size={40}/>}
-        <textarea
-          ref={textareaRef}
+        <MentionField
+          textareaRef={textareaRef}
+          className=""
           autoFocus
           value={body}
-          onChange={e => { setBody(e.target.value); grow(e.target) }}
+          onChange={next => { setBody(next); grow(textareaRef.current) }}
           maxLength={MAX_LENGTH}
           rows={3}
-          placeholder="ماذا تريد أن تقول؟"
+          placeholder="ماذا تريد أن تقول؟ اكتب @ للإشارة إلى كود"
           aria-label="نص المنشور"
         />
       </div>

@@ -20,6 +20,9 @@ struct Post: Codable, Identifiable, Hashable {
     let authorCode: String?
     let authorColor: String?
     let commentCount: Int?
+    /// Resolved by the server from the stored body. Absent on older payloads,
+    /// which simply renders the mentions as plain text.
+    let mentions: [MentionRef]?
 }
 
 struct Comment: Codable, Identifiable, Hashable {
@@ -29,6 +32,91 @@ struct Comment: Codable, Identifiable, Hashable {
     let parentCommentId: String?
     let authorCode: String?
     let authorColor: String?
+    let mentions: [MentionRef]?
+}
+
+struct MentionRef: Codable, Identifiable, Hashable {
+    var id: String { publicCode }
+    let publicCode: String
+    let identityColor: String?
+}
+
+struct MentionSuggestionResponse: Codable {
+    let items: [MentionRef]
+}
+
+struct MusicArtist: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let listenerCount: Int?
+}
+
+struct MusicGenre: Codable, Identifiable, Hashable {
+    let id: String
+    let slug: String
+    let name: String
+    let nameAr: String
+}
+
+struct MusicProfile: Codable, Hashable {
+    let discoveryOptIn: Bool
+    let preferencesPublic: Bool
+    let artists: [MusicArtist]
+    let genres: [MusicGenre]
+
+    static let empty = MusicProfile(
+        discoveryOptIn: false,
+        preferencesPublic: false,
+        artists: [],
+        genres: []
+    )
+}
+
+struct PublicMusicProfile: Codable, Hashable {
+    let publicCode: String
+    let identityColor: String?
+    let artists: [MusicArtist]
+    let genres: [MusicGenre]
+}
+
+struct MusicMatch: Codable, Identifiable, Hashable {
+    var id: String { publicCode }
+    let publicCode: String
+    let identityColor: String?
+    let compatibility: Int
+    let sharedArtistCount: Int
+    let sharedGenreCount: Int
+    let sharedArtists: [MusicArtist]
+    let sharedGenres: [MusicGenre]
+}
+
+struct MusicProfileResponse: Codable {
+    let profile: MusicProfile?
+}
+
+struct PublicMusicProfileResponse: Codable {
+    let profile: PublicMusicProfile?
+}
+
+struct MusicArtistsResponse: Codable {
+    let items: [MusicArtist]
+}
+
+struct MusicGenresResponse: Codable {
+    let items: [MusicGenre]
+}
+
+struct MusicArtistCreateResponse: Codable {
+    let artist: MusicArtist
+    let created: Bool
+}
+
+struct MusicDiscoveryResponse: Codable {
+    let items: [MusicMatch]
+    let total: Int
+    let limit: Int
+    let offset: Int
+    let hasMore: Bool
 }
 
 struct Engagement: Codable, Identifiable, Hashable {

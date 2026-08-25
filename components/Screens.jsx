@@ -5,9 +5,11 @@ import {
   Bell,
   Bookmark,
   CircleCheck,
+  Compass,
   Flag,
   KeyRound,
   LogIn,
+  Music,
   Save,
   Search,
   Settings,
@@ -21,6 +23,9 @@ import { useEffect, useState } from 'react'
 import { CommentThread } from './CommentThread'
 import { Composer } from './Composer'
 import { Identity } from './Identity'
+import { MentionField } from './MentionField'
+import { MusicDiscovery } from './MusicDiscovery'
+import { MusicPreferences } from './MusicPreferences'
 import { PostCard } from './PostCard'
 import { ThemeControl } from './Settings'
 import { Timeline } from './Timeline'
@@ -78,6 +83,8 @@ export function ScreenRouter({ slug }) {
   if (key === 'notifications') return <NotificationsScreen />
   if (key === 'bookmarks') return <BookmarksScreen />
   if (key === 'privacy') return <PrivacyScreen />
+  if (key === 'music') return <MusicPreferences />
+  if (key === 'discover/music') return <MusicDiscovery />
   if (key === 'admin/reports') return <AdminReportsScreen />
   if (slug[0] === 'u' && slug[1]) return <UserScreen code={slug[1]} />
   if (slug[0] === 'post' && slug[1]) return <PostScreen id={slug[1]} />
@@ -453,6 +460,8 @@ function MeScreen() {
         <Link href={`/u/${user.publicCode}`} className="secondary-button">صفحة كتاباتي</Link>
         <Link href="/settings" className="secondary-button"><Settings size={15} />الإعدادات</Link>
         <Link href="/bookmarks" className="secondary-button"><Bookmark size={15} />المحفوظات</Link>
+        <Link href="/music" className="secondary-button"><Music size={15} />ذوقي الموسيقي</Link>
+        <Link href="/discover/music" className="secondary-button"><Compass size={15} />اكتشاف بالموسيقى</Link>
         <Link href="/privacy" className="secondary-button">الخصوصية</Link>
         <button onClick={logout} className="danger-button">تسجيل الخروج</button>
       </div>
@@ -619,17 +628,21 @@ function SettingsScreen() {
 function UserScreen({ code }) {
   const [user, setUser] = useState(undefined)
   const [posts, setPosts] = useState([])
+  const [music, setMusic] = useState(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
     (async () => {
-      const [u, p] = await Promise.all([
+      const [u, p, m] = await Promise.all([
         fetch(`/api/users/${encodeURIComponent(code)}`, { cache: 'no-store' }),
-        fetch(`/api/posts?author=${encodeURIComponent(code)}`, { cache: 'no-store' })
+        fetch(`/api/posts?author=${encodeURIComponent(code)}`, { cache: 'no-store' }),
+        fetch(`/api/v1/users/${encodeURIComponent(code)}/music`, { cache: 'no-store' })
       ])
       setUser(u.ok ? (await u.json()).user : null)
       if (p.ok) setPosts((await p.json()).items || [])
+      // Absent unless this user chose to publish their list.
+      setMusic(m.ok ? (await m.json()).profile : null)
     })()
   }, [code])
 
@@ -673,6 +686,19 @@ function UserScreen({ code }) {
       </div>}
       {error && <p className="status-message error mt16">{error}</p>}
     </section>
+    {music && (music.artists.length > 0 || music.genres.length > 0) && <>
+      <div className="section-title">الذوق الموسيقي</div>
+      <div className="screen-pad">
+        <div className="panel music-panel">
+          {music.genres.length > 0 && <div className="chip-grid">
+            {music.genres.map(genre => <span className="chip static" key={genre.id}>{genre.nameAr}</span>)}
+          </div>}
+          {music.artists.length > 0 && <p className="small mt12">
+            <span className="muted">الفنانون: </span>{music.artists.map(artist => artist.name).join('، ')}
+          </p>}
+        </div>
+      </div>
+    </>}
     <div className="section-title">الكتابات</div>
     {posts.length
       ? posts.map(p => <PostCard key={p.id} post={p} viewerCode={user.isSelf ? user.publicCode : null} />)
@@ -740,7 +766,7 @@ function PostScreen({ id }) {
   return <>
     <PostCard post={post} viewerCode={viewerCode} onChanged={load} />
     <form className="comment-form" onSubmit={comment}>
-      <textarea className="form-control" maxLength={COMMENT_MAX_LENGTH} value={body} onChange={e => setBody(e.target.value)} placeholder="اكتب تعليقًا…" />
+      <MentionField maxLength={COMMENT_MAX_LENGTH} value={body} onChange={setBody} placeholder="اكتب تعليقًا… استخدم @ للإشارة" aria-label="نص التعليق" />
       <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / {COMMENT_MAX_LENGTH}</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
       {commentError && <p className="status-message error">{commentError}</p>}
     </form>
@@ -780,7 +806,23 @@ function NotificationsScreen() {
       <p className="page-description">التفاعلات والردود المرتبطة بك.</p>
     </header>
     {items.length
-      ? items.map(n => <Link href={`/post/${n.postId}`} className={`notification${n.readAt ? '' : ' unread'}`} key={n.id}><span className="notification-icon">{n.kind === 'like' ? '♥' : '↩'}</span><div className="notification-main"><p><Identity code={n.actorCode} color={n.actorColor} linked={false} /> {n.kind === 'like' ? 'أعجب بمنشورك' : 'رد على منشورك'}</p><time>{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(n.createdAt))}</time></div></Link>)
+      ? items.map(n => <Link
+          // A mention inside a comment deep-links to that comment so the
+          // notification lands on the exact thing that mentioned you.
+          href={n.commentId ? `/post/${n.postId}#comment-${n.commentId}` : `/post/${n.postId}`}
+          className={`notification${n.readAt ? '' : ' unread'}`}
+          key={n.id}
+        >
+          <span className="notification-icon">{n.kind === 'like' ? '♥' : n.kind === 'mention' ? '@' : '↩'}</span>
+          <div className="notification-main">
+            <p>
+              <Identity code={n.actorCode} color={n.actorColor} linked={false} />
+              {' '}
+              {n.kind === 'like' ? 'أعجب بمنشورك' : n.kind === 'mention' ? (n.commentId ? 'أشار إليك في تعليق' : 'أشار إليك في منشور') : 'رد على منشورك'}
+            </p>
+            <time>{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(n.createdAt))}</time>
+          </div>
+        </Link>)
       : <div className="empty-state"><p>لا توجد إشعارات.</p></div>}
   </>
 }
