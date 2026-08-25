@@ -2,6 +2,7 @@ import './globals.css'
 import './ios-polish.css'
 import { AppShell } from '@/components/AppShell'
 import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
+import { LanguageBridge } from '@/components/LanguageBridge'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import { headers } from 'next/headers'
 
@@ -30,6 +31,7 @@ export default async function RootLayout({ children }) {
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}/></head>
       <body>
+        <LanguageBridge />
         <DeviceVisitTracker />
         <AppShell>{children}</AppShell>
       </body>
