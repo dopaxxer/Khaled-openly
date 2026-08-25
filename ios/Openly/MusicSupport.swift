@@ -10,6 +10,7 @@ enum MusicNormalize {
     static let artistNameMaxLength = 80
     static let maxArtistsPerProfile = 30
     static let maxGenresPerProfile = 15
+    static let maxTracksPerProfile = 12
 
     /// U+0629 -> U+0647, U+0649 -> U+064A, U+0671 -> U+0627. These three do not
     /// decompose under NFD, unlike the hamza forms whose hamza becomes a

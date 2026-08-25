@@ -3,7 +3,12 @@
 import Link from 'next/link'
 import { ChevronDown, ChevronUp, Music, Plus, Save, Search, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { MAX_ARTISTS_PER_PROFILE, MAX_GENRES_PER_PROFILE, ARTIST_NAME_MAX_LENGTH } from '@/lib/musicNormalize'
+import {
+  MAX_ARTISTS_PER_PROFILE,
+  MAX_GENRES_PER_PROFILE,
+  MAX_TRACKS_PER_PROFILE,
+  ARTIST_NAME_MAX_LENGTH
+} from '@/lib/musicNormalize'
 
 async function callApi(path, options = {}) {
   const response = await fetch(path, { cache: 'no-store', ...options })
@@ -12,16 +17,44 @@ async function callApi(path, options = {}) {
   return data
 }
 
+function trackKey(track) {
+  return `${track.provider}:${track.externalId}`
+}
+
+function Cover({ track, size = 52 }) {
+  return track.artworkUrl
+    ? <img
+        src={track.artworkUrl}
+        alt=""
+        width={size}
+        height={size}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        style={{ width: size, height: size, objectFit: 'cover', borderRadius: 10, flex: '0 0 auto' }}
+      />
+    : <span
+        aria-hidden="true"
+        style={{ width: size, height: size, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--surface-soft)' }}
+      ><Music size={20} /></span>
+}
+
 export function MusicPreferences() {
   const [profile, setProfile] = useState(undefined)
   const [genres, setGenres] = useState([])
+
+  const [trackQuery, setTrackQuery] = useState('')
+  const [trackResults, setTrackResults] = useState([])
+  const [trackSearching, setTrackSearching] = useState(false)
+  const trackSearchTicket = useRef(0)
+
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
+  const searchTicket = useRef(0)
+
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
-  const searchTicket = useRef(0)
 
   useEffect(() => {
     (async () => {
@@ -43,8 +76,36 @@ export function MusicPreferences() {
     })()
   }, [])
 
-  // Debounced artist search. A stale response can arrive after a newer one, so
-  // each request carries a ticket and only the newest is allowed to render.
+  // Real track search comes from the external catalog through our server. The
+  // ticket prevents a slower old response from replacing a newer query.
+  useEffect(() => {
+    const term = trackQuery.trim()
+    if (!term) {
+      setTrackResults([])
+      setTrackSearching(false)
+      return
+    }
+    const ticket = ++trackSearchTicket.current
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
+      setTrackSearching(true)
+      try {
+        const data = await callApi(`/api/v1/music/catalog?q=${encodeURIComponent(term)}`, { signal: controller.signal })
+        if (ticket === trackSearchTicket.current) setTrackResults(data.items || [])
+      } catch {
+        if (ticket === trackSearchTicket.current) setTrackResults([])
+      } finally {
+        if (ticket === trackSearchTicket.current) setTrackSearching(false)
+      }
+    }, 260)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [trackQuery])
+
+  // Debounced local artist search remains for the compatibility/discovery
+  // score. Tracks are a separate, richer favorite list.
   useEffect(() => {
     const term = query.trim()
     if (!term) {
@@ -94,6 +155,67 @@ export function MusicPreferences() {
     }
   }
 
+  async function saveTracks(tracks) {
+    setBusy('tracks')
+    setError('')
+    try {
+      const data = await callApi('/api/v1/music/preferences/tracks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackIds: tracks.map(track => track.id) })
+      })
+      setProfile(data.profile)
+      announce('تم حفظ الأغاني المفضلة.')
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  async function addCatalogTrack(track) {
+    const current = profile.tracks || []
+    if (current.some(item => trackKey(item) === trackKey(track))) return
+    if (current.length >= MAX_TRACKS_PER_PROFILE) {
+      setError(`يمكنك إضافة ${MAX_TRACKS_PER_PROFILE} أغنية كحد أقصى.`)
+      return
+    }
+
+    setBusy('track-import')
+    setError('')
+    try {
+      // Only provider + external id are trusted from the browser. The server
+      // looks the id up again and stores canonical catalog metadata.
+      const imported = await callApi('/api/v1/music/tracks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: track.provider, externalId: track.externalId })
+      })
+      const next = [...current, imported.track]
+      const data = await callApi('/api/v1/music/preferences/tracks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackIds: next.map(item => item.id) })
+      })
+      setProfile(data.profile)
+      setTrackQuery('')
+      setTrackResults([])
+      announce('تمت إضافة الأغنية.')
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  function moveTrack(index, delta) {
+    const next = [...(profile.tracks || [])]
+    const target = index + delta
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    saveTracks(next)
+  }
+
   async function saveArtists(artists) {
     setBusy('artists')
     setError('')
@@ -141,9 +263,6 @@ export function MusicPreferences() {
     await saveArtists([...profile.artists, { id: artist.id, name: artist.name }])
   }
 
-  // Creating an artist and adding it are one user action. The server folds the
-  // name first, so "Sigur Rós" and "sigur ros" land on the same catalog row
-  // instead of creating a second variant.
   async function createArtist() {
     const name = query.trim()
     if (!name) return
@@ -199,6 +318,8 @@ export function MusicPreferences() {
     </div>
   }
 
+  const tracks = profile.tracks || []
+  const selectedTrackKeys = new Set(tracks.map(trackKey))
   const selectedGenreIds = new Set(profile.genres.map(genre => genre.id))
   const alreadyListed = new Set(profile.artists.map(artist => artist.id))
   const exactMatch = results.some(item => item.name.trim().toLowerCase() === query.trim().toLowerCase())
@@ -206,7 +327,7 @@ export function MusicPreferences() {
   return <>
     <header className="page-header">
       <div className="page-title-row"><Music size={20} /><h1 className="page-title">ذوقي الموسيقي</h1></div>
-      <p className="page-description">اختياري تمامًا. لا نطلب ربط أي حساب موسيقى، ولا نجمع سجل استماعك.</p>
+      <p className="page-description">اختر أغاني حقيقية من الكتالوج مع الغلاف والفنان والألبوم. لا نربط حسابك الموسيقي ولا نجمع سجل استماعك.</p>
     </header>
 
     <div className="screen-pad stack">
@@ -233,9 +354,75 @@ export function MusicPreferences() {
           />
           <span>
             <strong>اعرض قائمتي كاملة في صفحتي</strong>
-            <span className="tiny subtle">من دون هذا الخيار، لا يظهر إلا ما تشترك فيه مع الشخص الذي يتصفح.</span>
+            <span className="tiny subtle">يشمل ذلك أغانيك المختارة مع أغلفتها.</span>
           </span>
         </label>
+      </section>
+
+      <section className="panel music-panel">
+        <h2 className="music-section-title">الأغاني المفضلة <span className="tiny subtle" dir="ltr">{tracks.length} / {MAX_TRACKS_PER_PROFILE}</span></h2>
+        <p className="small muted">ابحث باسم الأغنية أو الفنان، ثم اختر النتيجة الأصلية من الكتالوج.</p>
+
+        <label className="label">
+          ابحث عن أغنية
+          <div className="row" style={{ gap: 8 }}>
+            <input
+              className="form-control"
+              value={trackQuery}
+              onChange={event => setTrackQuery(event.target.value.slice(0, 120))}
+              placeholder="مثال: Fairuz Nassam Alayna El Hawa"
+              aria-label="بحث عن أغنية"
+              maxLength={120}
+            />
+            <span className="search-adornment" aria-hidden="true"><Search size={16} /></span>
+          </div>
+        </label>
+
+        {trackSearching && <p className="tiny subtle">جارِ البحث في الكتالوج…</p>}
+
+        {trackResults.length > 0 && <ul className="result-list" aria-label="نتائج الأغاني">
+          {trackResults.map(track => {
+            const selected = selectedTrackKeys.has(trackKey(track))
+            return <li key={trackKey(track)}>
+              <button
+                type="button"
+                className="result-row"
+                style={{ gap: 12, alignItems: 'center', textAlign: 'start' }}
+                disabled={selected || !!busy || tracks.length >= MAX_TRACKS_PER_PROFILE}
+                onClick={() => addCatalogTrack(track)}
+              >
+                <Cover track={track} />
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.title}</strong>
+                  <span className="tiny subtle" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {track.artist}{track.album ? ` · ${track.album}` : ''}
+                  </span>
+                </span>
+                <span className="tiny subtle">{selected ? 'مضافة' : <><Plus size={14} aria-hidden="true" /> إضافة</>}</span>
+              </button>
+            </li>
+          })}
+        </ul>}
+
+        {tracks.length > 0
+          ? <ol className="ordered-list" aria-label="أغانيك المفضلة">
+              {tracks.map((track, index) => (
+                <li key={track.id} className="ordered-row" style={{ gap: 10 }}>
+                  <span className="ordered-index" dir="ltr">{index + 1}</span>
+                  <Cover track={track} size={46} />
+                  <span className="ordered-name" style={{ minWidth: 0 }}>
+                    <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.title}</strong>
+                    <span className="tiny subtle" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.artist}</span>
+                  </span>
+                  <span className="row" style={{ gap: 4 }}>
+                    <button type="button" className="icon-button" aria-label={`نقل ${track.title} للأعلى`} disabled={index === 0 || !!busy} onClick={() => moveTrack(index, -1)}><ChevronUp size={16} /></button>
+                    <button type="button" className="icon-button" aria-label={`نقل ${track.title} للأسفل`} disabled={index === tracks.length - 1 || !!busy} onClick={() => moveTrack(index, 1)}><ChevronDown size={16} /></button>
+                    <button type="button" className="icon-button danger-action" aria-label={`إزالة ${track.title}`} disabled={!!busy} onClick={() => saveTracks(tracks.filter(item => item.id !== track.id))}><X size={16} /></button>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          : <p className="tiny subtle">لم تختر أي أغنية بعد.</p>}
       </section>
 
       <section className="panel music-panel">
@@ -334,7 +521,7 @@ export function MusicPreferences() {
 
       <section className="panel music-panel">
         <h2 className="music-section-title">حذف البيانات</h2>
-        <p className="small muted">يحذف تصنيفاتك وفنانيك وإعدادات الاكتشاف من حسابك نهائيًا.</p>
+        <p className="small muted">يحذف أغانيك وتصنيفاتك وفنانيك وإعدادات الاكتشاف من حسابك نهائيًا.</p>
         <button type="button" className="danger-button mt16" onClick={clearAll} disabled={busy === 'clear'}>
           <Trash2 size={16} aria-hidden="true" />
           {busy === 'clear' ? 'جارِ الحذف…' : 'حذف كل بيانات الموسيقى'}
