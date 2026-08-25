@@ -298,6 +298,11 @@ struct AccountView: View {
                             }
                             .buttonStyle(.plain)
 
+                            NavigationLink(destination: MusicVisibilitySettingsView()) {
+                                AccountMenuRow(icon: "eye", title: "ما يظهر في ملفي")
+                            }
+                            .buttonStyle(.plain)
+
                             NavigationLink(destination: PrivacyView()) {
                                 AccountMenuRow(icon: "hand.raised", title: "الخصوصية")
                             }
@@ -785,28 +790,8 @@ struct UserProfileView: View {
                     .padding(.vertical, 28)
                     .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
 
-                    // Only present when this identity chose to publish its
-                    // list; otherwise the request simply returns nothing.
-                    if let music, !music.artists.isEmpty || !music.genres.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("الذوق الموسيقي")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(OpenlyTheme.ink)
-                            if !music.genres.isEmpty {
-                                Text(music.genres.map(\.nameAr).joined(separator: "، "))
-                                    .font(.system(size: 15))
-                                    .foregroundColor(OpenlyTheme.muted)
-                            }
-                            if !music.artists.isEmpty {
-                                Text(music.artists.map(\.name).joined(separator: "، "))
-                                    .font(.system(size: 15))
-                                    .foregroundColor(OpenlyTheme.ink)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 20)
-                        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
+                    if let music {
+                        NativePublicMusicSection(music: music)
                     }
 
                     if posts.isEmpty {
