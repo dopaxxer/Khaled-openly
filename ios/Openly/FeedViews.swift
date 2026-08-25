@@ -109,6 +109,7 @@ struct FeedView: View {
 
 private struct HomeComposerCard: View {
     @EnvironmentObject private var session: AppSession
+    @StateObject private var suggestions = MentionSuggestionModel()
     @State private var bodyText = ""
     @State private var isPublishing = false
     @FocusState private var isFocused: Bool
@@ -154,7 +155,25 @@ private struct HomeComposerCard: View {
                             if value.count > postCharacterLimit {
                                 bodyText = String(value.prefix(postCharacterLimit))
                             }
+                            // SwiftUI's TextField hides the caret, so this
+                            // compact composer reads the token at the end of the
+                            // text. That covers typing, which is what happens
+                            // here; the full-screen composer tracks the caret.
+                            suggestions.update(
+                                MentionParser.activeQuery(in: bodyText, caret: (bodyText as NSString).length)
+                            )
                         }
+
+                    MentionSuggestionBar(items: suggestions.items) { item in
+                        guard let query = suggestions.activeQuery else { return }
+                        let result = MentionParser.applyCompletion(
+                            to: bodyText,
+                            range: query.range,
+                            code: item.publicCode
+                        )
+                        bodyText = result.text
+                        suggestions.clear()
+                    }
 
                     HStack(spacing: 12) {
                         Text("\(bodyText.count) / \(postCharacterLimit)")
@@ -210,6 +229,7 @@ private struct HomeComposerCard: View {
             _ = try await session.api.createPost(body: text)
             bodyText = ""
             isFocused = false
+            suggestions.clear()
             session.markFeedChanged()
             onPublished()
         } catch {
@@ -285,14 +305,21 @@ struct PostCard: View {
                     .environment(\.layoutDirection, .rightToLeft)
             }
 
+            // A mention inside the body is its own tap target, so the body is
+            // no longer wrapped in the post link; the row below opens the
+            // thread instead.
+            MentionText(post.body, mentions: post.mentions)
+
             NavigationLink(destination: PostDetailView(postID: post.id)) {
-                Text(post.body)
-                    .font(.system(size: 19, weight: .medium))
-                    .foregroundColor(OpenlyTheme.ink)
-                    .lineSpacing(7)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    Text("افتح المحادثة")
+                        .font(.system(size: 14, weight: .semibold))
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(OpenlyTheme.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -394,6 +421,7 @@ let reportDescriptionLimit = 1000
 
 struct ComposerView: View {
     @EnvironmentObject private var session: AppSession
+    @StateObject private var suggestions = MentionSuggestionModel()
     @State private var bodyText = ""
     @State private var isPublishing = false
     @FocusState private var isFocused: Bool
@@ -426,30 +454,28 @@ struct ComposerView: View {
 
                                 Rectangle().fill(OpenlyTheme.line).frame(height: 1)
 
-                                ZStack(alignment: .topLeading) {
-                                    if bodyText.isEmpty {
-                                        Text("ماذا تريد أن تقول؟")
-                                            .font(.system(size: 21, weight: .medium))
-                                            .foregroundColor(OpenlyTheme.subtle)
-                                            .padding(.horizontal, 17)
-                                            .padding(.vertical, 18)
-                                            .allowsHitTesting(false)
-                                    }
+                                // UITextView rather than TextEditor: the mention
+                                // menu needs the caret position, which SwiftUI
+                                // does not expose on iOS 16.
+                                MentionTextEditor(
+                                    text: $bodyText,
+                                    placeholder: "ماذا تريد أن تقول؟ اكتب @ للإشارة إلى كود",
+                                    maxLength: postCharacterLimit,
+                                    autoFocus: true
+                                ) { query in
+                                    suggestions.update(query)
+                                }
+                                .frame(minHeight: 230)
 
-                                    TextEditor(text: $bodyText)
-                                        .focused($isFocused)
-                                        .font(.system(size: 19, weight: .regular))
-                                        .foregroundColor(OpenlyTheme.ink)
-                                        .scrollContentBackground(.hidden)
-                                        .background(Color.clear)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 10)
-                                        .frame(minHeight: 230)
-                                        .onChange(of: bodyText) { value in
-                                            if value.count > postCharacterLimit {
-                                                bodyText = String(value.prefix(postCharacterLimit))
-                                            }
-                                        }
+                                MentionSuggestionBar(items: suggestions.items) { item in
+                                    guard let query = suggestions.activeQuery else { return }
+                                    let result = MentionParser.applyCompletion(
+                                        to: bodyText,
+                                        range: query.range,
+                                        code: item.publicCode
+                                    )
+                                    bodyText = result.text
+                                    suggestions.clear()
                                 }
 
                                 Rectangle().fill(OpenlyTheme.line).frame(height: 1)
@@ -516,6 +542,7 @@ struct ComposerView: View {
             _ = try await session.api.createPost(body: text)
             bodyText = ""
             isFocused = false
+            suggestions.clear()
             session.markFeedChanged()
             onPublished()
         } catch { session.alertMessage = error.localizedDescription }
@@ -525,6 +552,7 @@ struct ComposerView: View {
 
 struct PostDetailView: View {
     @EnvironmentObject private var session: AppSession
+    @StateObject private var suggestions = MentionSuggestionModel()
     let postID: String
     @State private var detail: PostDetailResponse?
     @State private var commentText = ""
@@ -566,11 +594,11 @@ struct PostDetailView: View {
                                             .font(.system(size: 12, weight: .medium))
                                             .foregroundColor(OpenlyTheme.subtle)
                                     }
-                                    Text(comment.body)
-                                        .font(.system(size: 17))
-                                        .foregroundColor(OpenlyTheme.ink)
-                                        .lineSpacing(5)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    MentionText(
+                                        comment.body,
+                                        mentions: comment.mentions,
+                                        font: .system(size: 17)
+                                    )
                                 }
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 20)
@@ -595,16 +623,31 @@ struct PostDetailView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom) {
             if detail != nil {
+                VStack(spacing: 0) {
+                MentionSuggestionBar(items: suggestions.items) { item in
+                    guard let query = suggestions.activeQuery else { return }
+                    let result = MentionParser.applyCompletion(
+                        to: commentText,
+                        range: query.range,
+                        code: item.publicCode
+                    )
+                    commentText = result.text
+                    suggestions.clear()
+                }
+
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
                         OpenlyFieldContainer {
-                            TextField("اكتب تعليقًا", text: $commentText, axis: .vertical)
+                            TextField("اكتب تعليقًا… @ للإشارة", text: $commentText, axis: .vertical)
                                 .foregroundColor(OpenlyTheme.ink)
                                 .lineLimit(1...4)
                                 .onChange(of: commentText) { value in
                                     if value.count > commentCharacterLimit {
                                         commentText = String(value.prefix(commentCharacterLimit))
                                     }
+                                    suggestions.update(
+                                        MentionParser.activeQuery(in: commentText, caret: (commentText as NSString).length)
+                                    )
                                 }
                         }
                         Text("\(commentText.count) / \(commentCharacterLimit)")
@@ -629,6 +672,7 @@ struct PostDetailView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
+                }
                 .background(OpenlyTheme.background)
                 .overlay(alignment: .top) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
             }
@@ -651,6 +695,7 @@ struct PostDetailView: View {
         do {
             try await session.api.addComment(postID: postID, body: text)
             commentText = ""
+            suggestions.clear()
             await load()
         } catch { session.alertMessage = error.localizedDescription }
         isSending = false

@@ -181,9 +181,13 @@ struct MainTabView: View {
                 .tabItem { Label("اكتب", systemImage: "square.and.pencil") }
                 .tag(2)
 
+            MusicDiscoveryView()
+                .tabItem { Label("موسيقى", systemImage: "music.note") }
+                .tag(3)
+
             AccountView()
                 .tabItem { Label("حسابي", systemImage: "person.crop.circle") }
-                .tag(3)
+                .tag(4)
         }
         .tint(OpenlyTheme.accent)
         .toolbarBackground(OpenlyTheme.background, for: .tabBar)
