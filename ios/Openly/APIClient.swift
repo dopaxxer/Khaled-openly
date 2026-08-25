@@ -358,6 +358,25 @@ final class APIClient {
         return response.items
     }
 
+    func searchMusicCatalog(query: String) async throws -> [MusicCatalogTrack] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let response: MusicCatalogResponse = try await request(
+            "v1/music/catalog",
+            query: [URLQueryItem(name: "q", value: trimmed)]
+        )
+        return response.items
+    }
+
+    func addMusicTrack(_ track: MusicCatalogTrack) async throws -> MusicTrack {
+        let response: MusicTrackCreateResponse = try await request(
+            "v1/music/tracks",
+            method: "POST",
+            body: ["provider": track.provider, "externalId": track.externalId]
+        )
+        return response.track
+    }
+
     func musicGenres(query: String? = nil) async throws -> [MusicGenre] {
         var items: [URLQueryItem] = []
         if let query, !query.isEmpty { items.append(URLQueryItem(name: "q", value: query)) }
@@ -394,6 +413,15 @@ final class APIClient {
             "v1/music/preferences",
             method: "PUT",
             body: ["discoveryOptIn": discoveryOptIn, "preferencesPublic": preferencesPublic]
+        )
+        return response.profile ?? .empty
+    }
+
+    func updateMusicTracks(ids: [String]) async throws -> MusicProfile {
+        let response: MusicProfileResponse = try await request(
+            "v1/music/preferences/tracks",
+            method: "PUT",
+            body: ["trackIds": ids]
         )
         return response.profile ?? .empty
     }
