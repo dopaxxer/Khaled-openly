@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { getPublicOrigin } from '@/lib/publicOrigin'
-import { isStrongPassword, isValidEmail, normalizeEmail, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, readJson } from '@/lib/validation'
+import { isMailDeliveryFailure, isStrongPassword, isValidEmail, normalizeEmail, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, readJson } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +41,14 @@ export async function POST(request) {
       email_address_invalid: 'البريد الإلكتروني غير صالح.',
       over_email_send_rate_limit: 'محاولات كثيرة. حاول بعد قليل.'
     }
+    // A mail sender that is down is the server's problem, and it is the one
+    // failure that leaves someone staring at a verification screen for a code
+    // that was never sent. Name it, and record the code so it can be traced.
+    if (isMailDeliveryFailure(error.code)) {
+      console.error('[auth/register] mail delivery failed:', error.code, error.message)
+      return json({ error: 'تعذر إرسال كود التحقق الآن. المشكلة عندنا — حاول بعد قليل.' }, 502)
+    }
+    if (!messages[error.code]) console.error('[auth/register]', error.code, error.message)
     return json({ error: messages[error.code] || 'تعذر إنشاء الحساب. حاول مرة أخرى.' }, 400)
   }
 

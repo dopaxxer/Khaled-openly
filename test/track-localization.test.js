@@ -7,6 +7,9 @@ const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8'
 const bridge = read('components/LanguageBridge.jsx')
 const composer = read('components/Composer.jsx')
 const attachment = read('components/TrackAttachment.jsx')
+const preview = read('components/TrackPreview.jsx')
+const musicPreferences = read('components/MusicPreferences.jsx')
+const publicProfile = read('components/PublicMusicProfile.jsx')
 
 // Comments carry Arabic prose that never reaches the DOM, so they would
 // otherwise look like untranslated interface copy.
@@ -26,13 +29,29 @@ function arabicCopy(source) {
   return [...found].filter(Boolean)
 }
 
-// The attachment renders nothing but track UI, so all of its copy is in scope.
-test('every Arabic string in TrackAttachment has an English entry', () => {
-  const strings = arabicCopy(attachment)
+// These two render nothing but track UI, so all of their copy is in scope.
+test('every Arabic string in the track components has an English entry', () => {
+  const strings = [...arabicCopy(preview), ...arabicCopy(attachment)]
   assert.ok(strings.length > 0, 'the scanner found no Arabic copy to check')
 
   const missing = strings.filter(value => !hasEntry(value))
   assert.deepEqual(missing, [], `untranslated interface copy: ${missing.join(' | ')}`)
+})
+
+// The player lives in one module so that starting a preview stops the one that
+// was already playing, wherever on the page it was.
+test('every surface that lists a track can play its preview', () => {
+  for (const [name, source] of [
+    ['TrackAttachment', attachment],
+    ['MusicPreferences', musicPreferences],
+    ['PublicMusicProfile', publicProfile]
+  ]) {
+    assert.match(source, /TrackPreviewButton/, `${name} renders no preview control`)
+    assert.match(source, /from '\.\/TrackPreview'/, `${name} does not use the shared player`)
+  }
+
+  const players = (preview.match(/let activeAudio/g) || []).length
+  assert.equal(players, 1, 'the shared player must own exactly one active-audio reference')
 })
 
 // The composer is mixed, so only the strings the attachment flow introduced are
@@ -65,6 +84,8 @@ test('catalog metadata is exempt from the language bridge', () => {
   assert.match(attachment, /className="track-attachment-meta"[^>]*data-user-content/)
   assert.match(composer, /className="composer-track-meta"[^>]*data-user-content/)
   assert.match(composer, /className="composer-track-result-main"[^>]*data-user-content/)
+  assert.match(musicPreferences, /className="ordered-name"[^>]*data-user-content/)
+  assert.match(publicProfile, /data-user-content/)
 
   // The bridge only honours the marker if it stays in the skip list.
   assert.match(bridge, /\[data-user-content\]/)

@@ -1,6 +1,7 @@
 'use client'
 
 import { Music } from 'lucide-react'
+import { TrackPreviewButton } from './TrackPreview'
 
 function PublicTrack({ track }) {
   return <div className="result-row" style={{ gap: 12, alignItems: 'center', cursor: 'default' }}>
@@ -18,12 +19,14 @@ function PublicTrack({ track }) {
           aria-hidden="true"
           style={{ width: 52, height: 52, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--surface-soft)', flex: '0 0 auto' }}
         ><Music size={19} /></span>}
-    <span style={{ minWidth: 0, flex: 1 }}>
+    {/* Catalog metadata is content: the language bridge must not translate it. */}
+    <span style={{ minWidth: 0, flex: 1 }} data-user-content="">
       <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.title}</strong>
       <span className="tiny subtle" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {track.artist}{track.album ? ` · ${track.album}` : ''}
       </span>
     </span>
+    <TrackPreviewButton previewUrl={track.previewUrl} title={track.title}/>
   </div>
 }
 

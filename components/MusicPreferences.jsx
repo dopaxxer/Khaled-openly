@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ChevronDown, ChevronUp, Music, Plus, Save, Search, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { TrackPreviewButton } from './TrackPreview'
 import {
   MAX_ARTISTS_PER_PROFILE,
   MAX_GENRES_PER_PROFILE,
@@ -456,11 +457,13 @@ export function MusicPreferences() {
                 <li key={track.id} className="ordered-row" style={{ gap: 10 }}>
                   <span className="ordered-index" dir="ltr">{index + 1}</span>
                   <Cover track={track} size={46} />
-                  <span className="ordered-name" style={{ minWidth: 0 }}>
+                  {/* Catalog metadata is content: the language bridge must not translate it. */}
+                  <span className="ordered-name" style={{ minWidth: 0 }} data-user-content="">
                     <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.title}</strong>
                     <span className="tiny subtle" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.artist}</span>
                   </span>
                   <span className="row" style={{ gap: 4 }}>
+                    <TrackPreviewButton previewUrl={track.previewUrl} title={track.title}/>
                     <button type="button" className="icon-button" aria-label={`نقل ${track.title} للأعلى`} disabled={index === 0 || !!busy} onClick={() => moveTrack(index, -1)}><ChevronUp size={16} /></button>
                     <button type="button" className="icon-button" aria-label={`نقل ${track.title} للأسفل`} disabled={index === tracks.length - 1 || !!busy} onClick={() => moveTrack(index, 1)}><ChevronDown size={16} /></button>
                     <button type="button" className="icon-button danger-action" aria-label={`إزالة ${track.title}`} disabled={!!busy} onClick={() => saveTracks(tracks.filter(item => item.id !== track.id))}><X size={16} /></button>
