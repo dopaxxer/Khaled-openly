@@ -987,3 +987,242 @@ select:focus-visible {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Mentions
+   --------------------------------------------------------------------------- */
+
+/* Rendered inside post and comment bodies. Uses the accent token rather than
+   the mentioned identity's own colour: identity colours are chosen for
+   recognisability against a chip, not for contrast against body text. */
+.mention {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: var(--radius-1);
+  padding-inline: 4px;
+  font-weight: 600;
+  text-decoration: none;
+  unicode-bidi: isolate;
+}
+
+.mention:hover,
+.mention:focus-visible { text-decoration: underline; }
+
+.mention-field { position: relative; display: block; }
+.mention-field textarea { inline-size: 100%; }
+
+/* The composer lays its row out with flex, so the wrapper has to take over the
+   growth the bare textarea used to do. */
+.composer-row .mention-field { flex: 1; min-inline-size: 0; }
+
+.mention-menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-start: 0;
+  z-index: 30;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  min-inline-size: 200px;
+  max-inline-size: min(320px, 100%);
+  max-block-size: 240px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.mention-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  min-block-size: 44px;
+}
+
+.mention-option.active,
+.mention-option:hover { background: var(--surface-hover); }
+
+.mention-option-dot {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.mention-option-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+/* A mention in the body must be a real link, so the post body cannot sit
+   inside one. This overlay preserves "tap the body to open the post" while
+   letting the mentions above it stay clickable. */
+.post-body-wrap { position: relative; }
+
+.post-open-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: var(--radius-1);
+}
+
+.post-open-overlay:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.post-body-wrap .post-body { position: relative; z-index: 1; pointer-events: none; }
+.post-body-wrap .post-body a { pointer-events: auto; }
+
+/* ---------------------------------------------------------------------------
+   Music taste and discovery
+   --------------------------------------------------------------------------- */
+
+.music-panel { padding: var(--space-5); }
+
+.music-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-title);
+  font-weight: 600;
+  margin: 0 0 var(--space-4);
+}
+
+.music-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  cursor: pointer;
+}
+
+.music-toggle + .music-toggle { border-block-start: 1px solid var(--line); }
+.music-toggle input { inline-size: 20px; block-size: 20px; margin-block-start: 2px; flex: none; accent-color: var(--accent-strong); }
+.music-toggle > span { display: flex; flex-direction: column; gap: var(--space-1); }
+
+.chip-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: 40px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+
+.chip:hover:not(:disabled) { background: var(--surface-hover); }
+.chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.chip.static { cursor: default; }
+
+.chip.selected {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--accent-foreground);
+}
+
+.chip.selected .subtle { color: var(--accent-foreground); opacity: 0.75; }
+
+.result-list, .ordered-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: 48px;
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: 0;
+  border-block-end: 1px solid var(--line);
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.result-list li:last-child .result-row { border-block-end: 0; }
+.result-row:hover:not(:disabled) { background: var(--surface-hover); }
+.result-row:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.ordered-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: 52px;
+  padding: var(--space-2) var(--space-4);
+  border-block-end: 1px solid var(--line);
+}
+
+.ordered-list li:last-child { border-block-end: 0; }
+.ordered-list .ordered-row:last-child { border-block-end: 0; }
+.ordered-index { color: var(--subtle); font-size: var(--text-meta); min-inline-size: 20px; }
+.ordered-name { flex: 1; min-inline-size: 0; overflow-wrap: anywhere; }
+
+.search-adornment { display: inline-flex; align-items: center; color: var(--subtle); }
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-block-end: var(--space-4);
+}
+
+.filter-bar .label { flex: 1 1 200px; min-inline-size: 0; }
+
+.match-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-block-end: 1px solid var(--line);
+}
+
+.match-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.match-reasons { display: flex; flex-direction: column; gap: var(--space-1); }
+.match-card .secondary-button { align-self: flex-start; }
+
+.compat { display: flex; flex-direction: column; gap: var(--space-1); min-inline-size: 120px; }
+
+.compat-value {
+  font-size: var(--text-title);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.compat-track {
+  block-size: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.compat-fill { block-size: 100%; background: var(--accent-strong); border-radius: 999px; }
