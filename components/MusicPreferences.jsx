@@ -17,6 +17,22 @@ async function callApi(path, options = {}) {
   return data
 }
 
+function normalizeProfile(value, previous = null) {
+  const next = value || {}
+  const legacyPublic = !!next.preferencesPublic
+  return {
+    ...next,
+    discoveryOptIn: !!next.discoveryOptIn,
+    preferencesPublic: legacyPublic,
+    showTracks: typeof next.showTracks === 'boolean' ? next.showTracks : (previous?.showTracks ?? legacyPublic),
+    showArtists: typeof next.showArtists === 'boolean' ? next.showArtists : (previous?.showArtists ?? legacyPublic),
+    showGenres: typeof next.showGenres === 'boolean' ? next.showGenres : (previous?.showGenres ?? legacyPublic),
+    tracks: Array.isArray(next.tracks) ? next.tracks : [],
+    artists: Array.isArray(next.artists) ? next.artists : [],
+    genres: Array.isArray(next.genres) ? next.genres : []
+  }
+}
+
 function trackKey(track) {
   return `${track.provider}:${track.externalId}`
 }
@@ -60,14 +76,15 @@ export function MusicPreferences() {
     (async () => {
       try {
         const [me, catalog] = await Promise.all([
-          fetch('/api/v1/music/preferences', { cache: 'no-store' }),
+          fetch('/api/v1/music/visibility', { cache: 'no-store' }),
           fetch('/api/v1/music/genres', { cache: 'no-store' })
         ])
         if (me.status === 401) {
           setProfile(null)
           return
         }
-        setProfile((await me.json()).profile)
+        const mine = await me.json()
+        setProfile(normalizeProfile(mine.profile))
         if (catalog.ok) setGenres((await catalog.json()).items || [])
       } catch {
         setError('تعذر تحميل تفضيلاتك الموسيقية.')
@@ -76,8 +93,6 @@ export function MusicPreferences() {
     })()
   }, [])
 
-  // Real track search comes from the external catalog through our server. The
-  // ticket prevents a slower old response from replacing a newer query.
   useEffect(() => {
     const term = trackQuery.trim()
     if (!term) {
@@ -104,8 +119,6 @@ export function MusicPreferences() {
     }
   }, [trackQuery])
 
-  // Debounced local artist search remains for the compatibility/discovery
-  // score. Tracks are a separate, richer favorite list.
   useEffect(() => {
     const term = query.trim()
     if (!term) {
@@ -137,17 +150,24 @@ export function MusicPreferences() {
     setTimeout(() => setSaved(current => (current === message ? '' : current)), 2600)
   }
 
-  async function saveSettings(next) {
+  async function saveSettings(overrides) {
+    const next = {
+      discoveryOptIn: profile.discoveryOptIn,
+      showTracks: profile.showTracks,
+      showArtists: profile.showArtists,
+      showGenres: profile.showGenres,
+      ...overrides
+    }
     setBusy('settings')
     setError('')
     try {
-      const data = await callApi('/api/v1/music/preferences', {
+      const data = await callApi('/api/v1/music/visibility', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(next)
       })
-      setProfile(data.profile)
-      announce('تم حفظ إعدادات الاكتشاف.')
+      setProfile(current => normalizeProfile(data.profile, current))
+      announce('تم حفظ ما يظهر في ملفك.')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -164,7 +184,7 @@ export function MusicPreferences() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trackIds: tracks.map(track => track.id) })
       })
-      setProfile(data.profile)
+      setProfile(current => normalizeProfile(data.profile, current))
       announce('تم حفظ الأغاني المفضلة.')
     } catch (e) {
       setError(e.message)
@@ -184,8 +204,6 @@ export function MusicPreferences() {
     setBusy('track-import')
     setError('')
     try {
-      // Only provider + external id are trusted from the browser. The server
-      // looks the id up again and stores canonical catalog metadata.
       const imported = await callApi('/api/v1/music/tracks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -197,7 +215,7 @@ export function MusicPreferences() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trackIds: next.map(item => item.id) })
       })
-      setProfile(data.profile)
+      setProfile(existing => normalizeProfile(data.profile, existing))
       setTrackQuery('')
       setTrackResults([])
       announce('تمت إضافة الأغنية.')
@@ -225,7 +243,7 @@ export function MusicPreferences() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ artistIds: artists.map(artist => artist.id) })
       })
-      setProfile(data.profile)
+      setProfile(current => normalizeProfile(data.profile, current))
       announce('تم حفظ قائمة الفنانين.')
     } catch (e) {
       setError(e.message)
@@ -243,7 +261,7 @@ export function MusicPreferences() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ genreIds: selected.map(genre => genre.id) })
       })
-      setProfile(data.profile)
+      setProfile(current => normalizeProfile(data.profile, current))
       announce('تم حفظ التصنيفات.')
     } catch (e) {
       setError(e.message)
@@ -299,7 +317,7 @@ export function MusicPreferences() {
     setError('')
     try {
       const data = await callApi('/api/v1/music/preferences', { method: 'DELETE' })
-      setProfile(data.profile)
+      setProfile({ ...normalizeProfile(data.profile), showTracks: false, showArtists: false, showGenres: false })
       announce('تم حذف كل بيانات الموسيقى.')
     } catch (e) {
       setError(e.message)
@@ -327,34 +345,62 @@ export function MusicPreferences() {
   return <>
     <header className="page-header">
       <div className="page-title-row"><Music size={20} /><h1 className="page-title">ذوقي الموسيقي</h1></div>
-      <p className="page-description">اختر أغاني حقيقية من الكتالوج مع الغلاف والفنان والألبوم. لا نربط حسابك الموسيقي ولا نجمع سجل استماعك.</p>
+      <p className="page-description">اختر أغاني حقيقية من الكتالوج، ثم قرر بنفسك ما الذي يظهر للآخرين في ملفك.</p>
     </header>
 
     <div className="screen-pad stack">
       <section className="panel music-panel">
-        <h2 className="music-section-title">الظهور</h2>
+        <h2 className="music-section-title">الظهور والمطابقة</h2>
         <label className="music-toggle">
           <input
             type="checkbox"
             checked={profile.discoveryOptIn}
             disabled={busy === 'settings'}
-            onChange={event => saveSettings({ discoveryOptIn: event.target.checked, preferencesPublic: profile.preferencesPublic })}
+            onChange={event => saveSettings({ discoveryOptIn: event.target.checked })}
           />
           <span>
-            <strong>اظهر في اكتشاف الموسيقى</strong>
-            <span className="tiny subtle">يُظهر كودك ولونك ونقاط التشابه فقط لمن يشاركك الذوق.</span>
+            <strong>أظهرني في اقتراحات المطابقة</strong>
+            <span className="tiny subtle">يسمح للأشخاص المتشابهين معك بالعثور على كودك. اهتمام أي طرف يبقى سريًا حتى يحدث اختيار متبادل.</span>
+          </span>
+        </label>
+
+        <div style={{ height: 1, background: 'var(--line)', margin: '8px 0' }} />
+        <p className="small muted">اختر ما يظهر في صفحتك العامة. هذه الخيارات مستقلة عن دخولك في المطابقة.</p>
+
+        <label className="music-toggle">
+          <input
+            type="checkbox"
+            checked={profile.showTracks}
+            disabled={busy === 'settings'}
+            onChange={event => saveSettings({ showTracks: event.target.checked })}
+          />
+          <span>
+            <strong>إظهار الأغاني المفضلة</strong>
+            <span className="tiny subtle">يعرض اسم الأغنية والفنان والغلاف الذي اخترته.</span>
           </span>
         </label>
         <label className="music-toggle">
           <input
             type="checkbox"
-            checked={profile.preferencesPublic}
+            checked={profile.showArtists}
             disabled={busy === 'settings'}
-            onChange={event => saveSettings({ discoveryOptIn: profile.discoveryOptIn, preferencesPublic: event.target.checked })}
+            onChange={event => saveSettings({ showArtists: event.target.checked })}
           />
           <span>
-            <strong>اعرض قائمتي كاملة في صفحتي</strong>
-            <span className="tiny subtle">يشمل ذلك أغانيك المختارة مع أغلفتها.</span>
+            <strong>إظهار الفنانين</strong>
+            <span className="tiny subtle">يمكنك استخدامها للمطابقة حتى لو أخفيتها من ملفك.</span>
+          </span>
+        </label>
+        <label className="music-toggle">
+          <input
+            type="checkbox"
+            checked={profile.showGenres}
+            disabled={busy === 'settings'}
+            onChange={event => saveSettings({ showGenres: event.target.checked })}
+          />
+          <span>
+            <strong>إظهار التصنيفات</strong>
+            <span className="tiny subtle">مثل روك، راب أو طرب؛ إخفاؤها لا يمنع استخدامها لحساب التشابه.</span>
           </span>
         </label>
       </section>
@@ -398,7 +444,7 @@ export function MusicPreferences() {
                     {track.artist}{track.album ? ` · ${track.album}` : ''}
                   </span>
                 </span>
-                <span className="tiny subtle">{selected ? 'مضافة' : <><Plus size={14} aria-hidden="true" /> إضافة</>}</span>
+                <span className="tiny subtle">{selected ? 'مضافة' : <><Plus size={14} /> إضافة</>}</span>
               </button>
             </li>
           })}
@@ -436,14 +482,9 @@ export function MusicPreferences() {
               className={`chip${selected ? ' selected' : ''}`}
               aria-pressed={selected}
               disabled={busy === 'genres' || (!selected && profile.genres.length >= MAX_GENRES_PER_PROFILE)}
-              onClick={() => saveGenres(
-                selected
-                  ? profile.genres.filter(item => item.id !== genre.id)
-                  : [...profile.genres, genre]
-              )}
+              onClick={() => saveGenres(selected ? profile.genres.filter(item => item.id !== genre.id) : [...profile.genres, genre])}
             >
-              {genre.nameAr}
-              <span className="tiny subtle" dir="ltr"> {genre.name}</span>
+              {genre.nameAr}<span className="tiny subtle" dir="ltr"> {genre.name}</span>
             </button>
           })}
         </div>
@@ -479,9 +520,7 @@ export function MusicPreferences() {
                 onClick={() => addExistingArtist(artist)}
               >
                 <span>{artist.name}</span>
-                <span className="tiny subtle">
-                  {alreadyListed.has(artist.id) ? 'مضاف' : <><Plus size={14} aria-hidden="true" /> إضافة</>}
-                </span>
+                <span className="tiny subtle">{alreadyListed.has(artist.id) ? 'مضاف' : <><Plus size={14} /> إضافة</>}</span>
               </button>
             </li>
           ))}
@@ -493,7 +532,7 @@ export function MusicPreferences() {
           onClick={createArtist}
           disabled={busy === 'create'}
         >
-          <Plus size={16} aria-hidden="true" />
+          <Plus size={16} />
           {busy === 'create' ? 'جارِ الإضافة…' : `أضف «${query.trim()}» كفنان جديد`}
         </button>}
 
@@ -516,20 +555,20 @@ export function MusicPreferences() {
 
       <div aria-live="polite">
         {error && <p className="status-message error">{error}</p>}
-        {saved && <p className="status-message" style={{ color: 'var(--success)' }}><Save size={14} aria-hidden="true" /> {saved}</p>}
+        {saved && <p className="status-message" style={{ color: 'var(--success)' }}><Save size={14} /> {saved}</p>}
       </div>
 
       <section className="panel music-panel">
         <h2 className="music-section-title">حذف البيانات</h2>
         <p className="small muted">يحذف أغانيك وتصنيفاتك وفنانيك وإعدادات الاكتشاف من حسابك نهائيًا.</p>
         <button type="button" className="danger-button mt16" onClick={clearAll} disabled={busy === 'clear'}>
-          <Trash2 size={16} aria-hidden="true" />
+          <Trash2 size={16} />
           {busy === 'clear' ? 'جارِ الحذف…' : 'حذف كل بيانات الموسيقى'}
         </button>
       </section>
 
       <p className="center small muted">
-        <Link href="/discover/music" style={{ textDecoration: 'underline' }}>اذهب إلى اكتشاف الموسيقى</Link>
+        <Link href="/discover/music" style={{ textDecoration: 'underline' }}>اذهب إلى المطابقة بالموسيقى</Link>
       </p>
     </div>
   </>
