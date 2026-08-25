@@ -58,15 +58,47 @@ struct MusicGenre: Codable, Identifiable, Hashable {
     let nameAr: String
 }
 
+struct MusicTrack: Codable, Identifiable, Hashable {
+    let id: String
+    let provider: String
+    let externalId: String
+    let title: String
+    let artist: String
+    let album: String?
+    let artworkUrl: String?
+    let externalUrl: String?
+    let previewUrl: String?
+    let durationMs: Int?
+    let genre: String?
+}
+
+struct MusicCatalogTrack: Codable, Identifiable, Hashable {
+    var id: String { "\(provider):\(externalId)" }
+    let provider: String
+    let externalId: String
+    let title: String
+    let artist: String
+    let album: String?
+    let artworkUrl: String?
+    let externalUrl: String?
+    let previewUrl: String?
+    let durationMs: Int?
+    let genre: String?
+}
+
 struct MusicProfile: Codable, Hashable {
     let discoveryOptIn: Bool
     let preferencesPublic: Bool
+    /// Optional so an IPA built from this commit can still decode the older
+    /// server payload while a Vercel deployment is rolling out.
+    let tracks: [MusicTrack]?
     let artists: [MusicArtist]
     let genres: [MusicGenre]
 
     static let empty = MusicProfile(
         discoveryOptIn: false,
         preferencesPublic: false,
+        tracks: [],
         artists: [],
         genres: []
     )
@@ -75,6 +107,7 @@ struct MusicProfile: Codable, Hashable {
 struct PublicMusicProfile: Codable, Hashable {
     let publicCode: String
     let identityColor: String?
+    let tracks: [MusicTrack]?
     let artists: [MusicArtist]
     let genres: [MusicGenre]
 }
@@ -104,6 +137,15 @@ struct MusicArtistsResponse: Codable {
 
 struct MusicGenresResponse: Codable {
     let items: [MusicGenre]
+}
+
+struct MusicCatalogResponse: Codable {
+    let items: [MusicCatalogTrack]
+    let provider: String
+}
+
+struct MusicTrackCreateResponse: Codable {
+    let track: MusicTrack
 }
 
 struct MusicArtistCreateResponse: Codable {
