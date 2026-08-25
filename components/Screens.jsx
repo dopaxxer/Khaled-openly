@@ -27,6 +27,7 @@ import { MentionField } from './MentionField'
 import { MusicDiscovery } from './MusicDiscovery'
 import { MusicPreferences } from './MusicPreferences'
 import { PostCard } from './PostCard'
+import { PublicMusicProfile } from './PublicMusicProfile'
 import { ThemeControl } from './Settings'
 import { Timeline } from './Timeline'
 import {
@@ -641,7 +642,6 @@ function UserScreen({ code }) {
       ])
       setUser(u.ok ? (await u.json()).user : null)
       if (p.ok) setPosts((await p.json()).items || [])
-      // Absent unless this user chose to publish their list.
       setMusic(m.ok ? (await m.json()).profile : null)
     })()
   }, [code])
@@ -686,19 +686,7 @@ function UserScreen({ code }) {
       </div>}
       {error && <p className="status-message error mt16">{error}</p>}
     </section>
-    {music && (music.artists.length > 0 || music.genres.length > 0) && <>
-      <div className="section-title">الذوق الموسيقي</div>
-      <div className="screen-pad">
-        <div className="panel music-panel">
-          {music.genres.length > 0 && <div className="chip-grid">
-            {music.genres.map(genre => <span className="chip static" key={genre.id}>{genre.nameAr}</span>)}
-          </div>}
-          {music.artists.length > 0 && <p className="small mt12">
-            <span className="muted">الفنانون: </span>{music.artists.map(artist => artist.name).join('، ')}
-          </p>}
-        </div>
-      </div>
-    </>}
+    <PublicMusicProfile music={music} />
     <div className="section-title">الكتابات</div>
     {posts.length
       ? posts.map(p => <PostCard key={p.id} post={p} viewerCode={user.isSelf ? user.publicCode : null} />)
@@ -807,8 +795,6 @@ function NotificationsScreen() {
     </header>
     {items.length
       ? items.map(n => <Link
-          // A mention inside a comment deep-links to that comment so the
-          // notification lands on the exact thing that mentioned you.
           href={n.commentId ? `/post/${n.postId}#comment-${n.commentId}` : `/post/${n.postId}`}
           className={`notification${n.readAt ? '' : ' unread'}`}
           key={n.id}

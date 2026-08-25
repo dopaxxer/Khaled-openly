@@ -20,8 +20,6 @@ struct Post: Codable, Identifiable, Hashable {
     let authorCode: String?
     let authorColor: String?
     let commentCount: Int?
-    /// Resolved by the server from the stored body. Absent on older payloads,
-    /// which simply renders the mentions as plain text.
     let mentions: [MentionRef]?
 }
 
@@ -89,15 +87,23 @@ struct MusicCatalogTrack: Codable, Identifiable, Hashable {
 struct MusicProfile: Codable, Hashable {
     let discoveryOptIn: Bool
     let preferencesPublic: Bool
-    /// Optional so an IPA built from this commit can still decode the older
-    /// server payload while a Vercel deployment is rolling out.
+    let showTracks: Bool?
+    let showArtists: Bool?
+    let showGenres: Bool?
     let tracks: [MusicTrack]?
     let artists: [MusicArtist]
     let genres: [MusicGenre]
 
+    var tracksArePublic: Bool { showTracks ?? preferencesPublic }
+    var artistsArePublic: Bool { showArtists ?? preferencesPublic }
+    var genresArePublic: Bool { showGenres ?? preferencesPublic }
+
     static let empty = MusicProfile(
         discoveryOptIn: false,
         preferencesPublic: false,
+        showTracks: false,
+        showArtists: false,
+        showGenres: false,
         tracks: [],
         artists: [],
         genres: []
@@ -107,6 +113,9 @@ struct MusicProfile: Codable, Hashable {
 struct PublicMusicProfile: Codable, Hashable {
     let publicCode: String
     let identityColor: String?
+    let showTracks: Bool?
+    let showArtists: Bool?
+    let showGenres: Bool?
     let tracks: [MusicTrack]?
     let artists: [MusicArtist]
     let genres: [MusicGenre]
@@ -121,6 +130,21 @@ struct MusicMatch: Codable, Identifiable, Hashable {
     let sharedGenreCount: Int
     let sharedArtists: [MusicArtist]
     let sharedGenres: [MusicGenre]
+    var interested: Bool?
+    var matched: Bool?
+    var matchedAt: String?
+}
+
+struct MusicMatchState: Codable, Hashable {
+    let publicCode: String
+    let identityColor: String?
+    let interested: Bool
+    let matched: Bool
+    let matchedAt: String?
+}
+
+struct MusicMatchStateResponse: Codable {
+    let state: MusicMatchState
 }
 
 struct MusicProfileResponse: Codable {

@@ -18,11 +18,6 @@ private struct ErrorResponse: Decodable {
     let error: String
 }
 
-/// SwiftUI can create several post rows at nearly the same time. Without a
-/// broker every row fires its own `/engagement` request, and rows recreated by
-/// scrolling repeat the same request. This actor coalesces calls arriving in a
-/// short window and keeps a tiny per-post cache. Viewer-specific data never
-/// leaves the process and is cleared whenever authentication changes.
 private actor EngagementBroker {
     private struct Entry {
         let value: Engagement
@@ -110,8 +105,6 @@ private actor EngagementBroker {
 final class APIClient {
     static let shared = APIClient()
 
-    // Stable production API. Supabase credentials stay server-side on Vercel;
-    // the native app only talks to this first-party JSON endpoint.
     private let baseURL = URL(string: "https://khaled-openly.vercel.app/api/")!
     private let session: URLSession
     private let decoder = JSONDecoder()
@@ -122,8 +115,6 @@ final class APIClient {
         configuration.httpShouldSetCookies = true
         configuration.httpCookieAcceptPolicy = .always
         configuration.httpCookieStorage = .shared
-        // The website and the native app share the same chronological feed.
-        // Never let URLCache make the app appear to use a different data set.
         configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         configuration.urlCache = nil
         configuration.timeoutIntervalForRequest = 30
@@ -183,45 +174,25 @@ final class APIClient {
     }
 
     func login(email: String, password: String) async throws {
-        let _: ActionResponse = try await request(
-            "auth/login",
-            method: "POST",
-            body: ["email": email, "password": password]
-        )
+        let _: ActionResponse = try await request("auth/login", method: "POST", body: ["email": email, "password": password])
         await engagementBroker.clear()
     }
 
     func register(email: String, password: String) async throws -> ActionResponse {
-        try await request(
-            "auth/register",
-            method: "POST",
-            body: ["email": email, "password": password]
-        )
+        try await request("auth/register", method: "POST", body: ["email": email, "password": password])
     }
 
     func verify(email: String, token: String) async throws {
-        let _: ActionResponse = try await request(
-            "auth/verify",
-            method: "POST",
-            body: ["email": email, "token": token]
-        )
+        let _: ActionResponse = try await request("auth/verify", method: "POST", body: ["email": email, "token": token])
         await engagementBroker.clear()
     }
 
     func resendCode(email: String) async throws {
-        let _: ActionResponse = try await request(
-            "auth/resend-code",
-            method: "POST",
-            body: ["email": email]
-        )
+        let _: ActionResponse = try await request("auth/resend-code", method: "POST", body: ["email": email])
     }
 
     func requestPasswordReset(email: String) async throws {
-        let _: ActionResponse = try await request(
-            "auth/request-password-reset",
-            method: "POST",
-            body: ["email": email]
-        )
+        let _: ActionResponse = try await request("auth/request-password-reset", method: "POST", body: ["email": email])
     }
 
     func logout() async throws {
@@ -248,11 +219,7 @@ final class APIClient {
     func addComment(postID: String, body: String, parentID: String? = nil) async throws {
         var payload: [String: Any] = ["body": body]
         if let parentID { payload["parentCommentId"] = parentID }
-        let _: ActionResponse = try await request(
-            "posts/\(postID)/comments",
-            method: "POST",
-            body: payload
-        )
+        let _: ActionResponse = try await request("posts/\(postID)/comments", method: "POST", body: payload)
     }
 
     func engagements(ids: [String]) async throws -> [Engagement] {
@@ -268,20 +235,12 @@ final class APIClient {
     }
 
     func setLike(postID: String, enabled: Bool) async throws {
-        let _: ActionResponse = try await request(
-            "posts/\(postID)/like",
-            method: "POST",
-            body: ["enabled": enabled]
-        )
+        let _: ActionResponse = try await request("posts/\(postID)/like", method: "POST", body: ["enabled": enabled])
         await engagementBroker.invalidate(postID)
     }
 
     func setBookmark(postID: String, enabled: Bool) async throws {
-        let _: ActionResponse = try await request(
-            "posts/\(postID)/bookmark",
-            method: "POST",
-            body: ["enabled": enabled]
-        )
+        let _: ActionResponse = try await request("posts/\(postID)/bookmark", method: "POST", body: ["enabled": enabled])
         await engagementBroker.invalidate(postID)
     }
 
@@ -295,11 +254,7 @@ final class APIClient {
     }
 
     func setRelation(code: String, kind: String, enabled: Bool) async throws {
-        let _: ActionResponse = try await request(
-            "users/\(code)/relation",
-            method: "POST",
-            body: ["kind": kind, "enabled": enabled]
-        )
+        let _: ActionResponse = try await request("users/\(code)/relation", method: "POST", body: ["kind": kind, "enabled": enabled])
     }
 
     func followersCount() async throws -> Int {
@@ -317,11 +272,7 @@ final class APIClient {
     }
 
     func markNotificationsRead(ids: [String]) async throws {
-        let _: ActionResponse = try await request(
-            "notifications",
-            method: "PATCH",
-            body: ["ids": ids]
-        )
+        let _: ActionResponse = try await request("notifications", method: "PATCH", body: ["ids": ids])
     }
 
     func bookmarks() async throws -> [Post] {
@@ -335,9 +286,6 @@ final class APIClient {
     }
 
     // MARK: - Version 1 endpoints
-    //
-    // The same contract the website uses. Paths are rooted at /api/, so "v1/..."
-    // resolves to the versioned handler.
 
     func mentionSuggestions(query: String) async throws -> [MentionRef] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -404,15 +352,25 @@ final class APIClient {
     }
 
     func musicProfile() async throws -> MusicProfile {
-        let response: MusicProfileResponse = try await request("v1/music/preferences")
+        let response: MusicProfileResponse = try await request("v1/music/visibility")
         return response.profile ?? .empty
     }
 
-    func updateMusicSettings(discoveryOptIn: Bool, preferencesPublic: Bool) async throws -> MusicProfile {
+    func updateMusicSettings(
+        discoveryOptIn: Bool,
+        showTracks: Bool,
+        showArtists: Bool,
+        showGenres: Bool
+    ) async throws -> MusicProfile {
         let response: MusicProfileResponse = try await request(
-            "v1/music/preferences",
+            "v1/music/visibility",
             method: "PUT",
-            body: ["discoveryOptIn": discoveryOptIn, "preferencesPublic": preferencesPublic]
+            body: [
+                "discoveryOptIn": discoveryOptIn,
+                "showTracks": showTracks,
+                "showArtists": showArtists,
+                "showGenres": showGenres
+            ]
         )
         return response.profile ?? .empty
     }
@@ -445,10 +403,7 @@ final class APIClient {
     }
 
     func clearMusicPreferences() async throws -> MusicProfile {
-        let response: MusicProfileResponse = try await request(
-            "v1/music/preferences",
-            method: "DELETE"
-        )
+        let response: MusicProfileResponse = try await request("v1/music/preferences", method: "DELETE")
         return response.profile ?? .empty
     }
 
@@ -464,7 +419,34 @@ final class APIClient {
         ]
         if let artistID { items.append(URLQueryItem(name: "artistId", value: artistID)) }
         if let genreID { items.append(URLQueryItem(name: "genreId", value: genreID)) }
-        return try await request("v1/music/discover", query: items)
+        return try await request("v1/music/match-suggestions", query: items)
+    }
+
+    func setMusicMatchInterest(code: String, interested: Bool) async throws -> MusicMatchState {
+        let response: MusicMatchStateResponse = try await request(
+            "v1/music/match-interest",
+            method: "PUT",
+            body: ["publicCode": code, "interested": interested]
+        )
+        return response.state
+    }
+
+    func musicMatches(limit: Int = 50, offset: Int = 0) async throws -> MusicDiscoveryResponse {
+        try await request(
+            "v1/music/matches",
+            query: [
+                URLQueryItem(name: "limit", value: String(limit)),
+                URLQueryItem(name: "offset", value: String(offset))
+            ]
+        )
+    }
+
+    func removeMusicMatch(code: String) async throws {
+        let _: ActionResponse = try await request(
+            "v1/music/matches",
+            method: "DELETE",
+            query: [URLQueryItem(name: "publicCode", value: code)]
+        )
     }
 
     func publicMusicProfile(code: String) async throws -> PublicMusicProfile? {
