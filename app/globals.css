@@ -629,6 +629,26 @@ select:focus-visible {
   transition: color var(--motion), background-color var(--motion);
 }
 
+/* The collapsed inline composer at the top of the feed. Matches the height and
+   padding of the expanded card so opening it does not shift the timeline. */
+.composer-prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  padding: var(--space-4) var(--space-5);
+  margin-block-end: var(--space-4);
+  text-align: start;
+  cursor: pointer;
+  color: var(--subtle);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.composer-prompt:hover { border-color: var(--line-strong); }
+.composer-prompt:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.composer-prompt-text { flex: 1; font-size: var(--text-ui); }
+
 .composer-foot {
   display: flex;
   align-items: center;

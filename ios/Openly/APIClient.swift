@@ -277,6 +277,14 @@ final class APIClient {
         try await request("notifications")
     }
 
+    /// Just the badge number. The full list is a much larger response than a
+    /// tab badge needs, and the badge is refreshed far more often than the
+    /// screen is opened.
+    func unreadNotificationCount() async throws -> Int {
+        let response: NotificationCountResponse = try await request("notifications/count")
+        return response.unreadCount
+    }
+
     func markNotificationsRead(ids: [String]) async throws {
         let _: ActionResponse = try await request("notifications", method: "PATCH", body: ["ids": ids])
     }

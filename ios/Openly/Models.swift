@@ -272,6 +272,10 @@ struct NotificationResponse: Codable {
     let unreadCount: Int
 }
 
+struct NotificationCountResponse: Codable {
+    let unreadCount: Int
+}
+
 struct FollowingResponse: Codable {
     let items: [UserSummary]
 }

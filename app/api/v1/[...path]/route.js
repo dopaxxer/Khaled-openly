@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
+import { logError } from '@/lib/logger'
 import { isUuid, readJson } from '@/lib/validation'
 import {
   MENTION_CODE_MAX_LENGTH,
@@ -44,6 +45,10 @@ function ok(body, extraHeaders = {}) {
 // decoder keeps working, and `code` gives clients something stable to branch
 // on without parsing Arabic copy.
 function fail(status, code, message, extraHeaders = {}) {
+  // A 4xx is the client being told no, which is routine. A 5xx is this service
+  // failing, and nothing here used to record that it had — the v1 routes were
+  // entirely silent.
+  if (status >= 500) logError(`v1.${code}`, { code, status })
   return NextResponse.json(
     { error: message, code },
     { status, headers: { ...POST_LIMIT_HEADERS, ...extraHeaders } }

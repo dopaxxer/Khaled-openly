@@ -14,7 +14,13 @@ function FeedSkeleton() {
   </div>
 }
 
-export function Timeline({ endpoint = '/api/posts', empty = 'لا توجد منشورات بعد. كن أول من يكتب.' }) {
+export function Timeline({
+  endpoint = '/api/posts',
+  empty = 'لا توجد منشورات بعد. كن أول من يكتب.',
+  // Bumped by the caller after publishing, so a new post appears without a
+  // navigation. Any changing value works; the timeline only watches it.
+  refreshToken = 0
+}) {
   const [posts, setPosts] = useState([])
   const [engagement, setEngagement] = useState({})
   const [cursor, setCursor] = useState(null)
@@ -50,7 +56,7 @@ export function Timeline({ endpoint = '/api/posts', empty = 'لا توجد من�
     }
   }
 
-  useEffect(() => { load() }, [endpoint])
+  useEffect(() => { load() }, [endpoint, refreshToken])
 
   useEffect(() => {
     const controller = new AbortController()

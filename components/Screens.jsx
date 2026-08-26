@@ -61,12 +61,17 @@ function randomCode(length = 4) {
 }
 
 export function HomeScreen() {
+  // Publishing from the card has to refresh the feed below it; the timeline
+  // owns its own fetch, so the counter is what tells it to run again.
+  const [published, setPublished] = useState(0)
+
   return <>
     <header className="page-header">
       <h1 className="page-title">المساحة العامة</h1>
       <p className="page-description">الأحدث أولًا. بلا خوارزمية ترتيب.</p>
     </header>
-    <Timeline />
+    <Composer inline onPublished={() => setPublished(count => count + 1)} />
+    <Timeline refreshToken={published} />
   </>
 }
 

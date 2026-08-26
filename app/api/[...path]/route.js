@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createSupabaseServerClient, mapPost, mentionsBySource, withMentions } from '@/lib/supabase'
+import { logError } from '@/lib/logger'
 import { PASSWORD_RECOVERY_COOKIE } from '@/lib/publicOrigin'
 import {
   COMMENT_MAX_LENGTH,
@@ -27,6 +28,13 @@ const json = (body, status = 200) => NextResponse.json(body, {
   }
 })
 const code = value => String(value || '').trim().toUpperCase()
+
+// Every 500 records why before it answers: a route that fails silently can only
+// be discovered by someone complaining.
+const serverError = (event, error, message) => {
+  logError(event, error)
+  return json({ error: message }, 500)
+}
 const reasons = new Set(['spam', 'harassment', 'hate', 'threat', 'sexual', 'illegal', 'other'])
 const publicCodePattern = /^[A-HJ-NP-Z2-9]{4,8}$/
 const identityColorPattern = /^#[0-9A-F]{6}$/
@@ -142,7 +150,7 @@ export async function GET(request, { params }) {
     const author = url.searchParams.get('author')
     if (author) {
       const { data, error } = await supabase.rpc('get_user_posts', { p_public_code: code(author), p_limit: 100 })
-      if (error) return json({ error: 'تعذر تحميل المنشورات' }, 500)
+      if (error) return serverError('posts.byAuthor', error, 'تعذر تحميل المنشورات')
       return json({ items: await withMentions(supabase, (data || []).map(mapPost), 'post'), nextCursor: null })
     }
     const cursor = parseCursor(url.searchParams.get('cursor'))
@@ -152,7 +160,7 @@ export async function GET(request, { params }) {
       p_cursor_id: cursor.id,
       p_limit: 30
     })
-    if (error) return json({ error: 'تعذر تحميل المنشورات' }, 500)
+    if (error) return serverError('timeline.load', error, 'تعذر تحميل المنشورات')
     const items = await withMentions(supabase, (data || []).map(mapPost), 'post')
     const last = items.at(-1)
     return json({ items, nextCursor: items.length === 30 && last ? `${last.createdAt}|${last.id}` : null })
@@ -168,12 +176,12 @@ export async function GET(request, { params }) {
       .eq('post_id', path[1])
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
-    if (error) return json({ error: 'تعذر تحميل التعليقات' }, 500)
+    if (error) return serverError('comments.load', error, 'تعذر تحميل التعليقات')
     const authorIds = [...new Set((rows || []).map(x => x.author_id))]
     const { data: profiles, error: profileError } = authorIds.length
       ? await supabase.from('profiles').select('id,public_code,identity_color').in('id', authorIds)
       : { data: [], error: null }
-    if (profileError) return json({ error: 'تعذر تحميل أصحاب التعليقات' }, 500)
+    if (profileError) return serverError('comments.authors', profileError, 'تعذر تحميل أصحاب التعليقات')
     const byId = Object.fromEntries((profiles || []).map(p => [p.id, p]))
     const [commentMentions, postMentions] = await Promise.all([
       mentionsBySource(supabase, 'comment', (rows || []).map(c => c.id)),
@@ -198,7 +206,7 @@ export async function GET(request, { params }) {
       supabase.rpc('search_posts', { p_query: q, p_limit: 30 }),
       supabase.from('profiles').select('public_code,identity_color').ilike('public_code', `%${code(q)}%`).limit(10)
     ])
-    if (postsError || usersError) return json({ error: 'تعذر إكمال البحث' }, 500)
+    if (postsError || usersError) return serverError('search', postsError || usersError, 'تعذر إكمال البحث')
     return json({
       posts: await withMentions(supabase, (posts || []).map(mapPost), 'post'),
       users: (users || []).map(u => ({ publicCode: u.public_code, identityColor: u.identity_color }))
@@ -260,8 +268,8 @@ export async function GET(request, { params }) {
     if (ids.some(id => !isUuid(id))) return json({ error: 'معرّف منشور غير صالح' }, 400)
     try {
       return json({ items: await engagementFor(supabase, ids) })
-    } catch {
-      return json({ error: 'تعذر تحميل التفاعل' }, 500)
+    } catch (thrown) {
+      return serverError('engagement', thrown, 'تعذر تحميل التفاعل')
     }
   }
 
@@ -269,7 +277,7 @@ export async function GET(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const { data, error } = await supabase.rpc('get_unread_notification_count')
-    if (error) return json({ error: 'تعذر تحميل الإشعارات' }, 500)
+    if (error) return serverError('notifications.count', error, 'تعذر تحميل الإشعارات')
     return json({ unreadCount: Number(data || 0) })
   }
 
@@ -280,7 +288,7 @@ export async function GET(request, { params }) {
       supabase.rpc('get_notifications', { p_limit: 50 }),
       supabase.rpc('get_unread_notification_count')
     ])
-    if (error) return json({ error: 'تعذر تحميل الإشعارات' }, 500)
+    if (error) return serverError('notifications.list', error, 'تعذر تحميل الإشعارات')
     const items = (data || []).map(n => ({
       id: n.id,
       kind: n.kind,
@@ -298,7 +306,7 @@ export async function GET(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const { data, error } = await supabase.rpc('get_bookmarked_posts', { p_limit: 50 })
-    if (error) return json({ error: 'تعذر تحميل المحفوظات' }, 500)
+    if (error) return serverError('bookmarks.load', error, 'تعذر تحميل المحفوظات')
     return json({ items: await withMentions(supabase, (data || []).map(mapPost), 'post'), nextCursor: null })
   }
 
@@ -306,7 +314,7 @@ export async function GET(request, { params }) {
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
     const { data, error } = await supabase.rpc('get_privacy_relations')
-    if (error) return json({ error: 'تعذر تحميل الخصوصية' }, 500)
+    if (error) return serverError('privacy.load', error, 'تعذر تحميل الخصوصية')
     return json({
       items: (data || []).map(x => ({
         kind: x.kind,
@@ -325,7 +333,7 @@ export async function GET(request, { params }) {
       .select('id,target_type,target_id,reason,description,status,created_at')
       .order('created_at', { ascending: false })
       .limit(100)
-    if (error) return json({ error: 'تعذر تحميل البلاغات' }, 500)
+    if (error) return serverError('admin.reports', error, 'تعذر تحميل البلاغات')
     return json({
       items: (data || []).map(r => ({
         id: r.id,
