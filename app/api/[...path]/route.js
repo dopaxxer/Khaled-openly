@@ -5,6 +5,7 @@ import { PASSWORD_RECOVERY_COOKIE } from '@/lib/publicOrigin'
 import {
   COMMENT_MAX_LENGTH,
   isStrongPassword,
+  isMailDeliveryFailure,
   isUuid,
   isValidEmail,
   normalizeEmail,
@@ -352,7 +353,23 @@ export async function POST(request, { params }) {
     const password = String(body.password || '')
     if (!isValidEmail(email) || !password || password.length > PASSWORD_MAX_LENGTH) return json({ error: 'أدخل البريد وكلمة المرور' }, 400)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return json({ error: error.code === 'email_not_confirmed' ? 'أكد بريدك الإلكتروني أولًا' : 'بيانات الدخول غير صحيحة' }, 400)
+    if (error) {
+      // Supabase answers invalid_credentials for both a wrong password and an
+      // address that was never registered, on purpose: telling them apart would
+      // let anyone test which emails have accounts. Keep that, but say what the
+      // person can actually do next instead of a bare rejection — the old
+      // wording read as "your account is gone".
+      const messages = {
+        email_not_confirmed: 'أكد بريدك الإلكتروني أولًا. ابحث عن رسالة التحقق أو اطلب كودًا جديدًا.',
+        over_request_rate_limit: 'محاولات كثيرة. انتظر قليلًا ثم حاول مجددًا.',
+        user_banned: 'هذا الحساب موقوف. تواصل معنا إن كنت تظن أن هذا خطأ.'
+      }
+      if (!messages[error.code]) console.error('[auth/login]', error.code, error.message)
+      return json({
+        error: messages[error.code]
+          || 'البريد أو كلمة المرور غير صحيحة. إن نسيت كلمة المرور فأعد تعيينها، وإن لم يكن لديك حساب فأنشئ هويتك.'
+      }, 400)
+    }
     return json({ ok: true })
   }
 
@@ -405,7 +422,17 @@ export async function POST(request, { params }) {
     if (!isValidEmail(email)) return json({ error: 'البريد غير صالح' }, 400)
     const { error } = await supabase.auth.resend({ type: 'signup', email })
     if (error && error.code === 'over_email_send_rate_limit') return json({ error: 'محاولات كثيرة. حاول بعد قليل.' }, 429)
-    if (error) console.error('[resend-code]', error.code, error.message)
+    if (error) {
+      console.error('[resend-code]', error.code, error.message)
+      // Reporting success after the send failed is what leaves someone waiting
+      // for a code that was never sent. A delivery failure is the server's
+      // fault, so say so rather than letting them retry a broken path.
+      if (isMailDeliveryFailure(error.code)) {
+        return json({ error: 'تعذر إرسال الكود الآن. حاول بعد قليل أو تواصل معنا.' }, 502)
+      }
+    }
+    // Any other failure stays quiet: whether an address is registered is not
+    // something this endpoint may reveal.
     return json({ ok: true })
   }
 

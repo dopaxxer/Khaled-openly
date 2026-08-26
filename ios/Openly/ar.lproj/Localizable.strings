@@ -16,3 +16,11 @@
 /* Post track preview */
 "post_track_play" = "تشغيل معاينة الأغنية";
 "post_track_pause" = "إيقاف معاينة الأغنية";
+"composer_add_track" = "أضف أغنية";
+"composer_track_search_title" = "إرفاق أغنية";
+"composer_track_search_placeholder" = "ابحث باسم الأغنية أو الفنان";
+"composer_track_hint" = "اكتب اسم أغنية أو فنان، ثم اختر نتيجة واحدة.";
+"composer_track_searching" = "جارِ البحث في كتالوج الموسيقى…";
+"composer_track_empty" = "لا توجد نتائج مطابقة.";
+"composer_track_remove" = "إزالة الأغنية المرفقة";
+"composer_track_cancel" = "إلغاء";

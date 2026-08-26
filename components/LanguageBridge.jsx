@@ -60,6 +60,30 @@ const EN = {
   'تنسيق النص': 'Text formatting',
   'تعديل المنشور': 'Edit post',
   'فتح المنشور والتعليقات': 'Open post and comments',
+  'أضف أغنية': 'Add a song',
+  'ابحث باسم الأغنية أو الفنان': 'Search by song or artist',
+  'البحث في كتالوج الأغاني': 'Search the song catalog',
+  'إزالة الأغنية المرفقة': 'Remove the attached song',
+  'جارِ البحث في كتالوج الموسيقى…': 'Searching the music catalog…',
+  'اكتب اسم أغنية أو فنان، ثم اختر نتيجة واحدة.': 'Type a song or artist, then pick one result.',
+  'لا توجد نتائج مطابقة.': 'No matching results.',
+  'جارِ الإرفاق…': 'Attaching…',
+  'اختيار': 'Choose',
+  'تعذر إرفاق الأغنية': 'The song could not be attached',
+  'تعذر البحث عن الأغاني': 'The song search failed',
+  'تشغيل معاينة الأغنية': 'Play song preview',
+  'إيقاف معاينة الأغنية': 'Pause song preview',
+  'البريد أو كلمة المرور غير صحيحة. إن نسيت كلمة المرور فأعد تعيينها، وإن لم يكن لديك حساب فأنشئ هويتك.':
+    'Wrong email or password. Reset your password if you forgot it, or create an identity if you don’t have an account.',
+  'أكد بريدك الإلكتروني أولًا. ابحث عن رسالة التحقق أو اطلب كودًا جديدًا.':
+    'Confirm your email first. Look for the verification message, or request a new code.',
+  'محاولات كثيرة. انتظر قليلًا ثم حاول مجددًا.': 'Too many attempts. Wait a moment and try again.',
+  'هذا الحساب موقوف. تواصل معنا إن كنت تظن أن هذا خطأ.':
+    'This account is suspended. Contact us if you believe that is a mistake.',
+  'تعذر إرسال الكود الآن. حاول بعد قليل أو تواصل معنا.':
+    'The code could not be sent right now. Try again shortly, or contact us.',
+  'تعذر إرسال كود التحقق الآن. المشكلة عندنا — حاول بعد قليل.':
+    'The verification code could not be sent right now. That is on us — try again shortly.',
   'اكتشاف بالموسيقى': 'Music discovery',
   'التوافق الموسيقي': 'Music compatibility',
   'اختيار متبادل وهادئ: اهتمامك يبقى سريًا، ولا يظهر التطابق إلا إذا اختارك الطرف الآخر أيضًا.': 'A quiet mutual choice: your interest stays private, and a connection appears only if the other person chooses you too.',

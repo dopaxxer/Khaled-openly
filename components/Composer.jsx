@@ -192,7 +192,7 @@ export function Composer({ firstPost = false }) {
                     referrerPolicy="no-referrer"
                   />
                 : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
-              <span className="composer-track-meta" dir="auto">
+              <span className="composer-track-meta" dir="auto" data-user-content="">
                 <strong>{selectedTrack.title}</strong>
                 <span className="tiny subtle">{selectedTrack.artist}</span>
               </span>
@@ -252,7 +252,7 @@ export function Composer({ firstPost = false }) {
                               referrerPolicy="no-referrer"
                             />
                           : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
-                        <span className="composer-track-result-main" dir="auto">
+                        <span className="composer-track-result-main" dir="auto" data-user-content="">
                           <strong>{track.title}</strong>
                           <span className="tiny subtle">{track.artist}</span>
                         </span>

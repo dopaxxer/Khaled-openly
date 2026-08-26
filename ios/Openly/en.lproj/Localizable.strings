@@ -254,3 +254,11 @@
 /* Post track preview */
 "post_track_play" = "Play song preview";
 "post_track_pause" = "Pause song preview";
+"composer_add_track" = "Add a song";
+"composer_track_search_title" = "Attach a song";
+"composer_track_search_placeholder" = "Search by song or artist";
+"composer_track_hint" = "Type a song or artist, then pick one result.";
+"composer_track_searching" = "Searching the music catalog…";
+"composer_track_empty" = "No matching results.";
+"composer_track_remove" = "Remove the attached song";
+"composer_track_cancel" = "Cancel";

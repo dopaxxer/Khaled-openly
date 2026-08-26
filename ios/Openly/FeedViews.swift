@@ -179,6 +179,8 @@ private struct HomeComposerCard: View {
     @StateObject private var suggestions = MentionSuggestionModel()
     @State private var bodyText = ""
     @State private var isPublishing = false
+    @State private var selectedTrack: MusicTrack?
+    @State private var showTrackPicker = false
     @FocusState private var isFocused: Bool
     let onPublished: () -> Void
 
@@ -242,6 +244,15 @@ private struct HomeComposerCard: View {
                         suggestions.clear()
                     }
 
+                    if let selectedTrack {
+                        ComposerTrackChip(track: selectedTrack) { self.selectedTrack = nil }
+                    } else {
+                        HStack {
+                            ComposerAddTrackButton { showTrackPicker = true }
+                            Spacer()
+                        }
+                    }
+
                     HStack(spacing: 12) {
                         Text("\(bodyText.count) / \(postCharacterLimit)")
                             .font(.system(size: 12, weight: .semibold))
@@ -284,6 +295,10 @@ private struct HomeComposerCard: View {
         .padding(.horizontal, 18)
         .padding(.top, 18)
         .padding(.bottom, 6)
+        .sheet(isPresented: $showTrackPicker) {
+            ComposerTrackPicker { selectedTrack = $0 }
+                .environmentObject(session)
+        }
     }
 
     @MainActor
@@ -293,8 +308,9 @@ private struct HomeComposerCard: View {
         guard !text.isEmpty else { return }
         isPublishing = true
         do {
-            _ = try await session.api.createPost(body: text)
+            _ = try await session.api.createPost(body: text, trackId: selectedTrack?.id)
             bodyText = ""
+            selectedTrack = nil
             isFocused = false
             suggestions.clear()
             session.markFeedChanged()
@@ -546,7 +562,9 @@ private struct PostTrackAttachment: View {
     }
 }
 
-private struct PostTrackArtwork: View {
+/// Shared with the composer's attachment picker, so a song looks identical
+/// wherever it appears.
+struct PostTrackArtwork: View {
     let url: String?
 
     var body: some View {
@@ -592,6 +610,8 @@ struct ComposerView: View {
     @State private var bodyText = ""
     @State private var caretRequest: Int?
     @State private var isPublishing = false
+    @State private var selectedTrack: MusicTrack?
+    @State private var showTrackPicker = false
     @FocusState private var isFocused: Bool
     let onPublished: () -> Void
 
@@ -650,6 +670,19 @@ struct ComposerView: View {
 
                                 Rectangle().fill(OpenlyTheme.line).frame(height: 1)
 
+                                Group {
+                                    if let selectedTrack {
+                                        ComposerTrackChip(track: selectedTrack) { self.selectedTrack = nil }
+                                    } else {
+                                        HStack {
+                                            ComposerAddTrackButton { showTrackPicker = true }
+                                            Spacer()
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 22)
+                                .padding(.vertical, 12)
+
                                 HStack {
                                     Text("\(bodyText.count) / \(postCharacterLimit)")
                                         .font(.system(size: 14, weight: .semibold))
@@ -700,6 +733,10 @@ struct ComposerView: View {
             .navigationBarHidden(true)
         }
         .navigationViewStyle(.stack)
+        .sheet(isPresented: $showTrackPicker) {
+            ComposerTrackPicker { selectedTrack = $0 }
+                .environmentObject(session)
+        }
     }
 
     @MainActor
@@ -709,8 +746,9 @@ struct ComposerView: View {
         guard !text.isEmpty else { return }
         isPublishing = true
         do {
-            _ = try await session.api.createPost(body: text)
+            _ = try await session.api.createPost(body: text, trackId: selectedTrack?.id)
             bodyText = ""
+            selectedTrack = nil
             isFocused = false
             suggestions.clear()
             session.markFeedChanged()

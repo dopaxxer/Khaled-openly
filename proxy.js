@@ -1,10 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
-// Must match lib/supabase.js. If these point at different projects, refreshed
-// auth cookies cannot be consumed by the API route handlers.
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rjucldqvuyeahjqrlene.supabase.co'
-const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_jnnQqwOVGdK2g1Y7LfjnHg_APSaqz5r'
+// Shares lib/supabaseEnv.js with the route handlers: one source for the
+// project means refreshed auth cookies are always consumable by the API, and
+// an unset variable stops the deployment instead of silently pointing it at a
+// project this account does not own.
+import { supabaseKey, supabaseUrl } from '@/lib/supabaseEnv'
 
 function contentSecurityPolicy(nonce) {
   const isDev = process.env.NODE_ENV === 'development'
@@ -62,7 +63,7 @@ export async function proxy(request) {
   const nextResponse = () => NextResponse.next({ request: { headers: requestHeaders } })
   let response = nextResponse()
 
-  const supabase = createServerClient(url, key, {
+  const supabase = createServerClient(supabaseUrl(), supabaseKey(), {
     cookies: {
       getAll() {
         return request.cookies.getAll()

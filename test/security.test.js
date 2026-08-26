@@ -61,3 +61,18 @@ test('CSP permits Apple previews without weakening script-src', () => {
   assert.ok(scriptDirective, 'script-src directive is present')
   assert.doesNotMatch(scriptDirective, /unsafe-inline/)
 })
+
+test('no Supabase project is hardcoded as a fallback', () => {
+  // A hardcoded fallback let a deployment with an unset variable authenticate
+  // people against a project this account does not own: accounts looked
+  // deleted and correct passwords were rejected. Missing configuration has to
+  // fail, not resolve to somebody else's database.
+  for (const name of ['lib/supabaseEnv.js', 'lib/supabase.js', 'proxy.js']) {
+    const source = readFileSync(new URL(`../${name}`, import.meta.url), 'utf8')
+    assert.doesNotMatch(source, /https:\/\/[a-z]{20}\.supabase\.co/, `${name} names a Supabase project`)
+    assert.doesNotMatch(source, /sb_publishable_[A-Za-z0-9_-]+/, `${name} carries a publishable key`)
+  }
+
+  const env = readFileSync(new URL('../lib/supabaseEnv.js', import.meta.url), 'utf8')
+  assert.match(env, /throw new Error/, 'missing configuration must throw')
+})
