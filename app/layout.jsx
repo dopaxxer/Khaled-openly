@@ -3,17 +3,37 @@ import './ios-polish.css'
 import { AppShell } from '@/components/AppShell'
 import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { LanguageBridge } from '@/components/LanguageBridge'
+import { CANONICAL_ORIGIN } from '@/lib/publicOrigin'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import { headers } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'open',
+  metadataBase: new URL(CANONICAL_ORIGIN),
+  title: {
+    default: 'Openly',
+    template: '%s · Openly'
+  },
   description: 'شبكة نصية عامة بلا رسائل خاصة وبلا خوارزمية ترتيب.',
-  applicationName: 'open',
+  applicationName: 'Openly',
+  alternates: { canonical: '/' },
   robots: { index: true, follow: true },
-  manifest: '/manifest.webmanifest'
+  manifest: '/manifest.webmanifest',
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: 'Openly',
+    title: 'Openly',
+    description: 'شبكة نصية عامة بلا رسائل خاصة وبلا خوارزمية ترتيب.',
+    locale: 'ar_AR',
+    alternateLocale: ['en_US']
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Openly',
+    description: 'شبكة نصية عامة بلا رسائل خاصة وبلا خوارزمية ترتيب.'
+  }
 }
 
 export const viewport = {

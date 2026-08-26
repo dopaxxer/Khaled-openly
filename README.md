@@ -30,8 +30,8 @@ npm start
 - SMTP port: `465`
 - SMTP username: `resend`
 - SMTP password: مفتاح Resend السري؛ يُحفظ في لوحة Supabase فقط ولا يُضاف إلى GitHub.
-- Site URL: `https://khaled-openly.vercel.app`
-- Redirect URL: `https://khaled-openly.vercel.app/api/auth/callback`
+- Site URL: `https://openly.ink`
+- Redirect URL: `https://openly.ink/api/auth/callback`
 
 انسخ محتوى `supabase/email-templates/confirmation.html` إلى قالب **Confirm signup** في Supabase حتى تحتوي الرسالة على `{{ .Token }}` الذي تتوقعه شاشتا الموقع وiOS.
 
