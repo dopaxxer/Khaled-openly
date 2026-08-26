@@ -195,7 +195,9 @@ struct RootView: View {
 }
 
 struct MainTabView: View {
+    @EnvironmentObject private var session: AppSession
     @State private var selection = 0
+    @State private var unreadCount = 0
 
     var body: some View {
         TabView(selection: $selection) {
@@ -207,8 +209,14 @@ struct MainTabView: View {
                 .tabItem { Label("بحث", systemImage: "magnifyingglass") }
                 .tag(1)
 
-            ComposerView(onPublished: { selection = 0 })
-                .tabItem { Label("اكتب", systemImage: "square.and.pencil") }
+            // Writing lives in the composer card at the top of the feed. A tab
+            // carrying the same square.and.pencil was a second door to the same
+            // room; notifications had no door at all, buried inside the account
+            // screen.
+            NavigationView { NotificationsView() }
+                .navigationViewStyle(.stack)
+                .tabItem { Label("الإشعارات", systemImage: selection == 2 ? "bell.fill" : "bell") }
+                .badge(unreadCount)
                 .tag(2)
 
             MutualMusicView()
@@ -222,6 +230,23 @@ struct MainTabView: View {
         .tint(OpenlyTheme.accent)
         .toolbarBackground(OpenlyTheme.background, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .task(id: session.user?.publicCode) { await refreshUnread() }
+        .onChange(of: selection) { _ in Task { await refreshUnread() } }
+    }
+
+    /// A badge is the only reason a notifications tab beats a buried screen, so
+    /// it is refreshed whenever the signed-in identity or the visible tab
+    /// changes. A failure leaves the previous count alone rather than clearing
+    /// the badge on a dropped request.
+    @MainActor
+    private func refreshUnread() async {
+        guard session.user != nil else {
+            unreadCount = 0
+            return
+        }
+        if let count = try? await session.api.unreadNotificationCount() {
+            unreadCount = count
+        }
     }
 }
 

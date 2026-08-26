@@ -9,8 +9,15 @@ import { POST_MAX_LENGTH } from '@/lib/validation'
 
 const MAX_LENGTH = POST_MAX_LENGTH
 
-export function Composer({ firstPost = false }) {
+/**
+ * `inline` renders the composer as a card at the top of a feed instead of a
+ * page: no page heading, collapsed until it is tapped, and publishing refreshes
+ * the feed in place rather than navigating. The native app has always opened
+ * with this card; the web sent people to a separate screen for the same act.
+ */
+export function Composer({ firstPost = false, inline = false, onPublished = null }) {
   const router = useRouter()
+  const [open, setOpen] = useState(!inline)
   const [body, setBody] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -145,6 +152,14 @@ export function Composer({ firstPost = false }) {
         return
       }
       if (!res.ok) throw new Error(data.error || 'تعذر النشر')
+      if (inline) {
+        setBody('')
+        setSelectedTrack(null)
+        setShowTrackSearch(false)
+        setOpen(false)
+        onPublished?.()
+        return
+      }
       router.push('/')
       router.refresh()
     } catch (e) {
@@ -154,11 +169,19 @@ export function Composer({ firstPost = false }) {
     }
   }
 
+  if (inline && !open) {
+    return <button type="button" className="composer-prompt panel" onClick={() => setOpen(true)}>
+      {viewer && <Avatar code={viewer.publicCode} color={viewer.identityColor} size={38}/>}
+      <span className="composer-prompt-text">ماذا تريد أن تقول؟</span>
+      <Send size={16} aria-hidden="true"/>
+    </button>
+  }
+
   return <section>
-    <header className="page-header">
+    {!inline && <header className="page-header">
       <h1 className="page-title">{firstPost ? 'منشورك الأول' : 'منشور جديد'}</h1>
       <p className="page-description">سيظهر كلامك للجميع بهويتك الملوّنة. لا توجد مسودات خاصة هنا.</p>
-    </header>
+    </header>}
     <div className="composer panel">
       <div className="composer-toolbar" role="toolbar" aria-label="تنسيق النص">
         <button type="button" className="toolbar-button" aria-label="عريض" title="عريض" onClick={() => format('bold')}><Bold size={16}/></button>
@@ -267,10 +290,18 @@ export function Composer({ firstPost = false }) {
       </div>
       <div className="composer-foot">
         <span className={`tiny ${body.length > MAX_LENGTH - 40 ? 'danger-text' : 'subtle'}`} dir="ltr">{body.length} / {MAX_LENGTH}</span>
-        <button className="primary-button" onClick={publish} disabled={busy || !body.trim()}>
-          <Send size={16} aria-hidden="true"/>
-          {busy ? 'جارِ النشر…' : 'نشر'}
-        </button>
+        <span className="row" style={{ gap: 8 }}>
+          {inline && <button
+            type="button"
+            className="secondary-button"
+            onClick={() => { setOpen(false); setError('') }}
+            disabled={busy}
+          >إلغاء</button>}
+          <button className="primary-button" onClick={publish} disabled={busy || !body.trim()}>
+            <Send size={16} aria-hidden="true"/>
+            {busy ? 'جارِ النشر…' : 'نشر'}
+          </button>
+        </span>
       </div>
       {error && <p className="status-message error composer-message">{error}</p>}
       {firstPost && <button className="action-button muted composer-skip" onClick={() => router.push('/')}>
