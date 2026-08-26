@@ -105,7 +105,7 @@ private actor EngagementBroker {
 final class APIClient {
     static let shared = APIClient()
 
-    private let baseURL = URL(string: "https://khaled-openly.vercel.app/api/")!
+    private let baseURL = URL(string: "https://www.openly.ink/api/")!
     private let session: URLSession
     private let decoder = JSONDecoder()
     private let engagementBroker = EngagementBroker()
