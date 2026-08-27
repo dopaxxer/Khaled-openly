@@ -365,6 +365,11 @@ struct SessionResponse: Codable {
     let user: UserSummary?
 }
 
+struct ProfileUpdateResponse: Codable {
+    let ok: Bool?
+    let user: UserSummary
+}
+
 struct NotificationResponse: Codable {
     let items: [NotificationItem]
     let unreadCount: Int
