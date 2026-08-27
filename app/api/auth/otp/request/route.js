@@ -22,7 +22,7 @@ export async function POST(request) {
     const email = normalizeEmail(parsed.data.email)
     if (!isValidEmail(email)) return json({ error: 'أدخل بريدًا إلكترونيًا صحيحًا' }, 400)
 
-    const emailMode = process.env.AUTH_EMAIL_MODE === 'otp' ? 'otp' : 'link'
+    const emailMode = process.env.AUTH_EMAIL_MODE === 'link' ? 'link' : 'otp'
     const emailRedirectTo = new URL('/api/auth/callback?next=/onboarding/interests', getPublicOrigin(request)).toString()
     const { error } = await supabase.auth.signInWithOtp({
       email,
