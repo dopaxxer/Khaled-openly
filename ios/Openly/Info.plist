@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>ar</string>
     <key>CFBundleDisplayName</key>
-    <string>open</string>
+    <string>Openly</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -25,6 +25,8 @@
         <string>ar</string>
         <string>en</string>
     </array>
+    <key>OpenlyAPIBaseURL</key>
+    <string>$(OPENLY_API_BASE_URL)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>UIApplicationSupportsIndirectInputEvents</key>
