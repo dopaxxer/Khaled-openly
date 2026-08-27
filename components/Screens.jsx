@@ -215,10 +215,10 @@ function AuthScreen() {
     setBusy(true)
     setError('')
     try {
-      await authRequest('/api/auth/otp/verify', method === 'email'
+      const data = await authRequest('/api/auth/otp/verify', method === 'email'
         ? { method, email: verificationValue, token: code }
         : { method, phone: verificationValue, token: code })
-      router.push('/')
+      router.push(data.next || '/onboarding/interests')
       router.refresh()
     } catch (verifyError) {
       setError(verifyError.message)
