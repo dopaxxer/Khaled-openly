@@ -300,7 +300,7 @@ struct AccountView: View {
                             .buttonStyle(.plain)
 
                             NavigationLink(destination: SettingsView()) {
-                                AccountMenuRow(icon: "paintpalette", title: "الثيمات")
+                                AccountMenuRow(icon: "gearshape", title: "الإعدادات")
                             }
                             .buttonStyle(.plain)
 
