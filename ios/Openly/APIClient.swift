@@ -18,10 +18,20 @@ private struct ErrorResponse: Decodable {
     let error: String
 }
 
+struct AuthCapabilities: Decodable {
+    let email: Bool
+    let emailOtp: Bool
+    let emailMode: String
+    let phone: Bool
+    let google: Bool
+    let apple: Bool
+}
+
 struct OTPRequestResponse: Decodable {
     let ok: Bool
     let method: String
     let target: String
+    let delivery: String?
     let cooldownSeconds: Int
 }
 
@@ -194,6 +204,10 @@ final class APIClient {
     func sessionUser() async throws -> UserSummary? {
         let response: SessionResponse = try await request("auth/me")
         return response.user
+    }
+
+    func authCapabilities() async throws -> AuthCapabilities {
+        try await request("auth/capabilities")
     }
 
     func requestOTP(method: String, email: String? = nil, phone: String? = nil) async throws -> OTPRequestResponse {
