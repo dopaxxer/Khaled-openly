@@ -3,6 +3,7 @@ import AuthenticationServices
 import Combine
 import CryptoKit
 import GoogleSignIn
+import Security
 import UIKit
 
 struct SearchView: View {
@@ -413,6 +414,25 @@ private let authCountryDialCodes: [(String, String)] = [
 
 private func authSHA256(_ value: String) -> String {
     SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+}
+
+private func authSecureNonce(length: Int = 32) -> String {
+    precondition(length > 0)
+    let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+    var result = ""
+    var remaining = length
+
+    while remaining > 0 {
+        var random: UInt8 = 0
+        guard SecRandomCopyBytes(kSecRandomDefault, 1, &random) == errSecSuccess else {
+            return UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        }
+        if random < charset.count {
+            result.append(charset[Int(random)])
+            remaining -= 1
+        }
+    }
+    return result
 }
 
 @MainActor
@@ -862,8 +882,11 @@ struct LoginView: View {
         guard !isSubmitting else { return }
         guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
               !clientID.isEmpty,
-              !clientID.contains("$(") else {
-            inlineError = "Google Sign-In يحتاج Client ID في إعداد التطبيق."
+              !clientID.contains("$("),
+              let serverClientID = Bundle.main.object(forInfoDictionaryKey: "GIDServerClientID") as? String,
+              !serverClientID.isEmpty,
+              !serverClientID.contains("$(") else {
+            inlineError = "Google Sign-In يحتاج إعدادات OAuth كاملة للتطبيق والخادم."
             return
         }
         guard let presenter = authPresentingViewController() else {
@@ -874,15 +897,25 @@ struct LoginView: View {
         isSubmitting = true
         inlineError = nil
         do {
-            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
-            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenter)
+            let nonce = authSecureNonce()
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(
+                clientID: clientID,
+                serverClientID: serverClientID
+            )
+            let result = try await GIDSignIn.sharedInstance.signIn(
+                withPresenting: presenter,
+                hint: nil,
+                additionalScopes: nil,
+                nonce: nonce
+            )
             guard let idToken = result.user.idToken?.tokenString else {
                 throw APIError.server("لم يرجع Google رمز هوية صالحًا.")
             }
             try await session.signInWithNativeToken(
                 provider: "google",
                 idToken: idToken,
-                accessToken: result.user.accessToken.tokenString
+                accessToken: result.user.accessToken.tokenString,
+                nonce: nonce
             )
         } catch {
             let nsError = error as NSError
