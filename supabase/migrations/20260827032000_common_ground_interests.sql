@@ -159,7 +159,7 @@ as $$
       or interest.normalized_label like '%' || query.q || '%'
       or interest.normalized_subtitle like '%' || query.q || '%'
     )
-  group by interest.id
+  group by interest.id, query.q
   order by
     case when query.q <> '' and interest.normalized_label = query.q then 0
          when query.q <> '' and interest.normalized_label like query.q || '%' then 1
