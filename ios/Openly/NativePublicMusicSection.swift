@@ -10,10 +10,16 @@ struct NativePublicMusicSection: View {
 
     var body: some View {
         if hasContent {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("الذوق الموسيقي")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(OpenlyTheme.ink)
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    Text("الذوق الموسيقي")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(OpenlyTheme.ink)
+                    Spacer()
+                    Image(systemName: "music.note")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(OpenlyTheme.subtle)
+                }
 
                 if !tracks.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
@@ -21,43 +27,86 @@ struct NativePublicMusicSection: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(OpenlyTheme.muted)
 
-                        ForEach(tracks) { track in
-                            HStack(spacing: 12) {
-                                artwork(track)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(track.title)
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(OpenlyTheme.ink)
-                                        .lineLimit(1)
-                                    Text(track.album.map { "\(track.artist) · \($0)" } ?? track.artist)
-                                        .font(.system(size: 12))
-                                        .foregroundColor(OpenlyTheme.subtle)
-                                        .lineLimit(1)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            LazyHStack(spacing: 12) {
+                                ForEach(tracks.prefix(10)) { track in
+                                    trackCard(track)
                                 }
-                                Spacer(minLength: 0)
                             }
+                            .padding(.vertical, 1)
                         }
+                        .environment(\.layoutDirection, .leftToRight)
                     }
                 }
 
-                if !music.genres.isEmpty {
-                    Text(music.genres.map(\.nameAr).joined(separator: "، "))
-                        .font(.system(size: 15))
-                        .foregroundColor(OpenlyTheme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                if !music.artists.isEmpty || !music.genres.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if !music.artists.isEmpty {
+                            compactLine(
+                                icon: "person.wave.2",
+                                title: "الفنانون",
+                                value: music.artists.map(\.name).joined(separator: " · ")
+                            )
+                        }
 
-                if !music.artists.isEmpty {
-                    (Text("الفنانون: ").foregroundColor(OpenlyTheme.muted)
-                     + Text(music.artists.map(\.name).joined(separator: "، ")).foregroundColor(OpenlyTheme.ink))
-                        .font(.system(size: 15))
-                        .fixedSize(horizontal: false, vertical: true)
+                        if !music.genres.isEmpty {
+                            compactLine(
+                                icon: "waveform",
+                                title: "التصنيفات",
+                                value: music.genres.map(\.nameAr).joined(separator: " · ")
+                            )
+                        }
+                    }
+                    .padding(14)
+                    .background(OpenlyTheme.surfaceSoft)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 20)
-            .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
+            .padding(18)
+            .background(OpenlyTheme.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(OpenlyTheme.line, lineWidth: 1))
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func trackCard(_ track: MusicTrack) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            artwork(track)
+                .frame(width: 88, height: 88)
+
+            Text(track.title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(OpenlyTheme.ink)
+                .lineLimit(1)
+                .frame(width: 116, alignment: .leading)
+
+            Text(track.artist)
+                .font(.system(size: 11))
+                .foregroundColor(OpenlyTheme.subtle)
+                .lineLimit(1)
+                .frame(width: 116, alignment: .leading)
+        }
+        .frame(width: 116, alignment: .leading)
+        .environment(\.layoutDirection, .leftToRight)
+    }
+
+    private func compactLine(icon: String, title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundColor(OpenlyTheme.muted)
+
+            Text(value)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(OpenlyTheme.ink)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -72,12 +121,12 @@ struct NativePublicMusicSection: View {
                     placeholder
                 }
             }
-            .frame(width: 48, height: 48)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(OpenlyTheme.line, lineWidth: 1))
         } else {
             placeholder
-                .frame(width: 48, height: 48)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(OpenlyTheme.line, lineWidth: 1))
         }
     }
 
@@ -85,6 +134,7 @@ struct NativePublicMusicSection: View {
         ZStack {
             OpenlyTheme.surfaceSoft
             Image(systemName: "music.note")
+                .font(.system(size: 18, weight: .medium))
                 .foregroundColor(OpenlyTheme.muted)
         }
     }
