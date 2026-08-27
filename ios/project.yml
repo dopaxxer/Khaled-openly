@@ -57,7 +57,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ink.openly.app
         PRODUCT_NAME: Openly
-        OPENLY_API_BASE_URL: "https://openly.nootjetzt.workers.dev/api/"
+        OPENLY_API_BASE_URL: "https://openly.ink/api/"
         MARKETING_VERSION: 1.0.0
         CURRENT_PROJECT_VERSION: "10"
         GOOGLE_WEB_CLIENT_ID: "536812654632-elrmj9nv1aqte2r3en6ihfjn5al358rc.apps.googleusercontent.com"
