@@ -1,263 +1,450 @@
 import SwiftUI
 
+private let nativeIdentityAlphabet = Array("ABCDEFGHJKMNPQRSTUVWXYZ23456789")
+private let nativeIdentityPalette = [
+    "#D9484F", "#E85D75", "#F47B5D", "#E8A33F", "#C9A227",
+    "#8AA64B", "#4F9D69", "#3E9B8E", "#3D8BB5", "#4A6FA5",
+    "#6B5B95", "#8D6E63", "#A07E5C", "#9B6A6A", "#B8336A",
+    "#2F4858", "#1B998B", "#5C7AEA", "#7B6EAA", "#D6A2E8"
+]
+
+private func normalizedNativeIdentityCode(_ value: String) -> String {
+    String(
+        value
+            .uppercased()
+            .filter { nativeIdentityAlphabet.contains($0) }
+            .prefix(8)
+    )
+}
+
+private func randomNativeIdentityCode(length: Int = 5) -> String {
+    var generator = SystemRandomNumberGenerator()
+    return String((0..<length).compactMap { _ in nativeIdentityAlphabet.randomElement(using: &generator) })
+}
+
 struct SettingsView: View {
+    @EnvironmentObject private var session: AppSession
     @AppStorage("openly.appearance") private var appearanceRaw = OpenlyAppearance.system.rawValue
     @AppStorage("openly.language") private var languageRaw = OpenlyLanguage.arabic.rawValue
     @AppStorage("openly.colorTheme") private var colorThemeRaw = OpenlyColorTheme.ultramarine.rawValue
 
+    @State private var publicCode = ""
+    @State private var identityColor = "#5C7AEA"
+    @State private var status = ""
+    @State private var bio = ""
+    @State private var isSaving = false
+    @State private var inlineMessage: String?
+    @State private var inlineError: String?
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ScreenHeader("الإعدادات", subtitle: "خصص لغة وثيم Openly على هذا الجهاز.")
+            VStack(alignment: .leading, spacing: 24) {
+                ScreenHeader(
+                    "الإعدادات",
+                    subtitle: "عدّل هويتك العامة من دون إضافة اسم حقيقي أو صورة شخصية."
+                )
 
-                languageSection
-                    .padding(.bottom, 30)
-
-                themeSection
-                    .padding(.bottom, 30)
+                if session.user == nil {
+                    EmptyState(
+                        icon: "person.crop.circle.badge.exclamationmark",
+                        title: "سجّل الدخول",
+                        message: "سجّل الدخول لتعديل هويتك وإعداداتك."
+                    )
+                } else {
+                    identityPanel
+                    securityPanel
+                    displayPanel
+                }
             }
+            .padding(.bottom, 34)
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle("الإعدادات")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .task(id: session.user?.publicCode) { loadIdentityFromSession() }
     }
 
-    private var languageSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("اللغة")
+    private var identityPanel: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(spacing: 14) {
+                HStack(spacing: 10) {
+                    Circle()
+                        .fill(Color(hex: identityColor) ?? OpenlyTheme.accent)
+                        .frame(width: 13, height: 13)
+                        .shadow(color: (Color(hex: identityColor) ?? OpenlyTheme.accent).opacity(0.3), radius: 4)
 
-            VStack(spacing: 0) {
-                ForEach(OpenlyLanguage.allCases) { option in
+                    Text(publicCode.isEmpty ? (session.user?.publicCode ?? "") : publicCode)
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .tracking(1.1)
+                        .foregroundColor(OpenlyTheme.ink)
+                        .environment(\.layoutDirection, .leftToRight)
+                }
+
+                Spacer()
+
+                Text("هذه هي الهوية التي يراها الآخرون.")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(OpenlyTheme.muted)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                fieldTitle("كود الهوية")
+
+                HStack(spacing: 10) {
                     Button {
-                        languageRaw = option.rawValue
+                        publicCode = randomNativeIdentityCode()
+                        inlineMessage = nil
+                        inlineError = nil
                     } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: option == .arabic ? "character.book.closed" : "textformat")
-                                .font(.system(size: 20, weight: .regular))
-                                .foregroundColor(OpenlyTheme.muted)
-                                .frame(width: 30)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(option.title)
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(OpenlyTheme.ink)
-                                Text(option.subtitle)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(OpenlyTheme.subtle)
-                            }
-
-                            Spacer()
-
-                            selectionMark(active: languageRaw == option.rawValue)
-                        }
-                        .padding(.horizontal, 20)
-                        .frame(minHeight: 72)
-                        .contentShape(Rectangle())
+                        Image(systemName: "shuffle")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(OpenlyTheme.ink)
+                            .frame(width: 58, height: 56)
+                            .background(OpenlyTheme.background)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1.2))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("إنشاء كود عشوائي")
 
-                    if option != OpenlyLanguage.allCases.last {
-                        divider
+                    OpenlyFieldContainer {
+                        TextField("KHA9D", text: $publicCode)
+                            .font(.system(size: 17, weight: .bold, design: .monospaced))
+                            .tracking(1.2)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .foregroundColor(OpenlyTheme.ink)
+                            .environment(\.layoutDirection, .leftToRight)
+                            .onChange(of: publicCode) { publicCode = normalizedNativeIdentityCode($0) }
                     }
                 }
+
+                Text("4–8 رموز واضحة؛ لا نستخدم I أو L أو O أو 0 أو 1 لتجنب الالتباس.")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(OpenlyTheme.subtle)
+                    .lineSpacing(3)
             }
-            .settingsCard
 
-            Text("يتغير اتجاه الواجهة تلقائيًا: العربية من اليمين إلى اليسار والإنجليزية من اليسار إلى اليمين.")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(OpenlyTheme.subtle)
-                .lineSpacing(4)
-                .padding(.horizontal, 4)
-        }
-        .padding(.horizontal, 18)
-    }
+            VStack(alignment: .leading, spacing: 12) {
+                fieldTitle("لون الهوية")
 
-    private var themeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("الثيمات")
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 8),
+                    spacing: 12
+                ) {
+                    ForEach(nativeIdentityPalette, id: \.self) { swatch in
+                        let selected = swatch.caseInsensitiveCompare(identityColor) == .orderedSame
+                        Button {
+                            identityColor = swatch
+                            inlineMessage = nil
+                            inlineError = nil
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: swatch) ?? OpenlyTheme.accent)
+                                    .frame(width: 38, height: 38)
 
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("وضع الإضاءة")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(OpenlyTheme.muted)
-
-                    HStack(spacing: 8) {
-                        ForEach(OpenlyAppearance.allCases) { option in
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.18)) {
-                                    appearanceRaw = option.rawValue
-                                }
-                            } label: {
-                                VStack(spacing: 7) {
-                                    Image(systemName: option.icon)
-                                        .font(.system(size: 18, weight: .semibold))
-                                    Text(option.title)
-                                        .font(.system(size: 12, weight: .semibold))
-                                }
-                                .foregroundColor(
-                                    appearanceRaw == option.rawValue
-                                        ? OpenlyTheme.accentForeground
-                                        : OpenlyTheme.ink
-                                )
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 66)
-                                .background(
-                                    appearanceRaw == option.rawValue
-                                        ? OpenlyTheme.accent
-                                        : OpenlyTheme.surfaceSoft
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(
-                                            appearanceRaw == option.rawValue
-                                                ? OpenlyTheme.accentStrong
-                                                : OpenlyTheme.line,
-                                            lineWidth: 1
-                                        )
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-
-                Rectangle()
-                    .fill(OpenlyTheme.line)
-                    .frame(height: 1)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("لون التمييز")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(OpenlyTheme.muted)
-                        Spacer()
-                        if let selected = OpenlyColorTheme(rawValue: colorThemeRaw) {
-                            Text(selected.title)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(OpenlyTheme.subtle)
-                        }
-                    }
-
-                    HStack(spacing: 12) {
-                        ForEach(OpenlyColorTheme.allCases) { theme in
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.18)) {
-                                    colorThemeRaw = theme.rawValue
-                                }
-                            } label: {
-                                ZStack {
+                                if selected {
                                     Circle()
-                                        .fill(theme.swatch)
-                                        .frame(width: 44, height: 44)
-
-                                    if colorThemeRaw == theme.rawValue {
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.95), lineWidth: 3)
-                                            .frame(width: 34, height: 34)
-
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 13, weight: .black))
-                                            .foregroundColor(.white)
-                                    }
+                                        .stroke(OpenlyTheme.ink, lineWidth: 3)
+                                        .frame(width: 46, height: 46)
+                                    Circle()
+                                        .stroke(OpenlyTheme.background, lineWidth: 2)
+                                        .frame(width: 40, height: 40)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(theme.title)
-                            .accessibilityValue(colorThemeRaw == theme.rawValue ? "محدد" : "")
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("لون الهوية \(swatch)")
+                        .accessibilityValue(selected ? "محدد" : "")
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                fieldTitle("الحالة")
+                OpenlyFieldContainer {
+                    TextField("جملة قصيرة — اختياري", text: $status)
+                        .foregroundColor(OpenlyTheme.ink)
+                        .onChange(of: status) { status = String($0.prefix(60)) }
+                }
+                characterCount(status.count, maximum: 60)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                fieldTitle("النبذة")
+                TextEditor(text: $bio)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(OpenlyTheme.ink)
+                    .scrollContentBackground(.hidden)
+                    .padding(14)
+                    .frame(minHeight: 128)
+                    .background(OpenlyTheme.background)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .stroke(OpenlyTheme.lineStrong, lineWidth: 1.2)
+                    )
+                    .overlay(alignment: .topLeading) {
+                        if bio.isEmpty {
+                            Text("اكتب شيئًا مختصرًا عن هذه الهوية — اختياري")
+                                .font(.system(size: 16))
+                                .foregroundColor(OpenlyTheme.subtle)
+                                .padding(.horizontal, 19)
+                                .padding(.vertical, 22)
+                                .allowsHitTesting(false)
                         }
                     }
+                    .onChange(of: bio) { bio = String($0.prefix(240)) }
 
-                    Text("نفس ألوان الموقع: أزرق ملكي، عنّابي، غابي، كهرماني، وبنفسجي.")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(OpenlyTheme.subtle)
-                        .lineSpacing(3)
-                }
-
-                themePreview
+                characterCount(bio.count, maximum: 240)
             }
-            .padding(18)
-            .settingsCard
 
-            Text("يُحفظ الثيم على هذا الجهاز ويُطبّق فورًا على الأزرار، الروابط، التبويبات وحالات التحديد.")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(OpenlyTheme.subtle)
-                .lineSpacing(4)
-                .padding(.horizontal, 4)
-        }
-        .padding(.horizontal, 18)
-    }
+            if let inlineError {
+                Text(inlineError)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(OpenlyTheme.danger)
+            }
 
-    private var themePreview: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(OpenlyTheme.accentSoft)
-                    .frame(width: 42, height: 42)
-                Image(systemName: "paintpalette.fill")
-                    .font(.system(size: 17, weight: .semibold))
+            if let inlineMessage {
+                Label(inlineMessage, systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(OpenlyTheme.accent)
             }
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("معاينة")
-                    .font(.system(size: 14, weight: .bold))
+            Button {
+                Task { await saveIdentity() }
+            } label: {
+                if isSaving {
+                    ProgressView().tint(OpenlyTheme.accentForeground)
+                } else {
+                    HStack(spacing: 9) {
+                        Image(systemName: "square.and.arrow.down")
+                        Text("حفظ الهوية")
+                    }
+                }
+            }
+            .buttonStyle(OpenlyPrimaryButtonStyle())
+            .disabled(isSaving || publicCode.count < 4)
+            .opacity(publicCode.count < 4 ? 0.55 : 1)
+        }
+        .padding(20)
+        .websiteSettingsPanel
+        .padding(.horizontal, 18)
+    }
+
+    private var securityPanel: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            fieldTitle("الأمان")
+
+            Text("يتطلب التغيير كلمة المرور الحالية، أو رابط استعادة موثّقًا عبر البريد.")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(OpenlyTheme.muted)
+                .lineSpacing(4)
+
+            NavigationLink(destination: ForgotPasswordView()) {
+                HStack(spacing: 9) {
+                    Image(systemName: "key")
+                    Text("تغيير كلمة المرور")
+                }
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(OpenlyTheme.ink)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(OpenlyTheme.background)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1.2))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 3)
+        }
+        .padding(20)
+        .websiteSettingsPanel
+        .padding(.horizontal, 18)
+    }
+
+    private var displayPanel: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("اللغة / Language")
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundColor(OpenlyTheme.ink)
-                Text("سيظهر لون التمييز بهذا الشكل داخل التطبيق.")
-                    .font(.system(size: 12))
-                    .foregroundColor(OpenlyTheme.subtle)
+
+                Text("اختر لغة واجهة Openly. / Choose the Openly interface language.")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(OpenlyTheme.muted)
+                    .lineSpacing(4)
+
+                HStack(spacing: 10) {
+                    languageButton(.arabic)
+                    languageButton(.english)
+                }
             }
 
-            Spacer()
+            Rectangle()
+                .fill(OpenlyTheme.line)
+                .frame(height: 1)
 
-            Text("زر")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(OpenlyTheme.accentForeground)
-                .padding(.horizontal, 16)
-                .frame(height: 38)
-                .background(OpenlyTheme.accent)
-                .clipShape(Capsule())
+            VStack(alignment: .leading, spacing: 14) {
+                fieldTitle("المظهر")
+
+                Text("كيف يظهر التطبيق على هذا الجهاز.")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(OpenlyTheme.muted)
+
+                HStack(spacing: 9) {
+                    appearanceButton(.system)
+                    appearanceButton(.light)
+                    appearanceButton(.dark)
+                }
+
+                Text("لون التمييز")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(OpenlyTheme.muted)
+                    .padding(.top, 8)
+
+                HStack(spacing: 13) {
+                    ForEach(OpenlyColorTheme.allCases) { theme in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.16)) {
+                                colorThemeRaw = theme.rawValue
+                            }
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(theme.swatch)
+                                    .frame(width: 39, height: 39)
+
+                                if colorThemeRaw == theme.rawValue {
+                                    Circle()
+                                        .stroke(OpenlyTheme.ink, lineWidth: 3)
+                                        .frame(width: 47, height: 47)
+                                    Circle()
+                                        .stroke(OpenlyTheme.background, lineWidth: 2)
+                                        .frame(width: 41, height: 41)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(theme.title)
+                        .accessibilityValue(colorThemeRaw == theme.rawValue ? "محدد" : "")
+                    }
+                }
+            }
         }
-        .padding(14)
-        .background(OpenlyTheme.surfaceSoft)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(20)
+        .websiteSettingsPanel
+        .padding(.horizontal, 18)
     }
 
-    private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 18, weight: .bold))
+    private func fieldTitle(_ value: String) -> some View {
+        Text(value)
+            .font(.system(size: 17, weight: .bold))
             .foregroundColor(OpenlyTheme.ink)
-            .padding(.horizontal, 2)
     }
 
-    private func selectionMark(active: Bool) -> some View {
-        Image(systemName: active ? "checkmark.circle.fill" : "circle")
-            .font(.system(size: 20, weight: .semibold))
-            .foregroundColor(active ? OpenlyTheme.accent : OpenlyTheme.subtle)
+    private func characterCount(_ count: Int, maximum: Int) -> some View {
+        Text("\(count) / \(maximum)")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(OpenlyTheme.subtle)
+            .environment(\.layoutDirection, .leftToRight)
     }
 
-    private var divider: some View {
-        Rectangle()
-            .fill(OpenlyTheme.line)
-            .frame(height: 1)
-            .padding(.leading, 64)
+    private func languageButton(_ language: OpenlyLanguage) -> some View {
+        let active = languageRaw == language.rawValue
+        return Button {
+            withAnimation(.easeInOut(duration: 0.16)) {
+                languageRaw = language.rawValue
+            }
+        } label: {
+            Text(language.title)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(active ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(active ? OpenlyTheme.accent : OpenlyTheme.background)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule().stroke(active ? OpenlyTheme.accentStrong : OpenlyTheme.lineStrong, lineWidth: 1.2)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func appearanceButton(_ appearance: OpenlyAppearance) -> some View {
+        let active = appearanceRaw == appearance.rawValue
+        return Button {
+            withAnimation(.easeInOut(duration: 0.16)) {
+                appearanceRaw = appearance.rawValue
+            }
+        } label: {
+            Text(appearance.title)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundColor(active ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(active ? OpenlyTheme.accent : OpenlyTheme.background)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule().stroke(active ? OpenlyTheme.accentStrong : OpenlyTheme.lineStrong, lineWidth: 1.2)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @MainActor
+    private func loadIdentityFromSession() {
+        guard let user = session.user else { return }
+        publicCode = user.publicCode
+        identityColor = user.identityColor
+        status = user.status ?? ""
+        bio = user.bio ?? ""
+        inlineMessage = nil
+        inlineError = nil
+    }
+
+    @MainActor
+    private func saveIdentity() async {
+        guard !isSaving else { return }
+        guard publicCode.count >= 4 else {
+            inlineError = "الكود يجب أن يكون من 4 إلى 8 رموز."
+            return
+        }
+
+        isSaving = true
+        inlineMessage = nil
+        inlineError = nil
+        do {
+            try await session.updateProfile(
+                publicCode: publicCode,
+                identityColor: identityColor,
+                status: status,
+                bio: bio
+            )
+            loadIdentityFromSession()
+            inlineMessage = "تم حفظ التغييرات."
+        } catch {
+            inlineError = error.localizedDescription
+        }
+        isSaving = false
     }
 }
 
 private extension View {
-    var settingsCard: some View {
+    var websiteSettingsPanel: some View {
         self
-            .background(OpenlyTheme.elevated)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(OpenlyTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(OpenlyTheme.lineStrong, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(OpenlyTheme.line, lineWidth: 1)
             )
     }
 }
