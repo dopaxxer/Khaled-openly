@@ -68,6 +68,14 @@ enum OpenlyAPIConfiguration {
     static var bundledBaseURL: URL {
         baseURL(from: Bundle.main.object(forInfoDictionaryKey: "OpenlyAPIBaseURL") as? String)
     }
+
+    static var bundledSiteURL: URL {
+        var components = URLComponents(url: bundledBaseURL, resolvingAgainstBaseURL: false)
+        components?.path = "/"
+        components?.query = nil
+        components?.fragment = nil
+        return components?.url ?? URL(string: "https://openly.nootjetzt.workers.dev/")!
+    }
 }
 
 private actor EngagementBroker {
