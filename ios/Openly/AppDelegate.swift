@@ -361,6 +361,7 @@ struct MainTabView: View {
     @EnvironmentObject private var session: AppSession
     @State private var selection = 0
     @State private var unreadCount = 0
+    @State private var lastUnreadRefresh: Date?
 
     var body: some View {
         TabView(selection: $selection) {
@@ -393,8 +394,12 @@ struct MainTabView: View {
         .tint(OpenlyTheme.accent)
         .toolbarBackground(OpenlyTheme.background, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
-        .task(id: session.user?.publicCode) { await refreshUnread() }
-        .onChange(of: selection) { _ in Task { await refreshUnread() } }
+        .task(id: session.user?.publicCode) { await refreshUnread(force: true) }
+        .onChange(of: selection) { value in
+            // Entering notifications deserves a fresh badge; ordinary tab
+            // changes should not create a network request every single tap.
+            Task { await refreshUnread(force: value == 2) }
+        }
     }
 
     /// A badge is the only reason a notifications tab beats a buried screen, so
@@ -402,11 +407,20 @@ struct MainTabView: View {
     /// changes. A failure leaves the previous count alone rather than clearing
     /// the badge on a dropped request.
     @MainActor
-    private func refreshUnread() async {
+    private func refreshUnread(force: Bool = false) async {
         guard session.user != nil else {
             unreadCount = 0
+            lastUnreadRefresh = nil
             return
         }
+
+        if !force,
+           let lastUnreadRefresh,
+           Date().timeIntervalSince(lastUnreadRefresh) < 30 {
+            return
+        }
+
+        lastUnreadRefresh = Date()
         if let count = try? await session.api.unreadNotificationCount() {
             unreadCount = count
         }
