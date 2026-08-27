@@ -11,7 +11,7 @@ settings:
   base:
     SWIFT_VERSION: 5.0
     MARKETING_VERSION: 1.0.0
-    CURRENT_PROJECT_VERSION: "4"
+    CURRENT_PROJECT_VERSION: "5"
     DEVELOPMENT_LANGUAGE: ar
 targets:
   Openly:
@@ -31,7 +31,7 @@ targets:
       properties:
         CFBundleDisplayName: open
         CFBundleShortVersionString: 1.0.0
-        CFBundleVersion: "4"
+        CFBundleVersion: "5"
         CFBundleLocalizations:
           - ar
           - en
@@ -56,7 +56,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ink.openly.app
         PRODUCT_NAME: Openly
         MARKETING_VERSION: 1.0.0
-        CURRENT_PROJECT_VERSION: "4"
+        CURRENT_PROJECT_VERSION: "5"
+        GOOGLE_IOS_CLIENT_ID: "536812654632-lk6vucd897n0jqdvgmejmed025f6soim.apps.googleusercontent.com"
+        GOOGLE_REVERSED_CLIENT_ID: "com.googleusercontent.apps.536812654632-lk6vucd897n0jqdvgmejmed025f6soim"
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: ""
