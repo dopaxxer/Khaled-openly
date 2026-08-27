@@ -451,6 +451,14 @@ struct LoginView: View {
     @State private var status: String?
     @State private var inlineError: String?
     @State private var currentAppleNonce: String?
+    @State private var capabilities = AuthCapabilities(
+        email: true,
+        emailOtp: false,
+        emailMode: "link",
+        phone: false,
+        google: false,
+        apple: false
+    )
 
     private let secondTicker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -475,6 +483,7 @@ struct LoginView: View {
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
         .navigationBarHidden(true)
+        .task { await loadCapabilities() }
         .onReceive(secondTicker) { _ in
             if resendSeconds > 0 { resendSeconds -= 1 }
         }
@@ -491,41 +500,47 @@ struct LoginView: View {
             .padding(.top, 8)
             .padding(.bottom, 30)
 
-        SignInWithAppleButton(.continue) { request in
-            let nonce = UUID().uuidString + UUID().uuidString
-            currentAppleNonce = nonce
-            request.requestedScopes = [.email]
-            request.nonce = authSHA256(nonce)
-        } onCompletion: { result in
-            handleApple(result)
-        }
-        .signInWithAppleButtonStyle(.black)
-        .frame(height: 54)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .disabled(isSubmitting)
-
-        Button {
-            Task { await signInWithGoogle() }
-        } label: {
-            HStack(spacing: 10) {
-                Text("G").font(.system(size: 18, weight: .bold))
-                Text("Continue with Google").font(.system(size: 16, weight: .semibold))
+        if capabilities.apple {
+            SignInWithAppleButton(.continue) { request in
+                let nonce = UUID().uuidString + UUID().uuidString
+                currentAppleNonce = nonce
+                request.requestedScopes = [.email]
+                request.nonce = authSHA256(nonce)
+            } onCompletion: { result in
+                handleApple(result)
             }
+            .signInWithAppleButtonStyle(.black)
+            .frame(height: 54)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .disabled(isSubmitting)
         }
-        .buttonStyle(OpenlySecondaryButtonStyle())
-        .disabled(isSubmitting)
-        .padding(.top, 12)
 
-        HStack {
-            Rectangle().fill(OpenlyTheme.line).frame(height: 1)
-            Text("أو")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(OpenlyTheme.muted)
-            Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+        if capabilities.google {
+            Button {
+                Task { await signInWithGoogle() }
+            } label: {
+                HStack(spacing: 10) {
+                    Text("G").font(.system(size: 18, weight: .bold))
+                    Text("Continue with Google").font(.system(size: 16, weight: .semibold))
+                }
+            }
+            .buttonStyle(OpenlySecondaryButtonStyle())
+            .disabled(isSubmitting)
+            .padding(.top, capabilities.apple ? 12 : 0)
         }
-        .padding(.vertical, 26)
 
-        if method == "email" {
+        if capabilities.apple || capabilities.google {
+            HStack {
+                Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+                Text("أو")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(OpenlyTheme.muted)
+                Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+            }
+            .padding(.vertical, 26)
+        }
+
+        if method == "email" && capabilities.emailOtp {
             Text("البريد الإلكتروني")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(OpenlyTheme.ink)
@@ -553,16 +568,18 @@ struct LoginView: View {
             .disabled(isSubmitting || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .padding(.top, 20)
 
-            Button("المتابعة برقم الهاتف") {
-                method = "phone"
-                inlineError = nil
-                status = nil
+            if capabilities.phone {
+                Button("المتابعة برقم الهاتف") {
+                    method = "phone"
+                    inlineError = nil
+                    status = nil
+                }
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(OpenlyTheme.muted)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 18)
             }
-            .font(.system(size: 14, weight: .medium))
-            .foregroundColor(OpenlyTheme.muted)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 18)
-        } else {
+        } else if method == "phone" && capabilities.phone {
             Text("رمز الدولة")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(OpenlyTheme.ink)
@@ -608,15 +625,31 @@ struct LoginView: View {
             .disabled(isSubmitting || phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .padding(.top, 20)
 
-            Button("العودة للبريد الإلكتروني") {
-                method = "email"
-                inlineError = nil
-                status = nil
+            if capabilities.emailOtp {
+                Button("العودة للبريد الإلكتروني") {
+                    method = "email"
+                    inlineError = nil
+                    status = nil
+                }
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(OpenlyTheme.muted)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 18)
             }
-            .font(.system(size: 14, weight: .medium))
-            .foregroundColor(OpenlyTheme.muted)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 18)
+        } else if !capabilities.apple && !capabilities.google {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("تسجيل الدخول داخل التطبيق غير متاح حاليًا.")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(OpenlyTheme.ink)
+                Text("لن نعرض أزرارًا لا تعمل. يمكنك استخدام تسجيل الدخول بالبريد على الموقع، وستظهر الطرق الأصلية هنا تلقائيًا عند تفعيلها.")
+                    .font(.system(size: 14))
+                    .foregroundColor(OpenlyTheme.muted)
+                Link("فتح openly.ink", destination: URL(string: "https://www.openly.ink/login")!)
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            .padding(18)
+            .background(OpenlyTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
     }
 
@@ -722,6 +755,21 @@ struct LoginView: View {
     }
 
     @MainActor
+    private func loadCapabilities() async {
+        do {
+            let value = try await session.api.authCapabilities()
+            capabilities = value
+            if !value.emailOtp && value.phone {
+                method = "phone"
+            } else if !value.phone {
+                method = "email"
+            }
+        } catch {
+            // Fail closed: unavailable providers stay hidden.
+        }
+    }
+
+    @MainActor
     private func requestCode() async {
         guard !isSubmitting else { return }
         isSubmitting = true
@@ -739,7 +787,12 @@ struct LoginView: View {
             }
             maskedTarget = response.target
             resendSeconds = response.cooldownSeconds
-            step = "otp"
+            if response.delivery == "link" {
+                inlineError = "تسجيل البريد داخل التطبيق يحتاج OTP. استخدم openly.ink مؤقتًا."
+                step = "entry"
+            } else {
+                step = "otp"
+            }
         } catch {
             inlineError = error.localizedDescription
         }
