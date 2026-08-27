@@ -222,9 +222,9 @@ enum InterestKind: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .topic: return "مواضيع"
-        case .book: return "كتب"
-        case .movie: return "أفلام"
+        case .topic: return NSLocalizedString("مواضيع", comment: "")
+        case .book: return NSLocalizedString("كتب", comment: "")
+        case .movie: return NSLocalizedString("أفلام", comment: "")
         }
     }
 

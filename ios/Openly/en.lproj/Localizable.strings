@@ -262,3 +262,45 @@
 "composer_track_empty" = "No matching results.";
 "composer_track_remove" = "Remove the attached song";
 "composer_track_cancel" = "Cancel";
+
+/* Common Ground interests and onboarding */
+"اكتشف" = "Discover";
+"الاهتمامات" = "Interests";
+"اهتماماتي" = "My interests";
+"اختر اهتماماتك" = "Choose your interests";
+"ابدأ بما يهمك" = "Start with what matters to you";
+"هذه الخطوة تجعل الاكتشاف مفيدًا من أول مرة، ويمكنك تغيير اختياراتك لاحقًا." = "This makes discovery useful from the start. You can change your choices later.";
+"تخطي الآن" = "Skip for now";
+"سجّل الدخول لاختيار اهتماماتك." = "Sign in to choose your interests.";
+"جارِ تحميل اهتماماتك" = "Loading your interests";
+"اختر الكتب والأفلام ومواضيع الحديث التي تهمك. تستخدم هذه الاختيارات لإيجاد أرضية مشتركة، وتبقى الموسيقى ضمن ملفها الحالي." = "Choose books, movies, and conversation topics you care about. Openly uses them to find common ground while keeping music in its existing profile.";
+"مواضيع الحديث" = "Conversation topics";
+"مواضيع" = "Topics";
+"الكتب" = "Books";
+"كتب" = "Books";
+"الأفلام" = "Movies";
+"أفلام" = "Movies";
+"اهتمام" = "Interest";
+"مثال: علم النفس" = "Example: psychology";
+"ابحث عن كتاب أو كاتب" = "Search for a book or author";
+"ابحث عن فيلم أو مخرج" = "Search for a movie or director";
+"اكتب حرفين على الأقل للبحث في الكتالوج." = "Type at least two characters to search the catalog.";
+"جارِ الإضافة…" = "Adding…";
+"استخدم اهتماماتي في الاكتشاف" = "Use my interests for discovery";
+"يسمح لـOpenly باقتراح أشخاص بينكم اهتمامات مشتركة." = "Allows Openly to suggest people who share interests with you.";
+"اعرض اهتماماتي في ملفي" = "Show my interests on my profile";
+"يمكنك إخفاء القائمة مع إبقاء حساب التوافق مفعّلًا." = "You can hide the list while keeping compatibility enabled.";
+"حفظ الاهتمامات" = "Save interests";
+"تم حفظ اهتماماتك." = "Your interests were saved.";
+"سجّل الدخول لرؤية من يشاركك اهتماماتك." = "Sign in to find people who share your interests.";
+"أشخاص بينكم أرضية مشتركة في الكتب والأفلام والمواضيع، ومع الموسيقى عندما تكون مفعلة." = "People with common ground in books, movies, and topics, plus music when enabled.";
+"أضف بعض الكتب والأفلام ومواضيع الحديث التي تهمك." = "Add a few books, movies, and conversation topics you care about.";
+"توافق" = "Compatibility";
+"عرض الملف والكتابات" = "View profile and posts";
+"interest_add_topic_format" = "Add “%@” as a topic";
+"interest_limit_total" = "You can choose up to %d interests.";
+"interest_limit_kind" = "You can choose up to %d from this category.";
+"interest_suggestion_count" = "%d suggestions";
+"interest_shared_count_format" = "%d topics · %d books · %d movies";
+"interest_music_compatibility_format" = "Music compatibility %d%%";
+

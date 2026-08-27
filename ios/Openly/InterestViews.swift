@@ -1,13 +1,165 @@
 import SwiftUI
+import CryptoKit
+import LinkPresentation
+import UIKit
 
 private let maxInterestsPerProfile = 36
 private let maxInterestsPerKind = 12
 
 private func interestTitle(_ kind: InterestKind) -> String {
     switch kind {
-    case .topic: return "مواضيع الحديث"
-    case .book: return "الكتب"
-    case .movie: return "الأفلام"
+    case .topic: return NSLocalizedString("مواضيع الحديث", comment: "")
+    case .book: return NSLocalizedString("الكتب", comment: "")
+    case .movie: return NSLocalizedString("الأفلام", comment: "")
+    }
+}
+
+/// Loads interest artwork as native image data instead of leaving rendering to
+/// AsyncImage. It keeps a memory + disk cache, retries transient image failures,
+/// and can fall back to the official Apple Books/TV page metadata when the
+/// catalog API did not return a direct artwork URL.
+private final class InterestArtworkLoader: ObservableObject {
+    @Published private(set) var image: UIImage?
+
+    private var task: Task<Void, Never>?
+    private static let memory = NSCache<NSString, UIImage>()
+    private static let cacheDirectory: URL = {
+        let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let directory = root.appendingPathComponent("OpenlyInterestArtwork", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+        return directory
+    }()
+
+    func load(item: InterestItem) {
+        task?.cancel()
+
+        let key = Self.cacheKey(for: item)
+        if let cached = Self.memory.object(forKey: key as NSString) {
+            image = cached
+            return
+        }
+
+        let diskURL = Self.diskURL(for: key)
+        if let data = try? Data(contentsOf: diskURL),
+           let cached = UIImage(data: data) {
+            Self.memory.setObject(cached, forKey: key as NSString)
+            image = cached
+            return
+        }
+
+        image = nil
+        task = Task { [weak self] in
+            guard let loaded = await Self.fetch(item: item), !Task.isCancelled else { return }
+            Self.memory.setObject(loaded, forKey: key as NSString)
+            if let data = loaded.jpegData(compressionQuality: 0.9) {
+                try? data.write(to: diskURL, options: .atomic)
+            }
+            await MainActor.run {
+                self?.image = loaded
+            }
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+    }
+
+    private static func cacheKey(for item: InterestItem) -> String {
+        item.artworkUrl ?? item.externalUrl ?? item.id
+    }
+
+    private static func diskURL(for key: String) -> URL {
+        let digest = SHA256.hash(data: Data(key.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return cacheDirectory.appendingPathComponent(digest).appendingPathExtension("jpg")
+    }
+
+    private static func httpsURL(_ raw: String?) -> URL? {
+        guard let raw,
+              let url = URL(string: raw),
+              url.scheme?.lowercased() == "https" else { return nil }
+        return url
+    }
+
+    private static func fetch(item: InterestItem) async -> UIImage? {
+        if let artwork = httpsURL(item.artworkUrl),
+           let image = await fetchDirectImage(from: artwork) {
+            return image
+        }
+
+        guard let external = httpsURL(item.externalUrl),
+              let host = external.host?.lowercased(),
+              host == "tv.apple.com" || host == "books.apple.com" else {
+            return nil
+        }
+
+        return await fetchApplePagePreview(from: external)
+    }
+
+    private static func fetchDirectImage(from url: URL) async -> UIImage? {
+        for attempt in 0..<3 {
+            if Task.isCancelled { return nil }
+
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 9
+            request.cachePolicy = attempt == 0 ? .returnCacheDataElseLoad : .reloadIgnoringLocalCacheData
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+                if (200...299).contains(status), let image = UIImage(data: data) {
+                    return image
+                }
+            } catch {
+                // A second/third attempt handles brief mobile-network drops.
+            }
+
+            if attempt < 2 {
+                try? await Task.sleep(nanoseconds: UInt64(attempt + 1) * 350_000_000)
+            }
+        }
+        return nil
+    }
+
+    private static func fetchApplePagePreview(from url: URL) async -> UIImage? {
+        guard let metadata = await linkMetadata(for: url) else { return nil }
+
+        if let provider = metadata.imageProvider,
+           let image = await loadImage(from: provider) {
+            return image
+        }
+
+        if let provider = metadata.iconProvider,
+           let image = await loadImage(from: provider) {
+            return image
+        }
+
+        return nil
+    }
+
+    private static func linkMetadata(for url: URL) async -> LPLinkMetadata? {
+        await withCheckedContinuation { continuation in
+            let provider = LPMetadataProvider()
+            provider.startFetchingMetadata(for: url) { metadata, _ in
+                _ = provider
+                continuation.resume(returning: metadata)
+            }
+        }
+    }
+
+    private static func loadImage(from provider: NSItemProvider) async -> UIImage? {
+        await withCheckedContinuation { continuation in
+            provider.loadObject(ofClass: UIImage.self) { object, _ in
+                continuation.resume(returning: object as? UIImage)
+            }
+        }
     }
 }
 
@@ -16,17 +168,18 @@ private struct InterestArtwork: View {
     var width: CGFloat = 48
     var height: CGFloat = 66
 
+    @StateObject private var loader = InterestArtworkLoader()
+
+    private var cacheIdentity: String {
+        item.artworkUrl ?? item.externalUrl ?? item.id
+    }
+
     var body: some View {
         Group {
-            if let raw = item.artworkUrl, let url = URL(string: raw) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        placeholder
-                    }
-                }
+            if let image = loader.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
             } else {
                 placeholder
             }
@@ -37,6 +190,12 @@ private struct InterestArtwork: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(OpenlyTheme.line, lineWidth: 1)
         )
+        .task(id: cacheIdentity) {
+            loader.load(item: item)
+        }
+        .onDisappear {
+            loader.cancel()
+        }
     }
 
     private var placeholder: some View {
@@ -53,6 +212,14 @@ private struct InterestArtwork: View {
 
 struct InterestPreferencesView: View {
     @EnvironmentObject private var session: AppSession
+
+    let isOnboarding: Bool
+    let onComplete: (() -> Void)?
+
+    init(isOnboarding: Bool = false, onComplete: (() -> Void)? = nil) {
+        self.isOnboarding = isOnboarding
+        self.onComplete = onComplete
+    }
 
     @State private var profile: InterestProfile?
     @State private var selected: [InterestItem] = []
@@ -79,7 +246,11 @@ struct InterestPreferencesView: View {
             }
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle("اهتماماتي")
+        .navigationTitle(
+            isOnboarding
+                ? NSLocalizedString("اختر اهتماماتك", comment: "")
+                : NSLocalizedString("اهتماماتي", comment: "")
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -90,6 +261,28 @@ struct InterestPreferencesView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
+                if isOnboarding {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("ابدأ بما يهمك")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(OpenlyTheme.ink)
+                            Text("هذه الخطوة تجعل الاكتشاف مفيدًا من أول مرة، ويمكنك تغيير اختياراتك لاحقًا.")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(OpenlyTheme.muted)
+                        }
+                        Spacer(minLength: 16)
+                        Button {
+                            onComplete?()
+                        } label: {
+                            Text("تخطي الآن")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(OpenlyTheme.accent)
+                    }
+                }
+
                 Text("اختر الكتب والأفلام ومواضيع الحديث التي تهمك. تستخدم هذه الاختيارات لإيجاد أرضية مشتركة، وتبقى الموسيقى ضمن ملفها الحالي.")
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(OpenlyTheme.muted)
@@ -164,7 +357,12 @@ struct InterestPreferencesView: View {
                             Task { await createTopic() }
                         } label: {
                             Label(
-                                busyID == "create-topic" ? "جارِ الإضافة…" : "أضف «\(query.trimmingCharacters(in: .whitespacesAndNewlines))» كموضوع",
+                                busyID == "create-topic"
+                                    ? NSLocalizedString("جارِ الإضافة…", comment: "")
+                                    : String(
+                                        format: NSLocalizedString("interest_add_topic_format", comment: ""),
+                                        query.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    ),
                                 systemImage: "plus"
                             )
                         }
@@ -227,7 +425,11 @@ struct InterestPreferencesView: View {
                 Button {
                     Task { await save() }
                 } label: {
-                    Text(busyID == "save" ? "جارِ الحفظ…" : "حفظ الاهتمامات")
+                    Text(
+                        busyID == "save"
+                            ? NSLocalizedString("جارِ الحفظ…", comment: "")
+                            : NSLocalizedString("حفظ الاهتمامات", comment: "")
+                    )
                 }
                 .buttonStyle(OpenlyPrimaryButtonStyle())
                 .disabled(busyID != nil || selected.count > maxInterestsPerProfile)
@@ -278,7 +480,7 @@ struct InterestPreferencesView: View {
                         .foregroundColor(OpenlyTheme.ink)
                         .lineLimit(2)
                     let detail = [item.subtitle, item.releaseYear.map { String($0) }].compactMap { $0 }.joined(separator: " · ")
-                    Text(detail.isEmpty ? (item.interestKind?.title ?? "اهتمام") : detail)
+                    Text(detail.isEmpty ? (item.interestKind?.title ?? NSLocalizedString("اهتمام", comment: "")) : detail)
                         .font(.system(size: 13))
                         .foregroundColor(OpenlyTheme.muted)
                         .lineLimit(1)
@@ -286,7 +488,11 @@ struct InterestPreferencesView: View {
 
                 Spacer(minLength: 8)
 
-                Text(isSelected ? "مضاف" : busyID == item.id ? "…" : "إضافة")
+                Text(
+                    isSelected
+                        ? NSLocalizedString("مضاف", comment: "")
+                        : busyID == item.id ? "…" : NSLocalizedString("إضافة", comment: "")
+                )
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(isSelected ? OpenlyTheme.subtle : OpenlyTheme.accent)
             }
@@ -303,9 +509,9 @@ struct InterestPreferencesView: View {
 
     private var searchPlaceholder: String {
         switch kind {
-        case .topic: return "مثال: علم النفس"
-        case .book: return "ابحث عن كتاب أو كاتب"
-        case .movie: return "ابحث عن فيلم أو مخرج"
+        case .topic: return NSLocalizedString("مثال: علم النفس", comment: "")
+        case .book: return NSLocalizedString("ابحث عن كتاب أو كاتب", comment: "")
+        case .movie: return NSLocalizedString("ابحث عن فيلم أو مخرج", comment: "")
         }
     }
 
@@ -367,11 +573,17 @@ struct InterestPreferencesView: View {
     private func add(_ item: InterestItem) async {
         guard !selectedContains(item) else { return }
         guard selected.count < maxInterestsPerProfile else {
-            errorMessage = "الحد الأقصى \(maxInterestsPerProfile) اهتمامًا."
+            errorMessage = String(
+                format: NSLocalizedString("interest_limit_total", comment: ""),
+                maxInterestsPerProfile
+            )
             return
         }
         guard selectedForKind.count < maxInterestsPerKind else {
-            errorMessage = "الحد الأقصى \(maxInterestsPerKind) من هذه الفئة."
+            errorMessage = String(
+                format: NSLocalizedString("interest_limit_kind", comment: ""),
+                maxInterestsPerKind
+            )
             return
         }
 
@@ -417,7 +629,10 @@ struct InterestPreferencesView: View {
             )
             profile = value
             selected = value.items
-            savedMessage = "تم حفظ اهتماماتك."
+            savedMessage = NSLocalizedString("تم حفظ اهتماماتك.", comment: "")
+            if isOnboarding {
+                onComplete?()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -477,7 +692,12 @@ struct InterestDiscoveryView: View {
                                     .padding(.horizontal, 28)
                                 }
                             } else {
-                                Text("\(total) اقتراح")
+                                Text(
+                                    String(
+                                        format: NSLocalizedString("interest_suggestion_count", comment: ""),
+                                        total
+                                    )
+                                )
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(OpenlyTheme.subtle)
                                     .padding(.horizontal, 20)
@@ -583,12 +803,24 @@ struct InterestDiscoveryView: View {
                 }
             }
 
-            Text("\(match.sharedTopicCount) موضوع · \(match.sharedBookCount) كتاب · \(match.sharedMovieCount) فيلم")
+            Text(
+                String(
+                    format: NSLocalizedString("interest_shared_count_format", comment: ""),
+                    match.sharedTopicCount,
+                    match.sharedBookCount,
+                    match.sharedMovieCount
+                )
+            )
                 .font(.system(size: 13))
                 .foregroundColor(OpenlyTheme.muted)
 
             if match.musicCompatibility > 0 {
-                Text("التوافق الموسيقي \(match.musicCompatibility)%")
+                Text(
+                    String(
+                        format: NSLocalizedString("interest_music_compatibility_format", comment: ""),
+                        match.musicCompatibility
+                    )
+                )
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(OpenlyTheme.subtle)
             }

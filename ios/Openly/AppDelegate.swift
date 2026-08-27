@@ -175,10 +175,12 @@ final class AppSession: ObservableObject {
     @Published var user: UserSummary?
     @Published var isBooting = true
     @Published var alertMessage: String?
+    @Published var needsInterestOnboarding = false
     @Published private(set) var feedRevision = 0
     let api = APIClient.shared
 
     private static let cachedUserKey = "openly.cachedUser"
+    private static let interestOnboardingKeyPrefix = "openly.interestOnboarding."
 
     init() {
         if let cached = Self.loadCachedUser() {
@@ -198,14 +200,18 @@ final class AppSession: ObservableObject {
         Task { await refresh() }
     }
 
-    func refresh() async {
+    func refresh(afterAuthentication: Bool = false) async {
         do {
             let refreshed = try await api.sessionUser()
             user = refreshed
             if let refreshed {
                 Self.cacheUser(refreshed)
+                if afterAuthentication {
+                    await evaluateInterestOnboarding(for: refreshed)
+                }
             } else {
                 Self.removeCachedUser()
+                needsInterestOnboarding = false
             }
         } catch {
             // Do not turn a timeout or temporary server failure into a logout.
@@ -231,18 +237,18 @@ final class AppSession: ObservableObject {
 
     func verifyOTP(method: String, target: String, token: String) async throws {
         try await api.verifyOTP(method: method, target: target, token: token)
-        await refresh()
+        await refresh(afterAuthentication: true)
     }
 
     func signInWithNativeToken(provider: String, idToken: String, accessToken: String? = nil, nonce: String? = nil) async throws {
         try await api.signInWithNativeToken(provider: provider, idToken: idToken, accessToken: accessToken, nonce: nonce)
-        await refresh()
+        await refresh(afterAuthentication: true)
     }
 
     // Kept for backwards compatibility with already-issued password accounts.
     func login(email: String, password: String) async throws {
         try await api.login(email: email, password: password)
-        await refresh()
+        await refresh(afterAuthentication: true)
     }
 
     func logout() async {
@@ -252,7 +258,58 @@ final class AppSession: ObservableObject {
 
     private func clearUser() {
         user = nil
+        needsInterestOnboarding = false
         Self.removeCachedUser()
+    }
+
+    func completeInterestOnboarding() {
+        guard let user else {
+            needsInterestOnboarding = false
+            return
+        }
+        UserDefaults.standard.set(true, forKey: Self.interestOnboardingKey(for: user.publicCode))
+        needsInterestOnboarding = false
+    }
+
+    private func evaluateInterestOnboarding(for user: UserSummary) async {
+        let key = Self.interestOnboardingKey(for: user.publicCode)
+        guard !UserDefaults.standard.bool(forKey: key),
+              Self.isRecentlyCreated(user.createdAt) else {
+            needsInterestOnboarding = false
+            return
+        }
+
+        do {
+            let profile = try await api.interestProfile()
+            needsInterestOnboarding = profile.items.isEmpty
+            if !profile.items.isEmpty {
+                UserDefaults.standard.set(true, forKey: key)
+            }
+        } catch {
+            // Auth succeeded; a temporary interest API failure must not trap the
+            // user on onboarding or prevent the main application from opening.
+            needsInterestOnboarding = false
+        }
+    }
+
+    private static func interestOnboardingKey(for publicCode: String) -> String {
+        interestOnboardingKeyPrefix + publicCode.uppercased()
+    }
+
+    private static func isRecentlyCreated(_ raw: String?) -> Bool {
+        guard let raw else { return false }
+
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+
+        guard let created = fractional.date(from: raw) ?? standard.date(from: raw) else {
+            return false
+        }
+
+        let age = Date().timeIntervalSince(created)
+        return age >= -300 && age <= 24 * 60 * 60
     }
 
     private static func loadCachedUser() -> UserSummary? {
@@ -337,6 +394,14 @@ struct RootView: View {
             } else if session.user == nil {
                 NavigationView { LoginView() }
                     .navigationViewStyle(.stack)
+            } else if session.needsInterestOnboarding {
+                NavigationView {
+                    InterestPreferencesView(
+                        isOnboarding: true,
+                        onComplete: { session.completeInterestOnboarding() }
+                    )
+                }
+                .navigationViewStyle(.stack)
             } else {
                 MainTabView()
             }
