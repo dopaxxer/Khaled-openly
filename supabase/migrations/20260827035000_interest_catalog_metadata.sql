@@ -63,7 +63,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $search$
   with query as (
     select private.normalize_interest_text(p_query) as q,
       case when p_kind in ('book', 'movie', 'topic') then p_kind else null end as k
@@ -98,7 +98,7 @@ as $
     '[]'::jsonb
   )
   from ranked;
-$;
+$search$;
 
 create or replace function private.add_catalog_interest(
   p_kind text,
