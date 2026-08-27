@@ -526,9 +526,10 @@ struct PostCard: View {
         }
 
         likeInFlight = false
-        if succeeded && !bookmarkInFlight {
-            await loadEngagement()
-        }
+        // The server already acknowledged this optimistic state. Avoid an
+        // immediate read-back request; the broker will refresh naturally when
+        // this post is requested again.
+        _ = succeeded
     }
 
     @MainActor
@@ -570,9 +571,9 @@ struct PostCard: View {
         }
 
         bookmarkInFlight = false
-        if succeeded && !likeInFlight {
-            await loadEngagement()
-        }
+        // Keep the locally confirmed state instead of adding a second network
+        // round trip after every save/unsave tap.
+        _ = succeeded
     }
 }
 
