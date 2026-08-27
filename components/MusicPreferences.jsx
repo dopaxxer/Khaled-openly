@@ -96,7 +96,7 @@ export function MusicPreferences() {
 
   useEffect(() => {
     const term = trackQuery.trim()
-    if (!term) {
+    if (term.length < 2) {
       setTrackResults([])
       setTrackSearching(false)
       return
