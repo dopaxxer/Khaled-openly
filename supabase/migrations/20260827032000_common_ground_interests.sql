@@ -529,21 +529,21 @@ grant execute on function private.get_interest_profile() to authenticated;
 grant execute on function private.search_interests(text, text, integer) to authenticated;
 grant execute on function private.add_interest(text, text, text) to authenticated;
 grant execute on function private.set_interest_profile(boolean, boolean, uuid[]) to authenticated;
-grant execute on function private.get_public_interest_profile(text) to authenticated;
+grant execute on function private.get_public_interest_profile(text) to anon, authenticated;
 grant execute on function private.discover_interest_people(text, integer, integer) to authenticated;
 
 revoke execute on function public.get_interest_profile() from public, anon;
 revoke execute on function public.search_interests(text, text, integer) from public, anon;
 revoke execute on function public.add_interest(text, text, text) from public, anon;
 revoke execute on function public.set_interest_profile(boolean, boolean, uuid[]) from public, anon;
-revoke execute on function public.get_public_interest_profile(text) from public, anon;
+revoke execute on function public.get_public_interest_profile(text) from public;
 revoke execute on function public.discover_interest_people(text, integer, integer) from public, anon;
 
 grant execute on function public.get_interest_profile() to authenticated;
 grant execute on function public.search_interests(text, text, integer) to authenticated;
 grant execute on function public.add_interest(text, text, text) to authenticated;
 grant execute on function public.set_interest_profile(boolean, boolean, uuid[]) to authenticated;
-grant execute on function public.get_public_interest_profile(text) to authenticated;
+grant execute on function public.get_public_interest_profile(text) to anon, authenticated;
 grant execute on function public.discover_interest_people(text, integer, integer) to authenticated;
 
 commit;
