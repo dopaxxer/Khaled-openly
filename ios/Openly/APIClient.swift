@@ -177,7 +177,8 @@ final class APIClient {
         configuration.requestCachePolicy = .useProtocolCachePolicy
         configuration.urlCache = URLCache(
             memoryCapacity: 16 * 1024 * 1024,
-            diskCapacity: 64 * 1024 * 1024
+            diskCapacity: 64 * 1024 * 1024,
+            diskPath: "openly-api"
         )
         configuration.timeoutIntervalForRequest = 20
         configuration.timeoutIntervalForResource = 45
