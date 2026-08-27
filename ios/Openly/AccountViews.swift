@@ -298,6 +298,11 @@ struct AccountView: View {
                             }
                             .buttonStyle(.plain)
 
+                            NavigationLink(destination: SettingsView()) {
+                                AccountMenuRow(icon: "paintpalette", title: "الثيمات")
+                            }
+                            .buttonStyle(.plain)
+
                             NavigationLink(destination: InterestPreferencesView()) {
                                 AccountMenuRow(icon: "sparkles", title: "اهتماماتي")
                             }
