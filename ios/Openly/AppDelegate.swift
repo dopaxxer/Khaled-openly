@@ -219,8 +219,8 @@ struct MainTabView: View {
                 .badge(unreadCount)
                 .tag(2)
 
-            MutualMusicView()
-                .tabItem { Label("موسيقى", systemImage: "music.note") }
+            InterestDiscoveryView()
+                .tabItem { Label("اكتشف", systemImage: selection == 3 ? "safari.fill" : "safari") }
                 .tag(3)
 
             AccountView()
