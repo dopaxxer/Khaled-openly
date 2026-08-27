@@ -12,6 +12,10 @@ const nav = [
   { href: '/me', label: 'حسابي', icon: CircleUserRound }
 ]
 
+// Writing stays available from the compose affordance, but the mobile tab bar
+// is reserved for destinations rather than actions.
+const mobileNav = nav.filter(item => item.href !== '/write')
+
 function Brand() {
   return <Link href="/" className="brand" aria-label="open — الرئيسية" dir="ltr">
     <span className="brand-mark" aria-hidden="true">O</span>
@@ -84,7 +88,7 @@ export function AppShell({ children }) {
     <main className="content-column"><div key={pathname} className="route-stage">{children}</div></main>
 
     <nav className="mobile-nav" aria-label="التنقل الرئيسي">
-      {nav.map(({ href, label, icon: Icon }) => {
+      {mobileNav.map(({ href, label, icon: Icon }) => {
         const isActive = active(href)
         return <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
           <Icon size={20} strokeWidth={isActive ? 2.1 : 1.75} aria-hidden="true"/>
