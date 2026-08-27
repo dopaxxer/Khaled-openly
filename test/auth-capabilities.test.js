@@ -24,4 +24,5 @@ test('maps Supabase public auth settings and email delivery mode', () => {
   })
 
   assert.equal(mapAuthCapabilities(settings, 'otp').emailOtp, true)
+  assert.equal(mapAuthCapabilities(settings).emailOtp, true)
 })
