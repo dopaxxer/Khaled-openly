@@ -213,6 +213,104 @@ struct MusicDiscoveryResponse: Codable {
     let hasMore: Bool
 }
 
+enum InterestKind: String, Codable, CaseIterable, Identifiable {
+    case topic
+    case book
+    case movie
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .topic: return "مواضيع"
+        case .book: return "كتب"
+        case .movie: return "أفلام"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .topic: return "bubble.left.and.bubble.right"
+        case .book: return "book"
+        case .movie: return "film"
+        }
+    }
+}
+
+struct InterestItem: Codable, Identifiable, Hashable {
+    let id: String
+    let source: String?
+    let kind: String
+    let label: String
+    let subtitle: String?
+    let provider: String?
+    let externalId: String?
+    let artworkUrl: String?
+    let releaseYear: Int?
+    let externalUrl: String?
+    let popularity: Int?
+    let position: Int?
+
+    var interestKind: InterestKind? { InterestKind(rawValue: kind) }
+    var isCatalogResult: Bool { source == "catalog" }
+}
+
+struct InterestProfile: Codable, Hashable {
+    let discoveryOptIn: Bool
+    let preferencesPublic: Bool
+    let items: [InterestItem]
+
+    static let empty = InterestProfile(
+        discoveryOptIn: false,
+        preferencesPublic: false,
+        items: []
+    )
+}
+
+struct PublicInterestProfile: Codable, Hashable {
+    let publicCode: String
+    let identityColor: String?
+    let items: [InterestItem]
+}
+
+struct InterestMatch: Codable, Identifiable, Hashable {
+    var id: String { publicCode }
+    let publicCode: String
+    let identityColor: String?
+    let compatibility: Int
+    let sharedBookCount: Int
+    let sharedMovieCount: Int
+    let sharedTopicCount: Int
+    let sharedItems: [InterestItem]
+    let musicCompatibility: Int
+}
+
+struct InterestSearchResponse: Codable {
+    let items: [InterestItem]
+    let catalog: String?
+    let catalogUnavailable: Bool?
+}
+
+struct InterestItemResponse: Codable {
+    let item: InterestItem
+}
+
+struct InterestProfileResponse: Codable {
+    let profile: InterestProfile?
+}
+
+struct PublicInterestProfileResponse: Codable {
+    let profile: PublicInterestProfile?
+}
+
+struct InterestDiscoveryResponse: Codable {
+    let items: [InterestMatch]
+    let total: Int
+    let limit: Int
+    let offset: Int
+    let hasMore: Bool
+}
+
 struct Engagement: Codable, Identifiable, Hashable {
     var id: String { postId }
     let postId: String
