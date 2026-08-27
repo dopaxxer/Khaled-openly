@@ -669,7 +669,7 @@ struct LoginView: View {
                 Text("لن نعرض أزرارًا لا تعمل. يمكنك استخدام تسجيل الدخول بالبريد على الموقع، وستظهر الطرق الأصلية هنا تلقائيًا عند تفعيلها.")
                     .font(.system(size: 14))
                     .foregroundColor(OpenlyTheme.muted)
-                Link("فتح openly.ink", destination: URL(string: "https://www.openly.ink/login")!)
+                Link("فتح Openly على الويب", destination: OpenlyAPIConfiguration.bundledSiteURL.appendingPathComponent("login"))
                     .font(.system(size: 15, weight: .semibold))
             }
             .padding(18)
@@ -813,7 +813,7 @@ struct LoginView: View {
             maskedTarget = response.target
             resendSeconds = response.cooldownSeconds
             if response.delivery == "link" {
-                inlineError = "تسجيل البريد داخل التطبيق يحتاج OTP. استخدم openly.ink مؤقتًا."
+                inlineError = "تسجيل البريد داخل التطبيق يحتاج OTP. استخدم نسخة الويب مؤقتًا."
                 step = "entry"
             } else {
                 step = "otp"
