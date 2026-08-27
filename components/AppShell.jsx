@@ -8,7 +8,7 @@ const nav = [
   { href: '/', label: 'الرئيسية', icon: House },
   { href: '/search', label: 'بحث', icon: Search },
   { href: '/write', label: 'اكتب', icon: SquarePen },
-  { href: '/discover/music', label: 'موسيقى', icon: Compass },
+  { href: '/discover', label: 'اكتشف', icon: Compass },
   { href: '/me', label: 'حسابي', icon: CircleUserRound }
 ]
 

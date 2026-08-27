@@ -7,6 +7,9 @@ const uuid = '123e4567-e89b-42d3-a456-426614174000'
 
 test('the catch-all accepts only known application routes', () => {
   assert.equal(classifyAppRoute(['login']).kind, 'private')
+  assert.equal(classifyAppRoute(['discover']).kind, 'private')
+  assert.equal(classifyAppRoute(['interests']).kind, 'private')
+  assert.equal(classifyAppRoute(['onboarding', 'interests']).kind, 'private')
   assert.equal(classifyAppRoute(['discover', 'music']).kind, 'private')
   assert.equal(classifyAppRoute(['anything', 'else']), null)
   assert.equal(classifyAppRoute(['robots.txt']), null)
