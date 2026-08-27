@@ -28,6 +28,7 @@ import { MusicDiscovery } from './MusicDiscovery'
 import { MusicPreferences } from './MusicPreferences'
 import { PostCard } from './PostCard'
 import { PublicMusicProfile } from './PublicMusicProfile'
+import { InterestDiscovery, InterestPreferences, PublicInterestProfile } from './InterestDiscovery'
 import { ThemeControl } from './Settings'
 import { Timeline } from './Timeline'
 import {
@@ -84,6 +85,9 @@ export function ScreenRouter({ slug }) {
   if (key === 'write') return <Composer />
   if (key === 'first-post') return <Composer firstPost />
   if (key === 'search') return <SearchScreen />
+  if (key === 'discover') return <InterestDiscovery />
+  if (key === 'interests') return <InterestPreferences />
+  if (key === 'onboarding/interests') return <InterestPreferences onboarding />
   if (key === 'me') return <MeScreen />
   if (key === 'settings') return <SettingsScreen />
   if (key === 'notifications') return <NotificationsScreen />
@@ -126,7 +130,7 @@ function AuthScreen({ mode }) {
         setConfirm(true)
         return
       }
-      router.push(login ? '/' : '/first-post')
+      router.push(login ? '/' : '/onboarding/interests')
       router.refresh()
     } catch (e) {
       setError(e.message)
@@ -184,7 +188,7 @@ function SignupCodeScreen({ email }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'الكود غير صحيح')
-      router.push('/first-post')
+      router.push('/onboarding/interests')
       router.refresh()
     } catch (e) {
       setError(e.message)
@@ -466,8 +470,9 @@ function MeScreen() {
         <Link href={`/u/${user.publicCode}`} className="secondary-button">صفحة كتاباتي</Link>
         <Link href="/settings" className="secondary-button"><Settings size={15} />الإعدادات</Link>
         <Link href="/bookmarks" className="secondary-button"><Bookmark size={15} />المحفوظات</Link>
+        <Link href="/interests" className="secondary-button"><Sparkles size={15} />اهتماماتي</Link>
+        <Link href="/discover" className="secondary-button"><Compass size={15} />اكتشف</Link>
         <Link href="/music" className="secondary-button"><Music size={15} />ذوقي الموسيقي</Link>
-        <Link href="/discover/music" className="secondary-button"><Compass size={15} />اكتشاف بالموسيقى</Link>
         <Link href="/privacy" className="secondary-button">الخصوصية</Link>
         <button onClick={logout} className="danger-button">تسجيل الخروج</button>
       </div>
@@ -635,19 +640,22 @@ function UserScreen({ code }) {
   const [user, setUser] = useState(undefined)
   const [posts, setPosts] = useState([])
   const [music, setMusic] = useState(null)
+  const [interests, setInterests] = useState(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
     (async () => {
-      const [u, p, m] = await Promise.all([
+      const [u, p, m, i] = await Promise.all([
         fetch(`/api/users/${encodeURIComponent(code)}`, { cache: 'no-store' }),
         fetch(`/api/posts?author=${encodeURIComponent(code)}`, { cache: 'no-store' }),
-        fetch(`/api/v1/users/${encodeURIComponent(code)}/music`, { cache: 'no-store' })
+        fetch(`/api/v1/users/${encodeURIComponent(code)}/music`, { cache: 'no-store' }),
+        fetch(`/api/v1/users/${encodeURIComponent(code)}/interests`, { cache: 'no-store' })
       ])
       setUser(u.ok ? (await u.json()).user : null)
       if (p.ok) setPosts((await p.json()).items || [])
       setMusic(m.ok ? (await m.json()).profile : null)
+      setInterests(i.ok ? (await i.json()).profile : null)
     })()
   }, [code])
 
@@ -691,6 +699,7 @@ function UserScreen({ code }) {
       </div>}
       {error && <p className="status-message error mt16">{error}</p>}
     </section>
+    <PublicInterestProfile profile={interests} />
     <PublicMusicProfile music={music} />
     <div className="section-title">الكتابات</div>
     {posts.length
