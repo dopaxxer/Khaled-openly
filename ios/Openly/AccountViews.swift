@@ -293,6 +293,11 @@ struct AccountView: View {
                             }
                             .buttonStyle(.plain)
 
+                            NavigationLink(destination: InterestPreferencesView()) {
+                                AccountMenuRow(icon: "sparkles", title: "اهتماماتي")
+                            }
+                            .buttonStyle(.plain)
+
                             NavigationLink(destination: MusicPreferencesView()) {
                                 AccountMenuRow(icon: "music.note", title: "ذوقي الموسيقي")
                             }
@@ -741,6 +746,7 @@ struct UserProfileView: View {
     let code: String
     @State private var user: UserSummary?
     @State private var posts: [Post] = []
+    @State private var interests: PublicInterestProfile?
     @State private var music: PublicMusicProfile?
     @State private var isLoading = true
 
@@ -790,6 +796,10 @@ struct UserProfileView: View {
                     .padding(.vertical, 28)
                     .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
 
+                    if let interests {
+                        NativePublicInterestSection(profile: interests)
+                    }
+
                     if let music {
                         NativePublicMusicSection(music: music)
                     }
@@ -819,10 +829,12 @@ struct UserProfileView: View {
         do {
             async let profile = session.api.user(code: code)
             async let feed = session.api.feed(author: code)
+            async let commonGround = session.api.publicInterestProfile(code: code)
             async let taste = session.api.publicMusicProfile(code: code)
             user = try await profile
             let feedResult = try await feed
             posts = feedResult.items
+            interests = (try? await commonGround) ?? nil
             music = (try? await taste) ?? nil
         } catch { session.alertMessage = error.localizedDescription }
         isLoading = false
