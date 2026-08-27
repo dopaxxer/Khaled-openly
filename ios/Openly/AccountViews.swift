@@ -714,11 +714,11 @@ struct LoginView: View {
             .replacingOccurrences(of: ".", with: "")
         if countryCode.isEmpty {
             if compact.hasPrefix("+") {
-                return "+" + compact.dropFirst().filter(\.isNumber)
+                return "+" + String(compact.dropFirst().filter(\.isNumber))
             }
             return String(compact.filter(\.isNumber))
         }
-        return countryCode + compact.filter(\.isNumber)
+        return countryCode + String(compact.filter(\.isNumber))
     }
 
     @MainActor
