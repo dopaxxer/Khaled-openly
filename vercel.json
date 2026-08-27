@@ -3,13 +3,15 @@
   "env": {
     "NEXT_PUBLIC_SITE_URL": "https://openly.ink",
     "NEXT_PUBLIC_SUPABASE_URL": "https://egwhybfcnlzijomgeebj.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pZN6kVnQGZK3QwNdVmG7Ww_vqYqvO_X"
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pZN6kVnQGZK3QwNdVmG7Ww_vqYqvO_X",
+    "AUTH_EMAIL_MODE": "otp"
   },
   "build": {
     "env": {
       "NEXT_PUBLIC_SITE_URL": "https://openly.ink",
       "NEXT_PUBLIC_SUPABASE_URL": "https://egwhybfcnlzijomgeebj.supabase.co",
-      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pZN6kVnQGZK3QwNdVmG7Ww_vqYqvO_X"
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pZN6kVnQGZK3QwNdVmG7Ww_vqYqvO_X",
+      "AUTH_EMAIL_MODE": "otp"
     }
   }
 }
