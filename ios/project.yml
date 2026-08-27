@@ -11,7 +11,7 @@ settings:
   base:
     SWIFT_VERSION: 5.0
     MARKETING_VERSION: 1.0.0
-    CURRENT_PROJECT_VERSION: "8"
+    CURRENT_PROJECT_VERSION: "9"
     DEVELOPMENT_LANGUAGE: ar
 targets:
   Openly:
@@ -29,7 +29,7 @@ targets:
     info:
       path: Openly/Info.plist
       properties:
-        CFBundleDisplayName: open
+        CFBundleDisplayName: Openly
         CFBundleShortVersionString: 1.0.0
         CFBundleVersion: "8"
         CFBundleLocalizations:
@@ -39,6 +39,7 @@ targets:
         UIApplicationSupportsIndirectInputEvents: true
         UILaunchStoryboardName: LaunchScreen
         UIRequiresFullScreen: true
+        OpenlyAPIBaseURL: "$(OPENLY_API_BASE_URL)"
         GIDClientID: "$(GOOGLE_IOS_CLIENT_ID)"
         GIDServerClientID: "$(GOOGLE_WEB_CLIENT_ID)"
         CFBundleURLTypes:
@@ -56,6 +57,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ink.openly.app
         PRODUCT_NAME: Openly
+        OPENLY_API_BASE_URL: "https://openly.nootjetzt.workers.dev/api/"
         MARKETING_VERSION: 1.0.0
         CURRENT_PROJECT_VERSION: "8"
         GOOGLE_WEB_CLIENT_ID: "536812654632-elrmj9nv1aqte2r3en6ihfjn5al358rc.apps.googleusercontent.com"
