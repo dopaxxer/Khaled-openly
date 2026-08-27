@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { AUTH_RESEND_COOLDOWN_SECONDS, describeAuthError, diagnosticPayload, isValidE164, maskAuthTarget, normalizeE164 } from '@/lib/authFlow'
 import { isValidEmail, normalizeEmail, readJson } from '@/lib/validation'
+import { getPublicOrigin } from '@/lib/publicOrigin'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,9 +22,11 @@ export async function POST(request) {
     const email = normalizeEmail(parsed.data.email)
     if (!isValidEmail(email)) return json({ error: 'أدخل بريدًا إلكترونيًا صحيحًا' }, 400)
 
+    const emailMode = process.env.AUTH_EMAIL_MODE === 'link' ? 'link' : 'otp'
+    const emailRedirectTo = new URL('/api/auth/callback?next=/onboarding/interests', getPublicOrigin(request)).toString()
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true }
+      options: { shouldCreateUser: true, emailRedirectTo }
     })
     if (error) {
       const safe = describeAuthError(error, 'request')
@@ -35,6 +38,7 @@ export async function POST(request) {
       ok: true,
       method,
       target: maskAuthTarget(method, email),
+      delivery: emailMode,
       cooldownSeconds: AUTH_RESEND_COOLDOWN_SECONDS
     })
   }
