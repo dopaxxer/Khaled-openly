@@ -218,6 +218,7 @@ function AuthScreen() {
       const data = await authRequest('/api/auth/otp/verify', method === 'email'
         ? { method, email: verificationValue, token: code }
         : { method, phone: verificationValue, token: code })
+      window.dispatchEvent(new Event('openly:auth-changed'))
       router.push(data.next || '/onboarding/interests')
       router.refresh()
     } catch (verifyError) {
@@ -557,7 +558,8 @@ function MeScreen() {
   }, [])
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    const response = await fetch('/api/auth/logout', { method: 'POST' })
+    if (response.ok) window.dispatchEvent(new Event('openly:auth-changed'))
     router.push('/')
     router.refresh()
   }
