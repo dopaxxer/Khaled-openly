@@ -62,8 +62,6 @@ targets:
         DEVELOPMENT_TEAM: ""
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
-        GOOGLE_IOS_CLIENT_ID: "$(GOOGLE_IOS_CLIENT_ID)"
-        GOOGLE_REVERSED_CLIENT_ID: "$(GOOGLE_REVERSED_CLIENT_ID)"
     # Attaches the unit tests to the Openly scheme so `xcodebuild test` picks
     # them up. Test targets are only built for the test action, so the release
     # and IPA builds are unaffected.
