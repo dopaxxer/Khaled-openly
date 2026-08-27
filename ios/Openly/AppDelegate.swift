@@ -1,4 +1,5 @@
 import SwiftUI
+import GoogleSignIn
 
 @main
 struct OpenlyApp: App {
@@ -22,6 +23,9 @@ struct OpenlyApp: App {
                 .environment(\.layoutDirection, selectedLanguage.layoutDirection)
                 .tint(OpenlyTheme.accent)
                 .preferredColorScheme(selectedAppearance.colorScheme)
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }
@@ -99,6 +103,13 @@ final class AppSession: ObservableObject {
     let api = APIClient.shared
 
     init() {
+        NotificationCenter.default.addObserver(
+            forName: .openlySessionExpired,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.user = nil }
+        }
         Task { await refresh() }
     }
 
@@ -111,6 +122,21 @@ final class AppSession: ObservableObject {
         isBooting = false
     }
 
+    func requestOTP(method: String, email: String? = nil, phone: String? = nil) async throws -> OTPRequestResponse {
+        try await api.requestOTP(method: method, email: email, phone: phone)
+    }
+
+    func verifyOTP(method: String, target: String, token: String) async throws {
+        try await api.verifyOTP(method: method, target: target, token: token)
+        await refresh()
+    }
+
+    func signInWithNativeToken(provider: String, idToken: String, accessToken: String? = nil, nonce: String? = nil) async throws {
+        try await api.signInWithNativeToken(provider: provider, idToken: idToken, accessToken: accessToken, nonce: nonce)
+        await refresh()
+    }
+
+    // Kept for backwards compatibility with already-issued password accounts.
     func login(email: String, password: String) async throws {
         try await api.login(email: email, password: password)
         await refresh()
@@ -165,6 +191,7 @@ enum OpenlyTheme {
 
 struct RootView: View {
     @EnvironmentObject private var session: AppSession
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -178,9 +205,16 @@ struct RootView: View {
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(OpenlyTheme.muted)
                 }
+            } else if session.user == nil {
+                NavigationView { LoginView() }
+                    .navigationViewStyle(.stack)
             } else {
                 MainTabView()
             }
+        }
+        .onChange(of: scenePhase) { phase in
+            guard phase == .active, !session.isBooting else { return }
+            Task { await session.refresh() }
         }
         .alert(
             "Openly",
