@@ -53,6 +53,53 @@ as $$
   );
 $$;
 
+create or replace function private.search_interest_items(
+  p_query text default null,
+  p_kind text default null,
+  p_limit integer default 30
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  with query as (
+    select private.normalize_interest_text(p_query) as q,
+      case when p_kind in ('book', 'movie', 'topic') then p_kind else null end as k
+  ),
+  ranked as (
+    select interest,
+      count(link.user_id)::bigint as popularity,
+      query.q
+    from public.interests interest
+    cross join query
+    left join public.user_interests link on link.interest_id = interest.id
+    where (query.k is null or interest.kind = query.k)
+      and (
+        query.q = ''
+        or interest.normalized_label like '%' || query.q || '%'
+        or interest.normalized_subtitle like '%' || query.q || '%'
+      )
+    group by interest.id, query.q
+    order by
+      case when query.q <> '' and interest.normalized_label = query.q then 0
+           when query.q <> '' and interest.normalized_label like query.q || '%' then 1
+           else 2 end,
+      count(link.user_id) desc,
+      interest.label asc
+    limit greatest(1, least(coalesce(p_limit, 30), 50))
+  )
+  select coalesce(
+    jsonb_agg(
+      private.interest_json(ranked.interest)
+      || jsonb_build_object('source', 'saved', 'popularity', ranked.popularity)
+    ),
+    '[]'::jsonb
+  )
+  from ranked;
+$;
+
 create or replace function private.add_catalog_interest(
   p_kind text,
   p_provider text,
@@ -293,6 +340,18 @@ as $$
   from score;
 $$;
 
+create or replace function public.search_interest_items(
+  p_query text default null,
+  p_kind text default null,
+  p_limit integer default 30
+)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $ select private.search_interest_items(p_query, p_kind, p_limit); $;
+
 create or replace function public.add_catalog_interest(
   p_kind text,
   p_provider text,
@@ -316,10 +375,15 @@ as $$
 $$;
 
 revoke execute on function private.interest_json(public.interests) from public, anon, authenticated;
+revoke execute on function private.search_interest_items(text, text, integer) from public, anon, authenticated;
+grant execute on function private.search_interest_items(text, text, integer) to authenticated;
 revoke execute on function private.add_catalog_interest(text, text, text, text, text, text, integer, text)
   from public, anon, authenticated;
 grant execute on function private.add_catalog_interest(text, text, text, text, text, text, integer, text)
   to authenticated;
+
+revoke execute on function public.search_interest_items(text, text, integer) from public, anon;
+grant execute on function public.search_interest_items(text, text, integer) to authenticated;
 
 revoke execute on function public.add_catalog_interest(text, text, text, text, text, text, integer, text)
   from public, anon;
