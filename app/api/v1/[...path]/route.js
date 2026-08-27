@@ -198,11 +198,12 @@ export async function GET(request, { params }) {
   if (route === 'music/catalog' || route === 'music/tracks/search') {
     const user = await requireUser(supabase)
     if (!user) return unauthorized()
-    const limited = guard(request, 'musicSearch', user.id)
-    if (limited) return limited
 
     const query = String(url.searchParams.get('q') || '').trim().slice(0, MUSIC_CATALOG_QUERY_MAX_LENGTH)
     if (query.length < MUSIC_CATALOG_MIN_QUERY_LENGTH) return ok({ items: [], provider: MUSIC_PROVIDER_APPLE })
+
+    const limited = guard(request, 'musicCatalogSearch', user.id)
+    if (limited) return limited
     const limit = boundedInt(url.searchParams.get('limit'), MUSIC_CATALOG_RESULT_LIMIT, 1, MUSIC_CATALOG_RESULT_LIMIT)
 
     try {
