@@ -33,12 +33,14 @@ test('post and report routes require UUIDs', () => {
   assert.equal(classifyAppRoute(['report', 'user', uuid]), null)
 })
 
-test('production clients use the branded canonical origin', () => {
+test('production clients use approved Cloudflare origins', () => {
   const ios = readFileSync(new URL('../ios/Openly/APIClient.swift', import.meta.url), 'utf8')
+  const iosProject = readFileSync(new URL('../ios/project.yml', import.meta.url), 'utf8')
   const env = readFileSync(new URL('../.env.example', import.meta.url), 'utf8')
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
 
-  assert.match(ios, /https:\/\/openly\.ink\/api\//)
+  assert.match(ios, /https:\/\/openly\.nootjetzt\.workers\.dev\/api\//)
+  assert.match(iosProject, /OPENLY_API_BASE_URL: "https:\/\/openly\.nootjetzt\.workers\.dev\/api\/"/)
   assert.match(env, /^NEXT_PUBLIC_SITE_URL=https:\/\/openly\.ink$/m)
-  assert.doesNotMatch(`${ios}\n${env}\n${readme}`, /khaled-openly\.vercel\.app/)
+  assert.doesNotMatch(`${ios}\n${iosProject}\n${env}\n${readme}`, /khaled-openly\.vercel\.app/)
 })

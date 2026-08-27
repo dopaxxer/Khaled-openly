@@ -451,7 +451,7 @@ final class APIClient {
 
     func searchMusicCatalog(query: String) async throws -> [MusicCatalogTrack] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
+        guard trimmed.count >= 2 else { return [] }
         let response: MusicCatalogResponse = try await request(
             "v1/music/catalog",
             query: [URLQueryItem(name: "q", value: trimmed)]

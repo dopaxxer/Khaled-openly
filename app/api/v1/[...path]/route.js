@@ -15,6 +15,7 @@ import {
 } from '@/lib/musicNormalize'
 import {
   lookupAppleTrack,
+  MUSIC_CATALOG_MIN_QUERY_LENGTH,
   MUSIC_CATALOG_QUERY_MAX_LENGTH,
   MUSIC_CATALOG_RESULT_LIMIT,
   MUSIC_PROVIDER_APPLE,
@@ -197,17 +198,19 @@ export async function GET(request, { params }) {
   if (route === 'music/catalog' || route === 'music/tracks/search') {
     const user = await requireUser(supabase)
     if (!user) return unauthorized()
-    const limited = guard(request, 'musicSearch', user.id)
-    if (limited) return limited
 
     const query = String(url.searchParams.get('q') || '').trim().slice(0, MUSIC_CATALOG_QUERY_MAX_LENGTH)
-    if (!query) return ok({ items: [], provider: MUSIC_PROVIDER_APPLE })
+    if (query.length < MUSIC_CATALOG_MIN_QUERY_LENGTH) return ok({ items: [], provider: MUSIC_PROVIDER_APPLE })
+
+    const limited = guard(request, 'musicCatalogSearch', user.id)
+    if (limited) return limited
     const limit = boundedInt(url.searchParams.get('limit'), MUSIC_CATALOG_RESULT_LIMIT, 1, MUSIC_CATALOG_RESULT_LIMIT)
 
     try {
       const items = await withCatalogTimeout(signal => searchAppleTracks(query, limit, signal))
       return ok({ items, provider: MUSIC_PROVIDER_APPLE })
-    } catch {
+    } catch (error) {
+      logError('v1.catalog_upstream', error)
       return fail(502, 'catalog_unavailable', 'تعذر الوصول إلى كتالوج الموسيقى الآن')
     }
   }
@@ -345,7 +348,8 @@ export async function POST(request, { params }) {
     let track
     try {
       track = await withCatalogTimeout(signal => lookupAppleTrack(externalId, signal))
-    } catch {
+    } catch (error) {
+      logError('v1.catalog_lookup_upstream', error)
       return fail(502, 'catalog_unavailable', 'تعذر التحقق من الأغنية الآن')
     }
     if (!track) return fail(404, 'track_not_found', 'لم تعد الأغنية موجودة في الكتالوج')

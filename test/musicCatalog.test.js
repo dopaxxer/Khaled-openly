@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mapAppleTrack } from '../lib/musicCatalog.js'
+import { MUSIC_CATALOG_MIN_QUERY_LENGTH, mapAppleTrack, searchAppleTracks } from '../lib/musicCatalog.js'
 
 test('maps an Apple song into the provider-neutral catalog shape', () => {
   const track = mapAppleTrack({
@@ -52,4 +52,23 @@ test('drops non-https external media URLs', () => {
   assert.equal(track.artworkUrl, null)
   assert.equal(track.externalUrl, null)
   assert.equal(track.previewUrl, null)
+})
+
+
+test('does not call the upstream catalog for one-character searches', async () => {
+  assert.equal(MUSIC_CATALOG_MIN_QUERY_LENGTH, 2)
+
+  const originalFetch = globalThis.fetch
+  let called = false
+  globalThis.fetch = async () => {
+    called = true
+    throw new Error('fetch should not be called')
+  }
+
+  try {
+    assert.deepEqual(await searchAppleTracks('i'), [])
+    assert.equal(called, false)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
