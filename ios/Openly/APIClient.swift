@@ -206,6 +206,20 @@ final class APIClient {
         return response.user
     }
 
+    func updateProfile(publicCode: String, identityColor: String, status: String, bio: String) async throws -> UserSummary {
+        let response: ProfileUpdateResponse = try await request(
+            "profile",
+            method: "POST",
+            body: [
+                "publicCode": publicCode,
+                "identityColor": identityColor,
+                "status": status,
+                "bio": bio
+            ]
+        )
+        return response.user
+    }
+
     func authCapabilities() async throws -> AuthCapabilities {
         try await request("auth/capabilities")
     }

@@ -139,7 +139,7 @@ enum OpenlyAppearance: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .system: return "تلقائي"
+        case .system: return "حسب الجهاز"
         case .light: return "فاتح"
         case .dark: return "داكن"
         }
@@ -196,6 +196,16 @@ final class AppSession: ObservableObject {
             user = nil
         }
         isBooting = false
+    }
+
+    func updateProfile(publicCode: String, identityColor: String, status: String, bio: String) async throws {
+        user = try await api.updateProfile(
+            publicCode: publicCode,
+            identityColor: identityColor,
+            status: status,
+            bio: bio
+        )
+        markFeedChanged()
     }
 
     func requestOTP(method: String, email: String? = nil, phone: String? = nil) async throws -> OTPRequestResponse {
