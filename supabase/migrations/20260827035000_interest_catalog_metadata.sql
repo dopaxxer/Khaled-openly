@@ -350,7 +350,7 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $ select private.search_interest_items(p_query, p_kind, p_limit); $;
+as $search_public$ select private.search_interest_items(p_query, p_kind, p_limit); $search_public$;
 
 create or replace function public.add_catalog_interest(
   p_kind text,
