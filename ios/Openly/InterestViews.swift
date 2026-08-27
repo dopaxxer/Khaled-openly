@@ -277,7 +277,7 @@ struct InterestPreferencesView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(OpenlyTheme.ink)
                         .lineLimit(2)
-                    let detail = [item.subtitle, item.releaseYear.map(String.init)].compactMap { $0 }.joined(separator: " · ")
+                    let detail = [item.subtitle, item.releaseYear.map { String($0) }].compactMap { $0 }.joined(separator: " · ")
                     Text(detail.isEmpty ? (item.interestKind?.title ?? "اهتمام") : detail)
                         .font(.system(size: 13))
                         .foregroundColor(OpenlyTheme.muted)
@@ -668,7 +668,7 @@ struct NativePublicInterestSection: View {
                                         Text(item.label)
                                             .font(.system(size: 15, weight: .semibold))
                                             .foregroundColor(OpenlyTheme.ink)
-                                        let detail = [item.subtitle, item.releaseYear.map(String.init)].compactMap { $0 }.joined(separator: " · ")
+                                        let detail = [item.subtitle, item.releaseYear.map { String($0) }].compactMap { $0 }.joined(separator: " · ")
                                         if !detail.isEmpty {
                                             Text(detail)
                                                 .font(.system(size: 12))
