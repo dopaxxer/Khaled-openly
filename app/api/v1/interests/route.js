@@ -88,7 +88,8 @@ export async function GET(request) {
   let catalog = []
   try {
     catalog = await withCatalogTimeout(signal => searchAppleInterests(query, kind, 16, signal))
-  } catch {
+  } catch (error) {
+    logError('v1.interests.catalog_search_upstream', error)
     return ok({ items: saved, catalogUnavailable: true })
   }
 
@@ -133,7 +134,8 @@ export async function POST(request) {
     let catalogItem
     try {
       catalogItem = await withCatalogTimeout(signal => lookupAppleInterest(externalId, kind, signal))
-    } catch {
+    } catch (error) {
+      logError('v1.interests.catalog_lookup_upstream', error)
       return fail(502, 'catalog_unavailable', 'تعذر التحقق من الكتالوج الآن')
     }
     if (!catalogItem) return fail(404, 'catalog_item_missing', 'لم يعد هذا العنصر موجودًا في الكتالوج')
