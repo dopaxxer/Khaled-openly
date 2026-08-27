@@ -1,0 +1,109 @@
+name: Production Auth Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test/production-auth-smoke
+    paths:
+      - '.github/workflows/production-auth-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ORIGIN: https://www.openly.ink
+      EXPECTED_SUPABASE_REF: egwhybfcnlzijomgeebj
+      AUTH_SMOKE_EMAIL: auth-smoke@openly.ink
+
+    steps:
+      - name: Health points at canonical Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(curl --fail --silent --show-error --location "$ORIGIN/api/health")"
+          grep -q '"ok":true' <<<"$body"
+          grep -q "\"projectRef\":\"$EXPECTED_SUPABASE_REF\"" <<<"$body"
+          grep -q '"configured":true' <<<"$body"
+
+      - name: Login page exposes all auth methods
+        shell: bash
+        run: |
+          set -euo pipefail
+          html="$(curl --fail --silent --show-error --location "$ORIGIN/login")"
+          grep -q 'Continue with Apple' <<<"$html"
+          grep -q 'Continue with Google' <<<"$html"
+          grep -q 'المتابعة برقم الهاتف' <<<"$html"
+          grep -q 'لا تحتاج إلى كلمة مرور' <<<"$html"
+
+      - name: Email OTP request reaches Supabase Auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error             --output /tmp/email.json             --write-out '%{http_code}'             -H 'content-type: application/json'             --data "{\"method\":\"email\",\"email\":\"$AUTH_SMOKE_EMAIL\"}"             "$ORIGIN/api/auth/otp/request")"
+          cat /tmp/email.json
+          test "$code" = "200"
+          grep -q '"ok":true' /tmp/email.json
+          grep -q '"method":"email"' /tmp/email.json
+          if grep -q "$AUTH_SMOKE_EMAIL" /tmp/email.json; then
+            echo "Raw email leaked in response" >&2
+            exit 1
+          fi
+
+      - name: Wrong OTP is rejected safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error             --output /tmp/verify.json             --write-out '%{http_code}'             -H 'content-type: application/json'             --data "{\"method\":\"email\",\"email\":\"$AUTH_SMOKE_EMAIL\",\"token\":\"000000\"}"             "$ORIGIN/api/auth/otp/verify")"
+          cat /tmp/verify.json
+          test "$code" = "400"
+          grep -q '"error":' /tmp/verify.json
+
+      - name: Invalid phone is rejected before SMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error             --output /tmp/phone.json             --write-out '%{http_code}'             -H 'content-type: application/json'             --data '{"method":"phone","phone":"49123"}'             "$ORIGIN/api/auth/otp/request")"
+          cat /tmp/phone.json
+          test "$code" = "400"
+          grep -q '"error":' /tmp/phone.json
+
+      - name: Google provider is enabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          first_headers=/tmp/google-first.headers
+          curl --silent --show-error --dump-header "$first_headers" --output /dev/null             "$ORIGIN/api/auth/oauth/google?next=/"
+          authorize_url="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$first_headers")"
+          test -n "$authorize_url"
+          grep -q "$EXPECTED_SUPABASE_REF.supabase.co/auth/v1/authorize" <<<"$authorize_url"
+
+          second_headers=/tmp/google-second.headers
+          status="$(curl --silent --show-error --dump-header "$second_headers" --output /tmp/google.body             --write-out '%{http_code}' "$authorize_url")"
+          cat /tmp/google.body || true
+          test "$status" = "302" -o "$status" = "303" -o "$status" = "307"
+          next_url="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$second_headers")"
+          test -n "$next_url"
+          grep -Eq 'accounts\.google\.com|google\.com/.+oauth' <<<"$next_url"
+
+      - name: Apple provider is enabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          first_headers=/tmp/apple-first.headers
+          curl --silent --show-error --dump-header "$first_headers" --output /dev/null             "$ORIGIN/api/auth/oauth/apple?next=/"
+          authorize_url="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$first_headers")"
+          test -n "$authorize_url"
+          grep -q "$EXPECTED_SUPABASE_REF.supabase.co/auth/v1/authorize" <<<"$authorize_url"
+
+          second_headers=/tmp/apple-second.headers
+          status="$(curl --silent --show-error --dump-header "$second_headers" --output /tmp/apple.body             --write-out '%{http_code}' "$authorize_url")"
+          cat /tmp/apple.body || true
+          test "$status" = "302" -o "$status" = "303" -o "$status" = "307"
+          next_url="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$second_headers")"
+          test -n "$next_url"
+          grep -q 'appleid.apple.com' <<<"$next_url"
