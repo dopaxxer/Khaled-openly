@@ -644,47 +644,111 @@ struct InterestDiscoveryView: View {
 struct NativePublicInterestSection: View {
     let profile: PublicInterestProfile
 
+    private var grouped: [(InterestKind, [InterestItem])] {
+        InterestKind.allCases.compactMap { kind in
+            let values = profile.items.filter { $0.kind == kind.rawValue }
+            return values.isEmpty ? nil : (kind, values)
+        }
+    }
+
     var body: some View {
-        if !profile.items.isEmpty {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("اهتمامات")
-                    .font(.system(size: 19, weight: .bold))
-                    .foregroundColor(OpenlyTheme.ink)
+        if !grouped.isEmpty {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    Text("الاهتمامات")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(OpenlyTheme.ink)
+                    Spacer()
+                    Text("\(profile.items.count)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(OpenlyTheme.subtle)
+                }
 
-                ForEach(InterestKind.allCases) { kind in
-                    let items = profile.items.filter { $0.kind == kind.rawValue }
-                    if !items.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Label(interestTitle(kind), systemImage: kind.systemImage)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(OpenlyTheme.muted)
+                ForEach(grouped, id: \.0.id) { kind, items in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 7) {
+                            Image(systemName: kind.systemImage)
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(interestTitle(kind))
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(OpenlyTheme.muted)
 
-                            ForEach(items.prefix(6)) { item in
-                                HStack(spacing: 12) {
-                                    if kind == .book || kind == .movie {
-                                        InterestArtwork(item: item, width: 38, height: 52)
-                                    }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.label)
-                                            .font(.system(size: 15, weight: .semibold))
-                                            .foregroundColor(OpenlyTheme.ink)
-                                        let detail = [item.subtitle, item.releaseYear.map { String($0) }].compactMap { $0 }.joined(separator: " · ")
-                                        if !detail.isEmpty {
-                                            Text(detail)
-                                                .font(.system(size: 12))
-                                                .foregroundColor(OpenlyTheme.subtle)
-                                        }
+                        if kind == .topic {
+                            FlowInterestChips(items: Array(items.prefix(10)))
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: 12) {
+                                    ForEach(items.prefix(8)) { item in
+                                        InterestMediaCard(item: item)
                                     }
                                 }
+                                .padding(.vertical, 1)
                             }
+                            .environment(\.layoutDirection, .leftToRight)
                         }
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 22)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18)
+            .background(OpenlyTheme.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(OpenlyTheme.line, lineWidth: 1))
+            .padding(.horizontal, 16)
+        }
+    }
+}
+
+private struct InterestMediaCard: View {
+    let item: InterestItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            InterestArtwork(item: item, width: 72, height: 96)
+
+            Text(item.label)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(OpenlyTheme.ink)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .frame(width: 112, alignment: .leading)
+
+            if let subtitle = item.subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(OpenlyTheme.subtle)
+                    .lineLimit(1)
+                    .frame(width: 112, alignment: .leading)
+            } else if let year = item.releaseYear {
+                Text(String(year))
+                    .font(.system(size: 11))
+                    .foregroundColor(OpenlyTheme.subtle)
+            }
+        }
+        .frame(width: 112, alignment: .leading)
+        .environment(\.layoutDirection, .leftToRight)
+    }
+}
+
+private struct FlowInterestChips: View {
+    let items: [InterestItem]
+
+    var body: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 104), spacing: 8)],
+            alignment: .leading,
+            spacing: 8
+        ) {
+            ForEach(items) { item in
+                Text(item.label)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(OpenlyTheme.ink)
+                    .lineLimit(1)
+                    .padding(.horizontal, 11)
+                    .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
+                    .background(OpenlyTheme.surfaceSoft)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
     }

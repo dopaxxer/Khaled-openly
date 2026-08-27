@@ -134,12 +134,10 @@ struct FeedView: View {
             .background(OpenlyTheme.background.ignoresSafeArea())
             .navigationBarHidden(true)
             .task {
+                // Keep the feed stable while the user is reading. Background
+                // polling used to replace the whole list every 30 seconds,
+                // which could cause visible jumps and unnecessary work.
                 await load(reset: true)
-                while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 30_000_000_000)
-                    guard !Task.isCancelled, scenePhase == .active else { continue }
-                    await load(reset: true)
-                }
             }
             .onChange(of: scenePhase) { phase in
                 guard phase == .active else { return }
