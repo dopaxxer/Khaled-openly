@@ -6,6 +6,7 @@ struct OpenlyApp: App {
     @StateObject private var session = AppSession()
     @AppStorage("openly.appearance") private var appearanceRaw = OpenlyAppearance.system.rawValue
     @AppStorage("openly.language") private var languageRaw = OpenlyLanguage.arabic.rawValue
+    @AppStorage("openly.colorTheme") private var colorThemeRaw = OpenlyColorTheme.ultramarine.rawValue
 
     private var selectedAppearance: OpenlyAppearance {
         OpenlyAppearance(rawValue: appearanceRaw) ?? .system
@@ -21,7 +22,7 @@ struct OpenlyApp: App {
                 .environmentObject(session)
                 .environment(\.locale, selectedLanguage.locale)
                 .environment(\.layoutDirection, selectedLanguage.layoutDirection)
-                .tint(OpenlyTheme.accent)
+                .tint((OpenlyColorTheme(rawValue: colorThemeRaw) ?? .ultramarine).accent)
                 .preferredColorScheme(selectedAppearance.colorScheme)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
@@ -52,6 +53,81 @@ enum OpenlyLanguage: String, CaseIterable, Identifiable {
 
     var locale: Locale { Locale(identifier: rawValue) }
     var layoutDirection: LayoutDirection { self == .arabic ? .rightToLeft : .leftToRight }
+}
+
+enum OpenlyColorTheme: String, CaseIterable, Identifiable {
+    case ultramarine
+    case crimson
+    case forest
+    case amber
+    case violet
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .ultramarine: return "أزرق ملكي"
+        case .crimson: return "عنّابي"
+        case .forest: return "غابي"
+        case .amber: return "كهرماني"
+        case .violet: return "بنفسجي"
+        }
+    }
+
+    var swatch: Color {
+        switch self {
+        case .ultramarine: return Color(red: 22/255, green: 39/255, blue: 122/255)
+        case .crimson: return Color(red: 184/255, green: 36/255, blue: 76/255)
+        case .forest: return Color(red: 31/255, green: 122/255, blue: 66/255)
+        case .amber: return Color(red: 179/255, green: 118/255, blue: 15/255)
+        case .violet: return Color(red: 124/255, green: 58/255, blue: 237/255)
+        }
+    }
+
+    var accent: Color {
+        switch self {
+        case .ultramarine:
+            return adaptiveColor(light: (22, 39, 122), dark: (142, 160, 255))
+        case .crimson:
+            return adaptiveColor(light: (122, 22, 48), dark: (255, 107, 133))
+        case .forest:
+            return adaptiveColor(light: (20, 83, 45), dark: (95, 211, 147))
+        case .amber:
+            return adaptiveColor(light: (107, 61, 8), dark: (255, 184, 77))
+        case .violet:
+            return adaptiveColor(light: (76, 29, 149), dark: (183, 148, 246))
+        }
+    }
+
+    var accentStrong: Color {
+        switch self {
+        case .ultramarine:
+            return adaptiveColor(light: (22, 39, 122), dark: (166, 179, 255))
+        case .crimson:
+            return adaptiveColor(light: (184, 36, 76), dark: (255, 143, 163))
+        case .forest:
+            return adaptiveColor(light: (31, 122, 66), dark: (127, 224, 168))
+        case .amber:
+            return adaptiveColor(light: (138, 82, 16), dark: (255, 201, 120))
+        case .violet:
+            return adaptiveColor(light: (124, 58, 237), dark: (201, 167, 250))
+        }
+    }
+
+    var accentSoft: Color {
+        switch self {
+        case .ultramarine:
+            return adaptiveColor(light: (235, 238, 250), dark: (35, 39, 61))
+        case .crimson:
+            return adaptiveColor(light: (249, 235, 239), dark: (62, 29, 39))
+        case .forest:
+            return adaptiveColor(light: (234, 244, 237), dark: (25, 54, 39))
+        case .amber:
+            return adaptiveColor(light: (249, 241, 226), dark: (58, 43, 24))
+        case .violet:
+            return adaptiveColor(light: (242, 236, 252), dark: (48, 36, 70))
+        }
+    }
 }
 
 enum OpenlyAppearance: String, CaseIterable, Identifiable {
@@ -182,11 +258,18 @@ enum OpenlyTheme {
     static let ink = adaptiveColor(light: (22, 23, 26), dark: (244, 245, 250))
     static let muted = adaptiveColor(light: (92, 95, 106), dark: (156, 164, 189))
     static let subtle = adaptiveColor(light: (132, 136, 151), dark: (111, 120, 152))
-    static let accent = adaptiveColor(light: (94, 119, 238), dark: (124, 146, 247))
-    static let accentSoft = adaptiveColor(light: (132, 151, 238), dark: (67, 81, 137))
+
+    private static var selectedColorTheme: OpenlyColorTheme {
+        let raw = UserDefaults.standard.string(forKey: "openly.colorTheme")
+        return OpenlyColorTheme(rawValue: raw ?? "") ?? .ultramarine
+    }
+
+    static var accent: Color { selectedColorTheme.accent }
+    static var accentStrong: Color { selectedColorTheme.accentStrong }
+    static var accentSoft: Color { selectedColorTheme.accentSoft }
     static let accentForeground = adaptiveColor(light: (255, 255, 255), dark: (7, 10, 20))
     static let danger = adaptiveColor(light: (190, 45, 45), dark: (248, 113, 113))
-    static let card = surfaceSoft
+    static var card: Color { surfaceSoft }
 }
 
 struct RootView: View {
