@@ -162,10 +162,27 @@ function AuthScreen() {
   const [busy, setBusy] = useState(false)
   const [resendBusy, setResendBusy] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [capabilities, setCapabilities] = useState({
+    email: true,
+    emailOtp: false,
+    emailMode: 'link',
+    phone: false,
+    google: false,
+    apple: false
+  })
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('error')) setError('تعذر إكمال تسجيل الدخول الخارجي. حاول مرة أخرى.')
+
+    fetch('/api/auth/capabilities', { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : null)
+      .then(value => {
+        if (!value) return
+        setCapabilities(value)
+        if (!value.phone) setMethod('email')
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -199,9 +216,12 @@ function AuthScreen() {
         : { method, phone: value })
       setVerificationValue(value)
       setMaskedTarget(data.target || value)
-      setStep('otp')
+      const delivery = method === 'email'
+        ? (data.delivery || capabilities.emailMode || 'link')
+        : 'otp'
+      setStep(delivery === 'link' ? 'email-link' : 'otp')
       setCountdown(Number(data.cooldownSeconds || 60))
-      if (resend) setNotice('أُرسل كود جديد.')
+      if (resend) setNotice(delivery === 'link' ? 'أرسلنا رابطًا جديدًا.' : 'أُرسل كود جديد.')
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -226,6 +246,40 @@ function AuthScreen() {
     } finally {
       setBusy(false)
     }
+  }
+
+  if (step === 'email-link') {
+    return <div className="auth-wrap">
+      <div className="auth-head">
+        <div className="auth-icon"><CircleCheck size={21} /></div>
+        <h1 className="auth-title">تحقق من بريدك</h1>
+        <p className="auth-sub">أرسلنا رابط تسجيل دخول إلى {maskedTarget}. افتح الرسالة واضغط الرابط لإكمال الدخول.</p>
+      </div>
+      <div className="panel auth-form">
+        {error && <p className="status-message error" role="alert">{error}</p>}
+        {notice && <p className="status-message" style={{ color: 'var(--success)' }}>{notice}</p>}
+        <button
+          type="button"
+          className="secondary-button full"
+          onClick={event => requestCode(event, true)}
+          disabled={resendBusy || countdown > 0}
+        >
+          {resendBusy ? 'جارِ الإرسال…' : countdown > 0 ? `إعادة الإرسال بعد ${countdown}ث` : 'إعادة إرسال الرابط'}
+        </button>
+        <button
+          type="button"
+          className="center small muted"
+          style={{ background: 'none', border: 0, textDecoration: 'underline' }}
+          onClick={() => {
+            setStep('entry')
+            setError('')
+            setNotice('')
+          }}
+        >
+          تغيير البريد الإلكتروني
+        </button>
+      </div>
+    </div>
   }
 
   if (step === 'otp') {
@@ -289,14 +343,14 @@ function AuthScreen() {
     </div>
 
     <div className="panel auth-form">
-      <a className="secondary-button full" href="/api/auth/oauth/apple?next=/">
+      {capabilities.apple && <a className="secondary-button full" href="/api/auth/oauth/apple?next=/">
         <span aria-hidden="true"></span> Continue with Apple
-      </a>
-      <a className="secondary-button full" href="/api/auth/oauth/google?next=/">
+      </a>}
+      {capabilities.google && <a className="secondary-button full" href="/api/auth/oauth/google?next=/">
         <span aria-hidden="true">G</span> Continue with Google
-      </a>
+      </a>}
 
-      <div className="center small muted" aria-hidden="true">──────── أو ────────</div>
+      {(capabilities.apple || capabilities.google) && <div className="center small muted" aria-hidden="true">──────── أو ────────</div>}
 
       {method === 'email' ? <form className="stack" onSubmit={requestCode}>
         <label className="label">
@@ -314,16 +368,16 @@ function AuthScreen() {
         </label>
         {error && <p className="status-message error" role="alert">{error}</p>}
         <button className="primary-button full" disabled={busy || !email.trim()}>
-          {busy ? 'جارِ إرسال الكود…' : 'متابعة'}
+          {busy ? (capabilities.emailMode === 'otp' ? 'جارِ إرسال الكود…' : 'جارِ إرسال الرابط…') : 'متابعة'}
         </button>
-        <button
+        {capabilities.phone && <button
           type="button"
           className="center small muted"
           style={{ background: 'none', border: 0, textDecoration: 'underline' }}
           onClick={() => { setMethod('phone'); setError('') }}
         >
           المتابعة برقم الهاتف
-        </button>
+        </button>}
       </form> : <form className="stack" onSubmit={requestCode}>
         <label className="label">
           رمز الدولة
