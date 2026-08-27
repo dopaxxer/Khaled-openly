@@ -103,149 +103,261 @@ export function ScreenRouter({ slug }) {
   return <NotFound />
 }
 
-function AuthScreen({ mode }) {
-  const router = useRouter()
-  const login = mode === 'login'
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [confirm, setConfirm] = useState(false)
-  const [email, setEmail] = useState('')
+const COUNTRY_DIAL_CODES = [
+  ['ألمانيا', '+49'],
+  ['السعودية', '+966'],
+  ['اليمن', '+967'],
+  ['الإمارات', '+971'],
+  ['مصر', '+20'],
+  ['العراق', '+964'],
+  ['الأردن', '+962'],
+  ['الكويت', '+965'],
+  ['قطر', '+974'],
+  ['البحرين', '+973'],
+  ['عُمان', '+968'],
+  ['تركيا', '+90'],
+  ['المملكة المتحدة', '+44'],
+  ['فرنسا', '+33'],
+  ['إيطاليا', '+39'],
+  ['إسبانيا', '+34'],
+  ['هولندا', '+31'],
+  ['السويد', '+46'],
+  ['الولايات المتحدة / كندا', '+1'],
+  ['أخرى — أدخل + ورمز الدولة', '']
+]
 
-  async function submit(e) {
-    e.preventDefault()
-    setError('')
-    setBusy(true)
-    const fd = new FormData(e.currentTarget)
-    const enteredEmail = String(fd.get('email') || '')
-    try {
-      const res = await fetch(`/api/auth/${login ? 'login' : 'register'}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: enteredEmail, password: fd.get('password') })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'تعذر إكمال العملية')
-      if (data.requiresEmailConfirmation) {
-        setEmail(enteredEmail)
-        setConfirm(true)
-        return
-      }
-      router.push(login ? '/' : '/onboarding/interests')
-      router.refresh()
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setBusy(false)
-    }
+async function authRequest(url, body) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 15000)
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data.error || `تعذر إكمال العملية (${response.status})`)
+    return data
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('استغرق الاتصال وقتًا طويلًا. تحقق من الشبكة وحاول مجددًا.')
+    throw error
+  } finally {
+    clearTimeout(timeout)
   }
-
-  if (confirm) return <SignupCodeScreen email={email} />
-
-  return <div className="auth-wrap">
-    <div className="auth-head">
-      <div className="auth-icon">{login ? <LogIn size={21} /> : <Sparkles size={21} />}</div>
-      <h1 className="auth-title">{login ? 'مرحبًا بعودتك' : 'أنشئ هويتك'}</h1>
-      <p className="auth-sub">{login ? 'ادخل إلى هويتك وكلماتك.' : 'سنمنحك كودًا ولونًا ثابتين؛ لا اسم عرض ولا صورة شخصية.'}</p>
-    </div>
-    <form className="panel auth-form" onSubmit={submit}>
-      <label className="label">
-        البريد الإلكتروني
-        <input className="form-control" type="email" name="email" autoComplete="email" required dir="ltr" placeholder="name@example.com" />
-      </label>
-      <label className="label">
-        كلمة المرور
-        <input className="form-control" type="password" name="password" autoComplete={login ? 'current-password' : 'new-password'} minLength={login ? undefined : PASSWORD_MIN_LENGTH} maxLength={PASSWORD_MAX_LENGTH} required dir="ltr" placeholder="••••••••••••" />
-        {!login && <span className="tiny subtle">{PASSWORD_MIN_LENGTH} حرفًا على الأقل، مع حرف ورقم.</span>}
-      </label>
-      {error && <p className="status-message error">{error}</p>}
-      <button className="primary-button full" disabled={busy}>{busy ? 'جارِ التنفيذ…' : login ? 'تسجيل الدخول' : 'إنشاء الحساب'}</button>
-      {login && <Link href="/forgot-password" className="center small muted" style={{ textDecoration: 'underline' }}>نسيت كلمة المرور؟</Link>}
-    </form>
-    <p className="center muted small mt20">
-      {login ? 'ليس لديك حساب؟ ' : 'لديك حساب؟ '}
-      <Link href={login ? '/register' : '/login'} style={{ textDecoration: 'underline' }}>{login ? 'أنشئ هويتك' : 'تسجيل الدخول'}</Link>
-    </p>
-  </div>
 }
 
-function SignupCodeScreen({ email }) {
+function AuthScreen() {
   const router = useRouter()
+  const [method, setMethod] = useState('email')
+  const [step, setStep] = useState('entry')
+  const [email, setEmail] = useState('')
+  const [countryCode, setCountryCode] = useState('+49')
+  const [phone, setPhone] = useState('')
+  const [verificationValue, setVerificationValue] = useState('')
+  const [maskedTarget, setMaskedTarget] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
-  const [resent, setResent] = useState(false)
   const [resendBusy, setResendBusy] = useState(false)
+  const [countdown, setCountdown] = useState(0)
 
-  async function submit(e) {
-    e.preventDefault()
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error')) setError('تعذر إكمال تسجيل الدخول الخارجي. حاول مرة أخرى.')
+  }, [])
+
+  useEffect(() => {
+    if (countdown <= 0) return undefined
+    const timer = setInterval(() => setCountdown(value => Math.max(0, value - 1)), 1000)
+    return () => clearInterval(timer)
+  }, [countdown])
+
+  function normalizedPhone() {
+    if (!countryCode) {
+      const compact = phone.replace(/[\s().-]/g, '')
+      return compact.startsWith('+')
+        ? `+${compact.slice(1).replace(/\D/g, '')}`
+        : compact.replace(/\D/g, '')
+    }
+    return `${countryCode}${phone.replace(/\D/g, '')}`
+  }
+
+  async function requestCode(event, resend = false) {
+    event?.preventDefault()
+    if (busy || resendBusy || (resend && countdown > 0)) return
+
+    resend ? setResendBusy(true) : setBusy(true)
     setError('')
-    setBusy(true)
+    setNotice('')
+    const value = method === 'email' ? email.trim() : normalizedPhone()
+
     try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, token: code })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'الكود غير صحيح')
-      router.push('/onboarding/interests')
+      const data = await authRequest('/api/auth/otp/request', method === 'email'
+        ? { method, email: value }
+        : { method, phone: value })
+      setVerificationValue(value)
+      setMaskedTarget(data.target || value)
+      setStep('otp')
+      setCountdown(Number(data.cooldownSeconds || 60))
+      if (resend) setNotice('أُرسل كود جديد.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      resend ? setResendBusy(false) : setBusy(false)
+    }
+  }
+
+  async function verify(event) {
+    event.preventDefault()
+    if (busy || code.length !== 6) return
+    setBusy(true)
+    setError('')
+    try {
+      await authRequest('/api/auth/otp/verify', method === 'email'
+        ? { method, email: verificationValue, token: code }
+        : { method, phone: verificationValue, token: code })
+      router.push('/')
       router.refresh()
-    } catch (e) {
-      setError(e.message)
+    } catch (verifyError) {
+      setError(verifyError.message)
     } finally {
       setBusy(false)
     }
   }
 
-  async function resend() {
-    if (resendBusy) return
-    setResendBusy(true)
-    setResent(false)
-    setError('')
-    try {
-      const res = await fetch('/api/auth/resend-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      })
-      if (!res.ok) throw new Error((await res.json()).error || 'تعذر إعادة الإرسال')
-      setResent(true)
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setResendBusy(false)
-    }
+  if (step === 'otp') {
+    return <div className="auth-wrap">
+      <div className="auth-head">
+        <div className="auth-icon"><CircleCheck size={21} /></div>
+        <h1 className="auth-title">أدخل رمز التحقق</h1>
+        <p className="auth-sub">أرسلنا رمزًا من 6 أرقام إلى {maskedTarget}.</p>
+      </div>
+      <form className="panel auth-form" onSubmit={verify}>
+        <label className="label">
+          رمز التحقق
+          <input
+            className="form-control"
+            value={code}
+            onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            dir="ltr"
+            maxLength={6}
+            placeholder="000000"
+            style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.3em', textAlign: 'center', fontSize: 20 }}
+            required
+          />
+        </label>
+        {error && <p className="status-message error" role="alert">{error}</p>}
+        {notice && <p className="status-message" style={{ color: 'var(--success)' }}>{notice}</p>}
+        <button className="primary-button full" disabled={busy || code.length !== 6}>
+          {busy ? 'جارِ التحقق…' : 'تأكيد والدخول'}
+        </button>
+        <button
+          type="button"
+          className="secondary-button full"
+          onClick={event => requestCode(event, true)}
+          disabled={resendBusy || countdown > 0}
+        >
+          {resendBusy ? 'جارِ الإرسال…' : countdown > 0 ? `إعادة الإرسال بعد ${countdown}ث` : 'إعادة إرسال الكود'}
+        </button>
+        <button
+          type="button"
+          className="center small muted"
+          style={{ background: 'none', border: 0, textDecoration: 'underline' }}
+          onClick={() => {
+            setStep('entry')
+            setCode('')
+            setError('')
+            setNotice('')
+          }}
+        >
+          تغيير {method === 'email' ? 'البريد' : 'رقم الهاتف'}
+        </button>
+      </form>
+    </div>
   }
 
   return <div className="auth-wrap">
     <div className="auth-head">
-      <div className="auth-icon"><CircleCheck size={21} /></div>
-      <h1 className="auth-title">تحقق من بريدك</h1>
-      <p className="auth-sub">أرسلنا كودًا مكوّنًا من 6 أرقام إلى {email}. أدخله هنا لإكمال إنشاء حسابك.</p>
+      <div className="auth-icon"><LogIn size={21} /></div>
+      <h1 className="auth-title">Openly</h1>
+      <p className="auth-sub">دخول بسيط وآمن. لا تحتاج إلى كلمة مرور.</p>
     </div>
-    <form className="panel auth-form" onSubmit={submit}>
-      <label className="label">
-        كود التحقق
-        <input
-          className="form-control"
-          value={code}
-          onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          dir="ltr"
-          maxLength={6}
-          placeholder="000000"
-          style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.3em', textAlign: 'center', fontSize: 20 }}
-          required
-        />
-      </label>
-      {error && <p className="status-message error">{error}</p>}
-      {resent && <p className="status-message" style={{ color: 'var(--success)' }}>أُرسل كود جديد إلى بريدك.</p>}
-      <button className="primary-button full" disabled={busy || code.length !== 6}>{busy ? 'جارِ التحقق…' : 'تأكيد'}</button>
-      <button type="button" className="center small muted" style={{ textDecoration: 'underline', background: 'none', border: 0 }} onClick={resend} disabled={resendBusy}>
-        {resendBusy ? 'جارِ الإرسال…' : 'لم يصلك الكود؟ إعادة الإرسال'}
-      </button>
-    </form>
+
+    <div className="panel auth-form">
+      <a className="secondary-button full" href="/api/auth/oauth/apple?next=/">
+        <span aria-hidden="true"></span> Continue with Apple
+      </a>
+      <a className="secondary-button full" href="/api/auth/oauth/google?next=/">
+        <span aria-hidden="true">G</span> Continue with Google
+      </a>
+
+      <div className="center small muted" aria-hidden="true">──────── أو ────────</div>
+
+      {method === 'email' ? <form className="stack" onSubmit={requestCode}>
+        <label className="label">
+          البريد الإلكتروني
+          <input
+            className="form-control"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={event => setEmail(event.target.value)}
+            required
+            dir="ltr"
+            placeholder="example@email.com"
+          />
+        </label>
+        {error && <p className="status-message error" role="alert">{error}</p>}
+        <button className="primary-button full" disabled={busy || !email.trim()}>
+          {busy ? 'جارِ إرسال الكود…' : 'متابعة'}
+        </button>
+        <button
+          type="button"
+          className="center small muted"
+          style={{ background: 'none', border: 0, textDecoration: 'underline' }}
+          onClick={() => { setMethod('phone'); setError('') }}
+        >
+          المتابعة برقم الهاتف
+        </button>
+      </form> : <form className="stack" onSubmit={requestCode}>
+        <label className="label">
+          رمز الدولة
+          <select className="form-control" value={countryCode} onChange={event => setCountryCode(event.target.value)} dir="ltr">
+            {COUNTRY_DIAL_CODES.map(([label, dial]) => <option key={label} value={dial}>{dial ? `${label}  ${dial}` : label}</option>)}
+          </select>
+        </label>
+        <label className="label">
+          رقم الهاتف
+          <input
+            className="form-control"
+            type="tel"
+            autoComplete="tel"
+            value={phone}
+            onChange={event => setPhone(event.target.value)}
+            required
+            dir="ltr"
+            placeholder={countryCode ? '1234567890' : '+491234567890'}
+          />
+        </label>
+        <p className="tiny subtle">استخدم رقمًا قادرًا على استقبال SMS. الصيغة النهائية E.164.</p>
+        {error && <p className="status-message error" role="alert">{error}</p>}
+        <button className="primary-button full" disabled={busy || !phone.trim()}>
+          {busy ? 'جارِ إرسال SMS…' : 'إرسال رمز SMS'}
+        </button>
+        <button
+          type="button"
+          className="center small muted"
+          style={{ background: 'none', border: 0, textDecoration: 'underline' }}
+          onClick={() => { setMethod('email'); setError('') }}
+        >
+          العودة للبريد الإلكتروني
+        </button>
+      </form>}
+    </div>
   </div>
 }
 
