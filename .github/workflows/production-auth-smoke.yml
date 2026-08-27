@@ -19,7 +19,7 @@ jobs:
       ORIGIN: https://www.openly.ink
       SUPABASE_ORIGIN: https://egwhybfcnlzijomgeebj.supabase.co
       EXPECTED_SUPABASE_REF: egwhybfcnlzijomgeebj
-      AUTH_SMOKE_EMAIL: auth-smoke@openly.ink
+      AUTH_SMOKE_EMAIL: auth-smoke@openly.ink\n      SUPABASE_PUBLISHABLE_KEY: sb_publishable_pZN6kVnQGZK3QwNdVmG7Ww_vqYqvO_X
 
     steps:
       - name: Health points at canonical Supabase
@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error "$SUPABASE_ORIGIN/auth/v1/settings" | tee /tmp/auth-settings.json
+          curl --fail --silent --show-error -H "apikey: $SUPABASE_PUBLISHABLE_KEY" "$SUPABASE_ORIGIN/auth/v1/settings" | tee /tmp/auth-settings.json
           echo
           jq '.external' /tmp/auth-settings.json
 
