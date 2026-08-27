@@ -18,7 +18,6 @@ private func interestTitle(_ kind: InterestKind) -> String {
 /// AsyncImage. It keeps a memory + disk cache, retries transient image failures,
 /// and can fall back to the official Apple Books/TV page metadata when the
 /// catalog API did not return a direct artwork URL.
-@MainActor
 private final class InterestArtworkLoader: ObservableObject {
     @Published private(set) var image: UIImage?
 
@@ -60,7 +59,9 @@ private final class InterestArtworkLoader: ObservableObject {
             if let data = loaded.jpegData(compressionQuality: 0.9) {
                 try? data.write(to: diskURL, options: .atomic)
             }
-            self?.image = loaded
+            await MainActor.run {
+                self?.image = loaded
+            }
         }
     }
 
