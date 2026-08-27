@@ -24,3 +24,12 @@
 "composer_track_empty" = "لا توجد نتائج مطابقة.";
 "composer_track_remove" = "إزالة الأغنية المرفقة";
 "composer_track_cancel" = "إلغاء";
+
+/* Common Ground dynamic formats */
+"interest_add_topic_format" = "أضف «%@» كموضوع";
+"interest_limit_total" = "الحد الأقصى %d اهتمامًا.";
+"interest_limit_kind" = "الحد الأقصى %d من هذه الفئة.";
+"interest_suggestion_count" = "%d اقتراح";
+"interest_shared_count_format" = "%d موضوع · %d كتاب · %d فيلم";
+"interest_music_compatibility_format" = "التوافق الموسيقي %d%%";
+
