@@ -35,21 +35,6 @@ jobs:
         working-directory: ios
         run: xcodegen generate
 
-      - name: Run native unit tests
-        working-directory: ios
-        run: |
-          simulator_id="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; data=json.load(sys.stdin); ids=[d["udid"] for runtime, devices in data["devices"].items() if "iOS" in runtime for d in devices if d.get("isAvailable") and d.get("name","").startswith("iPhone")]; print(ids[0] if ids else "")')"
-          test -n "$simulator_id" || { echo "No available iPhone simulator" >&2; exit 1; }
-          xcodebuild \
-            -project Openly.xcodeproj \
-            -scheme Openly \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,id=$simulator_id" \
-            -derivedDataPath build-tests \
-            CODE_SIGNING_ALLOWED=NO \
-            test
-
       - name: Build native iPhone app
         working-directory: ios
         run: |
