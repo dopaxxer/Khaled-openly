@@ -1,4 +1,9 @@
 import SwiftUI
+import AuthenticationServices
+import Combine
+import CryptoKit
+import GoogleSignIn
+import UIKit
 
 struct SearchView: View {
     @EnvironmentObject private var session: AppSession
@@ -383,117 +388,455 @@ struct LoginRequiredView: View {
     }
 }
 
+private let authCountryDialCodes: [(String, String)] = [
+    ("ألمانيا", "+49"),
+    ("السعودية", "+966"),
+    ("اليمن", "+967"),
+    ("الإمارات", "+971"),
+    ("مصر", "+20"),
+    ("العراق", "+964"),
+    ("الأردن", "+962"),
+    ("الكويت", "+965"),
+    ("قطر", "+974"),
+    ("البحرين", "+973"),
+    ("عُمان", "+968"),
+    ("تركيا", "+90"),
+    ("المملكة المتحدة", "+44"),
+    ("فرنسا", "+33"),
+    ("إيطاليا", "+39"),
+    ("إسبانيا", "+34"),
+    ("هولندا", "+31"),
+    ("السويد", "+46"),
+    ("الولايات المتحدة / كندا", "+1"),
+    ("أخرى — أدخل الرقم كاملًا", "")
+]
+
+private func authSHA256(_ value: String) -> String {
+    SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+}
+
+@MainActor
+private func authPresentingViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    guard let window = scenes
+        .flatMap(\.windows)
+        .first(where: { $0.isKeyWindow }),
+          var controller = window.rootViewController else { return nil }
+
+    while let presented = controller.presentedViewController {
+        controller = presented
+    }
+    if let navigation = controller as? UINavigationController {
+        return navigation.visibleViewController ?? navigation
+    }
+    if let tab = controller as? UITabBarController {
+        return tab.selectedViewController ?? tab
+    }
+    return controller
+}
+
 struct LoginView: View {
     @EnvironmentObject private var session: AppSession
-    @Environment(\.dismiss) private var dismiss
+    @State private var method = "email"
+    @State private var step = "entry"
     @State private var email = ""
-    @State private var password = ""
+    @State private var countryCode = "+49"
+    @State private var phone = ""
+    @State private var verificationTarget = ""
+    @State private var maskedTarget = ""
+    @State private var token = ""
     @State private var isSubmitting = false
-    @State private var showRegister = false
-    @State private var showForgotPassword = false
+    @State private var isResending = false
+    @State private var resendSeconds = 0
+    @State private var status: String?
+    @State private var inlineError: String?
+    @State private var currentAppleNonce: String?
+
+    private let secondTicker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                BrandLockup(markSize: 34)
-                Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 21, weight: .semibold))
-                        .foregroundColor(OpenlyTheme.muted)
-                        .frame(width: 44, height: 44)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    BrandLockup(markSize: 38)
+                    Spacer()
                 }
-                .buttonStyle(.plain)
+                .padding(.bottom, 42)
+
+                if step == "otp" {
+                    otpContent
+                } else {
+                    entryContent
+                }
             }
             .padding(.horizontal, 20)
-            .frame(height: 74)
-            .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 9) {
-                        Text("مرحبًا بعودتك")
-                            .font(.system(size: 31, weight: .bold))
-                            .foregroundColor(OpenlyTheme.ink)
-                        Text("ادخل إلى هويتك وكلماتك.")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(OpenlyTheme.muted)
-                    }
-                    .padding(.top, 46)
-                    .padding(.bottom, 42)
-
-                    Text("البريد الإلكتروني")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(OpenlyTheme.ink)
-                        .padding(.bottom, 10)
-
-                    OpenlyFieldContainer {
-                        TextField("البريد الإلكتروني", text: $email)
-                            .keyboardType(.emailAddress)
-                            .textContentType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .foregroundColor(OpenlyTheme.ink)
-                            .environment(\.layoutDirection, .leftToRight)
-                    }
-                    .padding(.bottom, 26)
-
-                    Text("كلمة المرور")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(OpenlyTheme.ink)
-                        .padding(.bottom, 10)
-
-                    OpenlyFieldContainer {
-                        SecureField("كلمة المرور", text: $password)
-                            .textContentType(.password)
-                            .foregroundColor(OpenlyTheme.ink)
-                            .environment(\.layoutDirection, .leftToRight)
-                    }
-                    .padding(.bottom, 26)
-
-                    Button { Task { await login() } } label: {
-                        Group {
-                            if isSubmitting {
-                                ProgressView().tint(OpenlyTheme.accentForeground)
-                            } else {
-                                Text("تسجيل الدخول")
-                            }
-                        }
-                    }
-                    .buttonStyle(OpenlyPrimaryButtonStyle())
-                    .disabled(email.isEmpty || password.isEmpty || isSubmitting)
-                    .opacity(email.isEmpty || password.isEmpty ? 0.78 : 1)
-                    .padding(.bottom, 28)
-
-                    Button("نسيت كلمة المرور؟") { showForgotPassword = true }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(OpenlyTheme.muted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 28)
-
-                    Button("ليس لديك حساب؟ أنشئ هويتك") { showRegister = true }
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(OpenlyTheme.muted)
-                        .frame(maxWidth: .infinity)
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 50)
-            }
+            .padding(.top, 28)
+            .padding(.bottom, 50)
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
         .navigationBarHidden(true)
-        .sheet(isPresented: $showRegister) { RegisterView() }
-        .sheet(isPresented: $showForgotPassword) { ForgotPasswordView(initialEmail: email) }
+        .onReceive(secondTicker) { _ in
+            if resendSeconds > 0 { resendSeconds -= 1 }
+        }
+    }
+
+    @ViewBuilder
+    private var entryContent: some View {
+        Text("Openly")
+            .font(.system(size: 34, weight: .bold))
+            .foregroundColor(OpenlyTheme.ink)
+        Text("دخول بسيط وآمن. لا تحتاج إلى كلمة مرور.")
+            .font(.system(size: 16, weight: .medium))
+            .foregroundColor(OpenlyTheme.muted)
+            .padding(.top, 8)
+            .padding(.bottom, 30)
+
+        SignInWithAppleButton(.continue) { request in
+            let nonce = UUID().uuidString + UUID().uuidString
+            currentAppleNonce = nonce
+            request.requestedScopes = [.email]
+            request.nonce = authSHA256(nonce)
+        } onCompletion: { result in
+            handleApple(result)
+        }
+        .signInWithAppleButtonStyle(.black)
+        .frame(height: 54)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .disabled(isSubmitting)
+
+        Button {
+            Task { await signInWithGoogle() }
+        } label: {
+            HStack(spacing: 10) {
+                Text("G").font(.system(size: 18, weight: .bold))
+                Text("Continue with Google").font(.system(size: 16, weight: .semibold))
+            }
+        }
+        .buttonStyle(OpenlySecondaryButtonStyle())
+        .disabled(isSubmitting)
+        .padding(.top, 12)
+
+        HStack {
+            Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+            Text("أو")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(OpenlyTheme.muted)
+            Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+        }
+        .padding(.vertical, 26)
+
+        if method == "email" {
+            Text("البريد الإلكتروني")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(OpenlyTheme.ink)
+                .padding(.bottom, 10)
+            OpenlyFieldContainer {
+                TextField("example@email.com", text: $email)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .foregroundColor(OpenlyTheme.ink)
+                    .environment(\.layoutDirection, .leftToRight)
+            }
+
+            authMessages
+
+            Button { Task { await requestCode() } } label: {
+                if isSubmitting {
+                    ProgressView().tint(OpenlyTheme.accentForeground)
+                } else {
+                    Text("متابعة")
+                }
+            }
+            .buttonStyle(OpenlyPrimaryButtonStyle())
+            .disabled(isSubmitting || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .padding(.top, 20)
+
+            Button("المتابعة برقم الهاتف") {
+                method = "phone"
+                inlineError = nil
+                status = nil
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(OpenlyTheme.muted)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 18)
+        } else {
+            Text("رمز الدولة")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(OpenlyTheme.ink)
+                .padding(.bottom, 10)
+            OpenlyFieldContainer {
+                Picker("رمز الدولة", selection: $countryCode) {
+                    ForEach(authCountryDialCodes, id: \.0) { item in
+                        Text(item.1.isEmpty ? item.0 : "\(item.0)  \(item.1)")
+                            .tag(item.1)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Text("رقم الهاتف")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(OpenlyTheme.ink)
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+            OpenlyFieldContainer {
+                TextField(countryCode.isEmpty ? "+491234567890" : "1234567890", text: $phone)
+                    .keyboardType(.phonePad)
+                    .textContentType(.telephoneNumber)
+                    .foregroundColor(OpenlyTheme.ink)
+                    .environment(\.layoutDirection, .leftToRight)
+            }
+            Text("يُرسل الرقم إلى Supabase بصيغة E.164.")
+                .font(.system(size: 12))
+                .foregroundColor(OpenlyTheme.subtle)
+                .padding(.top, 8)
+
+            authMessages
+
+            Button { Task { await requestCode() } } label: {
+                if isSubmitting {
+                    ProgressView().tint(OpenlyTheme.accentForeground)
+                } else {
+                    Text("إرسال رمز SMS")
+                }
+            }
+            .buttonStyle(OpenlyPrimaryButtonStyle())
+            .disabled(isSubmitting || phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .padding(.top, 20)
+
+            Button("العودة للبريد الإلكتروني") {
+                method = "email"
+                inlineError = nil
+                status = nil
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(OpenlyTheme.muted)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 18)
+        }
+    }
+
+    @ViewBuilder
+    private var otpContent: some View {
+        Image(systemName: method == "phone" ? "message.badge" : "envelope.badge")
+            .font(.system(size: 42))
+            .foregroundColor(OpenlyTheme.accent)
+            .padding(.bottom, 18)
+        Text("أدخل رمز التحقق")
+            .font(.system(size: 29, weight: .bold))
+            .foregroundColor(OpenlyTheme.ink)
+        Text("أرسلنا رمزًا من 6 أرقام إلى \(maskedTarget).")
+            .font(.system(size: 15, weight: .medium))
+            .foregroundColor(OpenlyTheme.muted)
+            .padding(.top, 8)
+            .padding(.bottom, 28)
+
+        OpenlyFieldContainer {
+            TextField("000000", text: $token)
+                .keyboardType(.numberPad)
+                .textContentType(.oneTimeCode)
+                .font(.system(size: 25, weight: .semibold, design: .monospaced))
+                .multilineTextAlignment(.center)
+                .foregroundColor(OpenlyTheme.ink)
+                .environment(\.layoutDirection, .leftToRight)
+                .onChange(of: token) { value in
+                    token = String(value.filter(\.isNumber).prefix(6))
+                }
+        }
+
+        authMessages
+
+        Button { Task { await verifyCode() } } label: {
+            if isSubmitting {
+                ProgressView().tint(OpenlyTheme.accentForeground)
+            } else {
+                Text("تأكيد والدخول")
+            }
+        }
+        .buttonStyle(OpenlyPrimaryButtonStyle())
+        .disabled(isSubmitting || token.count != 6)
+        .padding(.top, 20)
+
+        Button {
+            Task { await resendCode() }
+        } label: {
+            if isResending {
+                Text("جارِ الإرسال…")
+            } else if resendSeconds > 0 {
+                Text("إعادة الإرسال بعد \(resendSeconds)ث")
+            } else {
+                Text("إعادة إرسال الكود")
+            }
+        }
+        .buttonStyle(OpenlySecondaryButtonStyle())
+        .disabled(isResending || resendSeconds > 0)
+        .padding(.top, 12)
+
+        Button(method == "phone" ? "تغيير رقم الهاتف" : "تغيير البريد الإلكتروني") {
+            step = "entry"
+            token = ""
+            inlineError = nil
+            status = nil
+        }
+        .font(.system(size: 14, weight: .medium))
+        .foregroundColor(OpenlyTheme.muted)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 18)
+    }
+
+    @ViewBuilder
+    private var authMessages: some View {
+        if let inlineError {
+            Text(inlineError)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(OpenlyTheme.danger)
+                .padding(.top, 12)
+                .accessibilityLabel("خطأ: \(inlineError)")
+        }
+        if let status {
+            Text(status)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(OpenlyTheme.muted)
+                .padding(.top, 12)
+        }
+    }
+
+    private var normalizedPhone: String {
+        let compact = phone
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: ".", with: "")
+        if countryCode.isEmpty {
+            if compact.hasPrefix("+") {
+                return "+" + String(compact.dropFirst().filter(\.isNumber))
+            }
+            return String(compact.filter(\.isNumber))
+        }
+        return countryCode + String(compact.filter(\.isNumber))
     }
 
     @MainActor
-    private func login() async {
+    private func requestCode() async {
+        guard !isSubmitting else { return }
         isSubmitting = true
+        inlineError = nil
+        status = nil
         do {
-            try await session.login(email: email, password: password)
-            dismiss()
+            let response: OTPRequestResponse
+            if method == "phone" {
+                response = try await session.requestOTP(method: "phone", phone: normalizedPhone)
+                verificationTarget = normalizedPhone
+            } else {
+                let value = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                response = try await session.requestOTP(method: "email", email: value)
+                verificationTarget = value
+            }
+            maskedTarget = response.target
+            resendSeconds = response.cooldownSeconds
+            step = "otp"
+        } catch {
+            inlineError = error.localizedDescription
         }
-        catch { session.alertMessage = error.localizedDescription }
+        isSubmitting = false
+    }
+
+    @MainActor
+    private func verifyCode() async {
+        guard !isSubmitting, token.count == 6 else { return }
+        isSubmitting = true
+        inlineError = nil
+        do {
+            try await session.verifyOTP(method: method, target: verificationTarget, token: token)
+        } catch {
+            inlineError = error.localizedDescription
+        }
+        isSubmitting = false
+    }
+
+    @MainActor
+    private func resendCode() async {
+        guard !isResending, resendSeconds == 0 else { return }
+        isResending = true
+        inlineError = nil
+        status = nil
+        do {
+            let response = method == "phone"
+                ? try await session.requestOTP(method: "phone", phone: verificationTarget)
+                : try await session.requestOTP(method: "email", email: verificationTarget)
+            maskedTarget = response.target
+            resendSeconds = response.cooldownSeconds
+            status = "أُرسل كود جديد."
+        } catch {
+            inlineError = error.localizedDescription
+        }
+        isResending = false
+    }
+
+    private func handleApple(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .failure(let error):
+            if (error as? ASAuthorizationError)?.code == .canceled { return }
+            inlineError = "تعذر إكمال تسجيل الدخول بحساب Apple."
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = credential.identityToken,
+                  let idToken = String(data: tokenData, encoding: .utf8),
+                  let nonce = currentAppleNonce else {
+                inlineError = "تعذر قراءة بيانات Apple الآمنة."
+                return
+            }
+            Task { @MainActor in
+                isSubmitting = true
+                inlineError = nil
+                do {
+                    try await session.signInWithNativeToken(provider: "apple", idToken: idToken, nonce: nonce)
+                } catch {
+                    inlineError = error.localizedDescription
+                }
+                isSubmitting = false
+            }
+        }
+    }
+
+    @MainActor
+    private func signInWithGoogle() async {
+        guard !isSubmitting else { return }
+        guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
+              !clientID.isEmpty,
+              !clientID.contains("$(") else {
+            inlineError = "Google Sign-In يحتاج Client ID في إعداد التطبيق."
+            return
+        }
+        guard let presenter = authPresentingViewController() else {
+            inlineError = "تعذر فتح نافذة Google."
+            return
+        }
+
+        isSubmitting = true
+        inlineError = nil
+        do {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenter)
+            guard let idToken = result.user.idToken?.tokenString else {
+                throw APIError.server("لم يرجع Google رمز هوية صالحًا.")
+            }
+            try await session.signInWithNativeToken(
+                provider: "google",
+                idToken: idToken,
+                accessToken: result.user.accessToken.tokenString
+            )
+        } catch {
+            let nsError = error as NSError
+            if nsError.code != -5 {
+                inlineError = error.localizedDescription
+            }
+        }
         isSubmitting = false
     }
 }
