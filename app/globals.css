@@ -1292,6 +1292,45 @@ select:focus-visible {
 }
 
 .result-list li:last-child .result-row { border-block-end: 0; }
+.interest-results { border-radius: var(--radius-3); }
+
+.interest-result-row {
+  justify-content: flex-start;
+  min-block-size: 76px;
+  padding-block: 10px;
+}
+
+.interest-artwork {
+  inline-size: 46px;
+  block-size: 64px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.interest-artwork.placeholder {
+  display: inline-grid;
+  place-items: center;
+  color: var(--subtle);
+}
+
+.interest-result-copy {
+  display: flex;
+  flex: 1;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.interest-result-copy strong,
+.interest-result-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .result-row:hover:not(:disabled) { background: var(--surface-hover); }
 .result-row:disabled { opacity: 0.55; cursor: not-allowed; }
 

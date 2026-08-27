@@ -72,7 +72,6 @@ export function InterestPreferences({ onboarding = false }) {
   const [selected, setSelected] = useState([])
   const [kind, setKind] = useState('topic')
   const [query, setQuery] = useState('')
-  const [subtitle, setSubtitle] = useState('')
   const [results, setResults] = useState([])
   const [discoveryOptIn, setDiscoveryOptIn] = useState(true)
   const [preferencesPublic, setPreferencesPublic] = useState(true)
@@ -148,7 +147,6 @@ export function InterestPreferences({ onboarding = false }) {
     setSaved(false)
     setSelected(current => [...current, item])
     setQuery('')
-    setSubtitle('')
   }
 
   function remove(id) {
@@ -156,22 +154,50 @@ export function InterestPreferences({ onboarding = false }) {
     setSelected(current => current.filter(item => item.id !== id))
   }
 
-  async function createAndAdd() {
+  async function addResult(item) {
+    if (item.source !== 'catalog') {
+      add(item)
+      return
+    }
+    if (busy) return
+    setBusy(item.id)
+    setError('')
+    try {
+      const response = await fetch('/api/v1/interests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: item.kind,
+          provider: item.provider,
+          externalId: item.externalId
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'تعذر حفظ العنصر')
+      add(data.item)
+    } catch (e) {
+      setError(e.message || 'تعذر حفظ العنصر')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  async function createAndAddTopic() {
     const label = query.trim()
-    if (!label || busy) return
+    if (!label || busy || kind !== 'topic') return
     setBusy('create')
     setError('')
     try {
       const response = await fetch('/api/v1/interests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, label, subtitle: subtitle.trim() || null })
+        body: JSON.stringify({ kind, label })
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'تعذر إضافة الاهتمام')
+      if (!response.ok) throw new Error(data.error || 'تعذر إضافة الموضوع')
       add(data.item)
     } catch (e) {
-      setError(e.message || 'تعذر إضافة الاهتمام')
+      setError(e.message || 'تعذر إضافة الموضوع')
     } finally {
       setBusy('')
     }
@@ -241,7 +267,6 @@ export function InterestPreferences({ onboarding = false }) {
       <KindTabs value={kind} onChange={next => {
         setKind(next)
         setQuery('')
-        setSubtitle('')
         setError('')
       }} />
 
@@ -256,7 +281,7 @@ export function InterestPreferences({ onboarding = false }) {
         </div>}
 
         <label className="label">
-          <span className="row" style={{ gap: 6 }}><Search size={14} />ابحث أو أضف</span>
+          <span className="row" style={{ gap: 6 }}><Search size={14} />{kind === 'topic' ? 'ابحث أو أضف' : 'ابحث في الكتالوج'}</span>
           <input
             className="form-control"
             value={query}
@@ -266,40 +291,48 @@ export function InterestPreferences({ onboarding = false }) {
           />
         </label>
 
-        {(kind === 'book' || kind === 'movie') && query.trim() && <label className="label mt12">
-          {kind === 'book' ? 'الكاتب — اختياري' : 'المخرج — اختياري'}
-          <input
-            className="form-control"
-            value={subtitle}
-            maxLength={160}
-            placeholder={kind === 'book' ? 'Albert Camus' : 'Christopher Nolan'}
-            onChange={event => setSubtitle(event.target.value)}
-          />
-        </label>}
-
-        {results.length > 0 && <ul className="result-list">
+        {results.length > 0 && <ul className="result-list interest-results">
           {results.map(item => {
             const isSelected = selected.some(current => current.id === item.id)
+            const isBusy = busy === item.id
             return <li key={item.id}>
-              <button className="result-row" type="button" disabled={isSelected} onClick={() => add(item)}>
-                <span>
+              <button
+                className="result-row interest-result-row"
+                type="button"
+                disabled={isSelected || isBusy}
+                onClick={() => addResult(item)}
+              >
+                {item.artworkUrl
+                  ? <img className="interest-artwork" src={item.artworkUrl} alt="" loading="lazy" />
+                  : <span className="interest-artwork placeholder" aria-hidden="true">
+                      {item.kind === 'book' ? <BookOpen size={18} /> : item.kind === 'movie' ? <Film size={18} /> : <MessageCircle size={18} />}
+                    </span>}
+                <span className="interest-result-copy">
                   <strong>{item.label}</strong>
-                  {item.subtitle && <span className="small muted"> · {item.subtitle}</span>}
+                  <span className="small muted">
+                    {[item.subtitle, item.releaseYear].filter(Boolean).join(' · ') || (item.kind === 'topic' ? 'موضوع' : 'من الكتالوج')}
+                  </span>
                 </span>
-                <span className="tiny subtle">{isSelected ? 'مضاف' : item.popularity > 0 ? `${item.popularity} اختيار` : 'إضافة'}</span>
+                <span className="tiny subtle">
+                  {isBusy ? '…' : isSelected ? 'مضاف' : item.popularity > 0 ? `${item.popularity} اختيار` : 'إضافة'}
+                </span>
               </button>
             </li>
           })}
         </ul>}
 
-        {query.trim() && !exactExists && <button
+        {kind === 'topic' && query.trim() && !exactExists && <button
           type="button"
           className="secondary-button mt16"
           disabled={busy === 'create'}
-          onClick={createAndAdd}
+          onClick={createAndAddTopic}
         >
-          <Plus size={15} />{busy === 'create' ? 'جارِ الإضافة…' : `أضف «${query.trim()}»`}
+          <Plus size={15} />{busy === 'create' ? 'جارِ الإضافة…' : `أضف موضوع «${query.trim()}»`}
         </button>}
+
+        {(kind === 'book' || kind === 'movie') && query.trim().length === 1 && <p className="tiny subtle mt12">
+          اكتب حرفين على الأقل لبدء البحث في الكتالوج.
+        </p>}
       </section>
 
       <section className="panel music-panel">
