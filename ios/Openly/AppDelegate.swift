@@ -178,22 +178,39 @@ final class AppSession: ObservableObject {
     @Published private(set) var feedRevision = 0
     let api = APIClient.shared
 
+    private static let cachedUserKey = "openly.cachedUser"
+
     init() {
+        if let cached = Self.loadCachedUser() {
+            user = cached
+            // A real native app should not block its whole UI on a network
+            // round trip every time it returns to the foreground.
+            isBooting = false
+        }
+
         NotificationCenter.default.addObserver(
             forName: .openlySessionExpired,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.user = nil }
+            Task { @MainActor in self?.clearUser() }
         }
         Task { await refresh() }
     }
 
     func refresh() async {
         do {
-            user = try await api.sessionUser()
+            let refreshed = try await api.sessionUser()
+            user = refreshed
+            if let refreshed {
+                Self.cacheUser(refreshed)
+            } else {
+                Self.removeCachedUser()
+            }
         } catch {
-            user = nil
+            // Do not turn a timeout or temporary server failure into a logout.
+            // A real 401 already emits .openlySessionExpired from APIClient,
+            // which clears the user and cache through the observer above.
         }
         isBooting = false
     }
@@ -230,7 +247,26 @@ final class AppSession: ObservableObject {
 
     func logout() async {
         do { try await api.logout() } catch { }
+        clearUser()
+    }
+
+    private func clearUser() {
         user = nil
+        Self.removeCachedUser()
+    }
+
+    private static func loadCachedUser() -> UserSummary? {
+        guard let data = UserDefaults.standard.data(forKey: cachedUserKey) else { return nil }
+        return try? JSONDecoder().decode(UserSummary.self, from: data)
+    }
+
+    private static func cacheUser(_ user: UserSummary) {
+        guard let data = try? JSONEncoder().encode(user) else { return }
+        UserDefaults.standard.set(data, forKey: cachedUserKey)
+    }
+
+    private static func removeCachedUser() {
+        UserDefaults.standard.removeObject(forKey: cachedUserKey)
     }
 
     func markFeedChanged() {
