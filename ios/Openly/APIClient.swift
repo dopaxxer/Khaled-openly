@@ -36,10 +36,10 @@ struct OTPRequestResponse: Decodable {
 }
 
 enum OpenlyAPIConfiguration {
-    // Keep the native app on the Cloudflare deployment while the apex domain
-    // is being moved. project.yml writes this value into Info.plist, so a
-    // future domain cut-over changes one build setting instead of Swift code.
-    static let fallbackBaseURL = URL(string: "https://openly.nootjetzt.workers.dev/api/")!
+    // The branded apex domain is the canonical Cloudflare entry point.
+    // project.yml writes the same value into Info.plist so release builds and
+    // the runtime fallback cannot drift to different API hosts.
+    static let fallbackBaseURL = URL(string: "https://openly.ink/api/")!
 
     static func baseURL(from rawValue: String?) -> URL {
         guard let rawValue else { return fallbackBaseURL }
@@ -74,7 +74,7 @@ enum OpenlyAPIConfiguration {
         components?.path = "/"
         components?.query = nil
         components?.fragment = nil
-        return components?.url ?? URL(string: "https://openly.nootjetzt.workers.dev/")!
+        return components?.url ?? URL(string: "https://openly.ink/")!
     }
 }
 
@@ -451,7 +451,7 @@ final class APIClient {
 
     func searchMusicCatalog(query: String) async throws -> [MusicCatalogTrack] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
+        guard trimmed.count >= 2 else { return [] }
         let response: MusicCatalogResponse = try await request(
             "v1/music/catalog",
             query: [URLQueryItem(name: "q", value: trimmed)]
