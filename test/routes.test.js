@@ -38,7 +38,7 @@ test('production clients use the branded canonical origin', () => {
   const env = readFileSync(new URL('../.env.example', import.meta.url), 'utf8')
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
 
-  assert.match(ios, /https:\/\/www\.openly\.ink\/api\//)
-  assert.match(env, /^NEXT_PUBLIC_SITE_URL=https:\/\/www\.openly\.ink$/m)
+  assert.match(ios, /https:\/\/openly\.ink\/api\//)
+  assert.match(env, /^NEXT_PUBLIC_SITE_URL=https:\/\/openly\.ink$/m)
   assert.doesNotMatch(`${ios}\n${env}\n${readme}`, /khaled-openly\.vercel\.app/)
 })

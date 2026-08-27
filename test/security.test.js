@@ -6,7 +6,7 @@ import { isStrongPassword, isValidEmail, parseCursor, readJson } from '../lib/va
 
 test('public origin ignores an untrusted request host', () => {
   const request = new Request('https://attacker.example/api/auth/register')
-  assert.equal(getPublicOrigin(request, { NODE_ENV: 'production' }), 'https://www.openly.ink')
+  assert.equal(getPublicOrigin(request, { NODE_ENV: 'production' }), 'https://openly.ink')
 })
 
 test('public origin uses only configured deployment origins', () => {

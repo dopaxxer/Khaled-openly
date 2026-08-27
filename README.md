@@ -1,6 +1,6 @@
 # Openly
 
-تطبيق اجتماعي نصّي يتكوّن من واجهة Next.js 16 وتطبيق SwiftUI أصلي، ويستخدم Supabase للمصادقة والبيانات. نقطة API الرسمية لتطبيق iOS هي مشروع Vercel `khaled-openly`؛ ويمكن استخدام Netlify كمعاينة مستقلة.
+تطبيق اجتماعي نصّي يتكوّن من واجهة Next.js 16 وتطبيق SwiftUI أصلي، ويستخدم Supabase للمصادقة والبيانات. الاستضافة الإنتاجية للموقع وواجهة API هي Netlify على `https://openly.ink`، ويستخدم تطبيق iOS العنوان نفسه مباشرة.
 
 ## التشغيل والتحقق
 
@@ -30,15 +30,15 @@ npm start
 - SMTP port: `465`
 - SMTP username: `resend`
 - SMTP password: مفتاح Resend السري؛ يُحفظ في لوحة Supabase فقط ولا يُضاف إلى GitHub.
-- Site URL: `https://www.openly.ink`
-- Redirect URL: `https://www.openly.ink/api/auth/callback`
+- Site URL: `https://openly.ink`
+- Redirect URL: `https://openly.ink/api/auth/callback`
 
 انسخ محتوى `supabase/email-templates/confirmation.html` إلى قالب **Confirm signup** في Supabase حتى تحتوي الرسالة على `{{ .Token }}` الذي تتوقعه شاشتا الموقع وiOS.
 
 ## النشر
 
-- Vercel: إطار العمل Next.js، أمر البناء `npm run build`، وإصدار Node.js 24.
-- Netlify: الإعدادات موجودة في `netlify.toml`، مع نفس متغيرات البيئة.
+- Netlify: الاستضافة الإنتاجية؛ الإعدادات موجودة في `netlify.toml` مع Node.js 24 ومتغيرات البيئة نفسها.
+- Vercel: يبقى متاحًا للمعاينات فقط عند الحاجة، وليس مصدر الدومين الإنتاجي.
 - Supabase: طبّق الملفات المرتبة داخل `supabase/migrations`. جميع الجداول المكشوفة تستخدم RLS، وتُقيّد الكتابة أيضًا على مستوى الأعمدة.
 - GitHub: مسار `Web quality and security` يشغّل الاختبارات والبناء و`npm audit`، ومسارا Swift يبنيان التطبيق الأصلي وIPA غير موقّع مع ملف SHA-256.
 
@@ -50,7 +50,7 @@ npm start
 
 1. نجاح اختبارات Node وبناء Next.js.
 2. نجاح بناء Swift Debug وRelease ورفع IPA.
-3. خلو سجلات Vercel من أخطاء 5xx، واجتياز فحص Supabase Security Advisor.
+3. خلو سجلات Netlify من أخطاء 5xx، واجتياز فحص Supabase Security Advisor.
 4. اختبار التسجيل، تأكيد البريد، استعادة كلمة المرور، النشر، التعليق، الحذف، الحظر والإبلاغ بحساب اختبار.
 5. توقيع IPA والتحقق من بصمته بعد التنزيل.
 

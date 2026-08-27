@@ -1,20 +1,15 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CircleUserRound, Compass, House, LogIn, Search, SquarePen } from 'lucide-react'
+import { Bell, CircleUserRound, Compass, House, LogIn, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 const nav = [
   { href: '/', label: 'الرئيسية', icon: House },
   { href: '/search', label: 'بحث', icon: Search },
-  { href: '/write', label: 'اكتب', icon: SquarePen },
   { href: '/discover', label: 'اكتشف', icon: Compass },
   { href: '/me', label: 'حسابي', icon: CircleUserRound }
 ]
-
-// Writing stays available from the compose affordance, but the mobile tab bar
-// is reserved for destinations rather than actions.
-const mobileNav = nav.filter(item => item.href !== '/write')
 
 function Brand() {
   return <Link href="/" className="brand" aria-label="open — الرئيسية" dir="ltr">
@@ -105,7 +100,7 @@ export function AppShell({ children }) {
     <main className="content-column"><div key={pathname} className="route-stage">{children}</div></main>
 
     <nav className="mobile-nav" aria-label="التنقل الرئيسي">
-      {mobileNav.map(({ href, label, icon: Icon }) => {
+      {nav.map(({ href, label, icon: Icon }) => {
         const isActive = active(href)
         return <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
           <Icon size={20} strokeWidth={isActive ? 2.1 : 1.75} aria-hidden="true"/>
