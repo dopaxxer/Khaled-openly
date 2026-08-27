@@ -72,11 +72,33 @@ jobs:
       - name: Run model, mention and music unit tests
         working-directory: ios
         run: |
+          set -euo pipefail
+
+          simulator_id="$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for runtime, devices in data.get("devices", {}).items():
+              for device in devices:
+                  if device.get("isAvailable") and device.get("udid"):
+                      print(device["udid"])
+                      raise SystemExit
+          ')"
+
+          if [ -n "$simulator_id" ]; then
+            destination="platform=iOS Simulator,id=$simulator_id"
+          else
+            # Some macos-15 runner images currently expose no installed iOS
+            # simulator runtime, while Xcode still exposes the native
+            # Apple-silicon "Designed for iPad/iPhone" destination.
+            destination='platform=macOS,arch=arm64,variant=Designed for [iPad,iPhone]'
+          fi
+
+          echo "Testing on: $destination"
           xcodebuild \
             -project Openly.xcodeproj \
             -scheme Openly \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination "$destination" \
             -derivedDataPath build-tests \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
