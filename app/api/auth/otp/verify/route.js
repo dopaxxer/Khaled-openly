@@ -40,5 +40,11 @@ export async function POST(request) {
     return json({ error: 'تم قبول الكود لكن تعذر إنشاء جلسة. أعد المحاولة.' }, 500)
   }
 
-  return json({ ok: true })
+  const createdAt = Date.parse(result.data.user.created_at || '')
+  const lastSignInAt = Date.parse(result.data.user.last_sign_in_at || '')
+  const isNewUser = Number.isFinite(createdAt)
+    && Number.isFinite(lastSignInAt)
+    && Math.abs(lastSignInAt - createdAt) <= 10 * 60 * 1000
+
+  return json({ ok: true, next: isNewUser ? '/onboarding/interests' : '/' })
 }
