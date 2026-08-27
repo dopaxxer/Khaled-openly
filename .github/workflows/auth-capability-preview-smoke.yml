@@ -1,0 +1,63 @@
+name: Auth Capability Preview Smoke
+
+on:
+  push:
+    branches:
+      - fix/auth-capability-gating
+    paths:
+      - '.github/workflows/auth-capability-preview-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ORIGIN: https://deploy-preview-44--openly-ink.netlify.app
+      AUTH_SMOKE_EMAIL: auth-smoke@openly.ink
+
+    steps:
+      - name: Capabilities fail closed to live Supabase state
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(curl --fail --silent --show-error "$ORIGIN/api/auth/capabilities")"
+          echo "$body"
+          grep -q '"email":true' <<<"$body"
+          grep -q '"emailOtp":false' <<<"$body"
+          grep -q '"emailMode":"link"' <<<"$body"
+          grep -q '"phone":false' <<<"$body"
+          grep -q '"google":false' <<<"$body"
+          grep -q '"apple":false' <<<"$body"
+
+      - name: Login does not advertise disabled methods
+        shell: bash
+        run: |
+          set -euo pipefail
+          html="$(curl --fail --silent --show-error --location "$ORIGIN/login")"
+          grep -q 'البريد الإلكتروني' <<<"$html"
+          if grep -q 'Continue with Apple' <<<"$html"; then
+            echo "Apple is disabled but still advertised" >&2
+            exit 1
+          fi
+          if grep -q 'Continue with Google' <<<"$html"; then
+            echo "Google is disabled but still advertised" >&2
+            exit 1
+          fi
+          if grep -q 'المتابعة برقم الهاتف' <<<"$html"; then
+            echo "Phone is disabled but still advertised" >&2
+            exit 1
+          fi
+
+      - name: Email request truthfully reports link delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error             --output /tmp/email.json             --write-out '%{http_code}'             -H 'content-type: application/json'             --data "{\"method\":\"email\",\"email\":\"$AUTH_SMOKE_EMAIL\"}"             "$ORIGIN/api/auth/otp/request")"
+          cat /tmp/email.json
+          test "$code" = "200"
+          grep -q '"ok":true' /tmp/email.json
+          grep -q '"delivery":"link"' /tmp/email.json
+          grep -q '"method":"email"' /tmp/email.json
