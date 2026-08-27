@@ -22,7 +22,7 @@ struct OpenlyApp: App {
                 .environmentObject(session)
                 .environment(\.locale, selectedLanguage.locale)
                 .environment(\.layoutDirection, selectedLanguage.layoutDirection)
-                .tint(OpenlyTheme.accent)
+                .tint((OpenlyColorTheme(rawValue: colorThemeRaw) ?? .ultramarine).accent)
                 .preferredColorScheme(selectedAppearance.colorScheme)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
