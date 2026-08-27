@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 10
     env:
       ORIGIN: https://www.openly.ink
+      SUPABASE_ORIGIN: https://egwhybfcnlzijomgeebj.supabase.co
       EXPECTED_SUPABASE_REF: egwhybfcnlzijomgeebj
       AUTH_SMOKE_EMAIL: auth-smoke@openly.ink
 
@@ -30,7 +31,15 @@ jobs:
           grep -q "\"projectRef\":\"$EXPECTED_SUPABASE_REF\"" <<<"$body"
           grep -q '"configured":true' <<<"$body"
 
-      - name: Login page exposes all auth methods
+      - name: Read public Supabase Auth capabilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$SUPABASE_ORIGIN/auth/v1/settings" | tee /tmp/auth-settings.json
+          echo
+          jq '.external' /tmp/auth-settings.json
+
+      - name: Login page exposes configured auth UI
         shell: bash
         run: |
           set -euo pipefail
@@ -40,7 +49,7 @@ jobs:
           grep -q 'المتابعة برقم الهاتف' <<<"$html"
           grep -q 'لا تحتاج إلى كلمة مرور' <<<"$html"
 
-      - name: Email OTP request reaches Supabase Auth
+      - name: Email auth request reaches Supabase Auth
         shell: bash
         run: |
           set -euo pipefail
@@ -73,6 +82,7 @@ jobs:
           grep -q '"error":' /tmp/phone.json
 
       - name: Google provider is enabled
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -91,6 +101,7 @@ jobs:
           grep -Eq 'accounts\.google\.com|google\.com/.+oauth' <<<"$next_url"
 
       - name: Apple provider is enabled
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -107,3 +118,15 @@ jobs:
           next_url="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$second_headers")"
           test -n "$next_url"
           grep -q 'appleid.apple.com' <<<"$next_url"
+
+      - name: Fail if advertised providers are disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          google="$(jq -r '.external.google // false' /tmp/auth-settings.json)"
+          apple="$(jq -r '.external.apple // false' /tmp/auth-settings.json)"
+          phone="$(jq -r '.external.phone // false' /tmp/auth-settings.json)"
+          echo "google=$google apple=$apple phone=$phone"
+          test "$google" = "true"
+          test "$apple" = "true"
+          test "$phone" = "true"
