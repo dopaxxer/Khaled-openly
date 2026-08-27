@@ -538,8 +538,12 @@ export async function POST(request, { params }) {
     if (!isUuid(path[1])) return json({ error: 'معرّف المنشور غير صالح' }, 400)
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const { data, error } = await supabase.rpc('set_post_like', { p_post_id: path[1], p_liked: !!body.enabled })
-    if (error || data !== true) return json({ error: 'تعذر حفظ الإعجاب' }, 400)
+    const enabled = !!body.enabled
+    const { data, error } = await supabase.rpc('set_post_like', { p_post_id: path[1], p_liked: enabled })
+    // The RPC returns the resulting state. A successful unlike therefore returns
+    // false; treating only true as success made every unlike look like a failure
+    // even though the row had already been removed.
+    if (error || data !== enabled) return json({ error: 'تعذر حفظ الإعجاب' }, 400)
     return json({ ok: true })
   }
 
@@ -547,8 +551,10 @@ export async function POST(request, { params }) {
     if (!isUuid(path[1])) return json({ error: 'معرّف المنشور غير صالح' }, 400)
     const user = await currentUser(supabase)
     if (!user) return json({ error: 'غير مسجل' }, 401)
-    const { data, error } = await supabase.rpc('set_post_bookmark', { p_post_id: path[1], p_bookmarked: !!body.enabled })
-    if (error || data !== true) return json({ error: 'تعذر حفظ المنشور' }, 400)
+    const enabled = !!body.enabled
+    const { data, error } = await supabase.rpc('set_post_bookmark', { p_post_id: path[1], p_bookmarked: enabled })
+    // As with likes, false is the valid success value when removing a bookmark.
+    if (error || data !== enabled) return json({ error: 'تعذر حفظ المنشور' }, 400)
     return json({ ok: true })
   }
 
