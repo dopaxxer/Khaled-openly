@@ -172,6 +172,66 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNil(response.profile)
     }
 
+    func testInterestCatalogAndDiscoveryResponsesDecode() throws {
+        let search = try decode(InterestSearchResponse.self, """
+        {
+          "items": [{
+            "id": "catalog:apple_movies:123",
+            "source": "catalog",
+            "kind": "movie",
+            "label": "Interstellar",
+            "subtitle": "Christopher Nolan",
+            "provider": "apple_movies",
+            "externalId": "123",
+            "artworkUrl": "https://is1-ssl.mzstatic.com/poster.jpg",
+            "releaseYear": 2014,
+            "externalUrl": "https://tv.apple.com/movie/example",
+            "popularity": 2
+          }],
+          "catalog": "apple"
+        }
+        """)
+
+        let item = try XCTUnwrap(search.items.first)
+        XCTAssertTrue(item.isCatalogResult)
+        XCTAssertEqual(item.interestKind, .movie)
+        XCTAssertEqual(item.releaseYear, 2014)
+
+        let discovery = try decode(InterestDiscoveryResponse.self, """
+        {
+          "items": [{
+            "publicCode": "BCDE",
+            "identityColor": "#2A9D8F",
+            "compatibility": 82,
+            "sharedBookCount": 1,
+            "sharedMovieCount": 1,
+            "sharedTopicCount": 2,
+            "sharedItems": [{
+              "id": "55555555-5555-4555-8555-555555555555",
+              "source": "saved",
+              "kind": "topic",
+              "label": "علم النفس",
+              "subtitle": null,
+              "provider": null,
+              "externalId": null,
+              "artworkUrl": null,
+              "releaseYear": null,
+              "externalUrl": null
+            }],
+            "musicCompatibility": 40
+          }],
+          "total": 1,
+          "limit": 20,
+          "offset": 0,
+          "hasMore": false
+        }
+        """)
+
+        XCTAssertEqual(discovery.items.first?.compatibility, 82)
+        XCTAssertEqual(discovery.items.first?.sharedTopicCount, 2)
+        XCTAssertEqual(discovery.items.first?.musicCompatibility, 40)
+    }
+
     // MARK: - Mention grammar (parity with SQL and lib/mentions.js)
 
     func testMentionParserMatchesTheSharedFixtures() {

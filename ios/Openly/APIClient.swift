@@ -468,6 +468,90 @@ final class APIClient {
         return response.profile
     }
 
+    // MARK: - Common Ground interests
+
+    func searchInterests(query: String, kind: InterestKind) async throws -> [InterestItem] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let response: InterestSearchResponse = try await request(
+            "v1/interests",
+            query: [
+                URLQueryItem(name: "q", value: trimmed),
+                URLQueryItem(name: "kind", value: kind.rawValue)
+            ]
+        )
+        return response.items
+    }
+
+    func createTopicInterest(label: String) async throws -> InterestItem {
+        let response: InterestItemResponse = try await request(
+            "v1/interests",
+            method: "POST",
+            body: [
+                "kind": InterestKind.topic.rawValue,
+                "label": label.trimmingCharacters(in: .whitespacesAndNewlines)
+            ]
+        )
+        return response.item
+    }
+
+    func persistCatalogInterest(_ item: InterestItem) async throws -> InterestItem {
+        guard let provider = item.provider, let externalId = item.externalId else {
+            throw APIError.invalidResponse
+        }
+        let response: InterestItemResponse = try await request(
+            "v1/interests",
+            method: "POST",
+            body: [
+                "kind": item.kind,
+                "provider": provider,
+                "externalId": externalId
+            ]
+        )
+        return response.item
+    }
+
+    func interestProfile() async throws -> InterestProfile {
+        let response: InterestProfileResponse = try await request("v1/interests/preferences")
+        return response.profile ?? .empty
+    }
+
+    func updateInterestProfile(
+        discoveryOptIn: Bool,
+        preferencesPublic: Bool,
+        interestIDs: [String]
+    ) async throws -> InterestProfile {
+        let response: InterestProfileResponse = try await request(
+            "v1/interests/preferences",
+            method: "PUT",
+            body: [
+                "discoveryOptIn": discoveryOptIn,
+                "preferencesPublic": preferencesPublic,
+                "interestIds": interestIDs
+            ]
+        )
+        return response.profile ?? .empty
+    }
+
+    func discoverInterestPeople(
+        kind: InterestKind? = nil,
+        limit: Int = 20,
+        offset: Int = 0
+    ) async throws -> InterestDiscoveryResponse {
+        var query = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset))
+        ]
+        if let kind {
+            query.append(URLQueryItem(name: "kind", value: kind.rawValue))
+        }
+        return try await request("v1/interests/discover", query: query)
+    }
+
+    func publicInterestProfile(code: String) async throws -> PublicInterestProfile? {
+        let response: PublicInterestProfileResponse = try await request("v1/users/\(code)/interests")
+        return response.profile
+    }
+
     func report(postID: String, reason: String, description: String) async throws {
         let _: ActionResponse = try await request(
             "reports",
