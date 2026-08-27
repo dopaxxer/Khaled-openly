@@ -18,6 +18,13 @@ private struct ErrorResponse: Decodable {
     let error: String
 }
 
+struct OTPRequestResponse: Decodable {
+    let ok: Bool
+    let method: String
+    let target: String
+    let cooldownSeconds: Int
+}
+
 private actor EngagementBroker {
     private struct Entry {
         let value: Engagement
@@ -154,8 +161,24 @@ final class APIClient {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
 
-        let (data, response) = try await session.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError {
+            switch error.code {
+            case .notConnectedToInternet, .networkConnectionLost:
+                throw APIError.server("لا يوجد اتصال بالإنترنت. تحقق من الشبكة وحاول مجددًا.")
+            case .timedOut:
+                throw APIError.server("استغرق الاتصال وقتًا طويلًا. حاول مرة أخرى.")
+            default:
+                throw APIError.server("تعذر الاتصال بالخادم. حاول مرة أخرى.")
+            }
+        }
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if http.statusCode == 401 {
+            NotificationCenter.default.post(name: .openlySessionExpired, object: nil)
+        }
         guard (200..<300).contains(http.statusCode) else {
             let message = (try? decoder.decode(ErrorResponse.self, from: data).error)
                 ?? "حدث خطأ في الخادم (\(http.statusCode))."
@@ -171,6 +194,32 @@ final class APIClient {
     func sessionUser() async throws -> UserSummary? {
         let response: SessionResponse = try await request("auth/me")
         return response.user
+    }
+
+    func requestOTP(method: String, email: String? = nil, phone: String? = nil) async throws -> OTPRequestResponse {
+        var body: [String: Any] = ["method": method]
+        if let email { body["email"] = email }
+        if let phone { body["phone"] = phone }
+        return try await request("auth/otp/request", method: "POST", body: body)
+    }
+
+    func verifyOTP(method: String, target: String, token: String) async throws {
+        var body: [String: Any] = ["method": method, "token": token]
+        if method == "phone" {
+            body["phone"] = target
+        } else {
+            body["email"] = target
+        }
+        let _: ActionResponse = try await request("auth/otp/verify", method: "POST", body: body)
+        await engagementBroker.clear()
+    }
+
+    func signInWithNativeToken(provider: String, idToken: String, accessToken: String? = nil, nonce: String? = nil) async throws {
+        var body: [String: Any] = ["provider": provider, "idToken": idToken]
+        if let accessToken { body["accessToken"] = accessToken }
+        if let nonce { body["nonce"] = nonce }
+        let _: ActionResponse = try await request("auth/native-token", method: "POST", body: body)
+        await engagementBroker.clear()
     }
 
     func login(email: String, password: String) async throws {
@@ -564,4 +613,9 @@ final class APIClient {
             ]
         )
     }
+}
+
+
+extension Notification.Name {
+    static let openlySessionExpired = Notification.Name("OpenlySessionExpired")
 }
