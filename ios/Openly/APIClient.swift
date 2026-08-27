@@ -35,6 +35,49 @@ struct OTPRequestResponse: Decodable {
     let cooldownSeconds: Int
 }
 
+enum OpenlyAPIConfiguration {
+    // Keep the native app on the Cloudflare deployment while the apex domain
+    // is being moved. project.yml writes this value into Info.plist, so a
+    // future domain cut-over changes one build setting instead of Swift code.
+    static let fallbackBaseURL = URL(string: "https://openly.nootjetzt.workers.dev/api/")!
+
+    static func baseURL(from rawValue: String?) -> URL {
+        guard let rawValue else { return fallbackBaseURL }
+        let raw = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty,
+              var components = URLComponents(string: raw),
+              components.scheme?.lowercased() == "https",
+              components.host != nil else {
+            return fallbackBaseURL
+        }
+
+        components.query = nil
+        components.fragment = nil
+
+        var path = components.path
+        if path.isEmpty || path == "/" {
+            path = "/api/"
+        } else if !path.hasSuffix("/") {
+            path += "/"
+        }
+        components.path = path
+
+        return components.url ?? fallbackBaseURL
+    }
+
+    static var bundledBaseURL: URL {
+        baseURL(from: Bundle.main.object(forInfoDictionaryKey: "OpenlyAPIBaseURL") as? String)
+    }
+
+    static var bundledSiteURL: URL {
+        var components = URLComponents(url: bundledBaseURL, resolvingAgainstBaseURL: false)
+        components?.path = "/"
+        components?.query = nil
+        components?.fragment = nil
+        return components?.url ?? URL(string: "https://openly.nootjetzt.workers.dev/")!
+    }
+}
+
 private actor EngagementBroker {
     private struct Entry {
         let value: Engagement
@@ -122,20 +165,31 @@ private actor EngagementBroker {
 final class APIClient {
     static let shared = APIClient()
 
-    private let baseURL = URL(string: "https://openly.ink/api/")!
+    private let baseURL: URL
     private let session: URLSession
     private let decoder = JSONDecoder()
     private let engagementBroker = EngagementBroker()
 
     private init() {
+        baseURL = OpenlyAPIConfiguration.bundledBaseURL
+
         let configuration = URLSessionConfiguration.default
         configuration.httpShouldSetCookies = true
         configuration.httpCookieAcceptPolicy = .always
         configuration.httpCookieStorage = .shared
-        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        configuration.urlCache = nil
-        configuration.timeoutIntervalForRequest = 30
-        configuration.timeoutIntervalForResource = 60
+
+        // Respect the server's Cache-Control headers. The authenticated API
+        // already returns private/no-store where required; forcing no-cache on
+        // every native GET only adds round trips and makes navigation feel
+        // network-bound.
+        configuration.requestCachePolicy = .useProtocolCachePolicy
+        configuration.urlCache = URLCache(
+            memoryCapacity: 16 * 1024 * 1024,
+            diskCapacity: 64 * 1024 * 1024,
+            diskPath: "openly-api"
+        )
+        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForResource = 45
         configuration.waitsForConnectivity = true
         session = URLSession(configuration: configuration)
     }
@@ -161,11 +215,9 @@ final class APIClient {
     ) async throws -> T {
         var request = URLRequest(url: try makeURL(path: path, query: query))
         request.httpMethod = method
-        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        request.cachePolicy = .useProtocolCachePolicy
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Openly-iOS/1.0", forHTTPHeaderField: "User-Agent")
-        request.setValue("no-cache, no-store", forHTTPHeaderField: "Cache-Control")
-        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)

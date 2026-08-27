@@ -14,6 +14,28 @@ final class ModelDecodingTests: XCTestCase {
         try decoder.decode(type, from: Data(json.utf8))
     }
 
+    func testAPIBaseURLNormalizesConfiguredHTTPSOrigin() {
+        XCTAssertEqual(
+            OpenlyAPIConfiguration.baseURL(from: "https://example.com/api").absoluteString,
+            "https://example.com/api/"
+        )
+        XCTAssertEqual(
+            OpenlyAPIConfiguration.baseURL(from: "https://example.com").absoluteString,
+            "https://example.com/api/"
+        )
+    }
+
+    func testAPIBaseURLRejectsUnsafeOrMalformedValues() {
+        XCTAssertEqual(
+            OpenlyAPIConfiguration.baseURL(from: "http://example.com/api/"),
+            OpenlyAPIConfiguration.fallbackBaseURL
+        )
+        XCTAssertEqual(
+            OpenlyAPIConfiguration.baseURL(from: "not a url"),
+            OpenlyAPIConfiguration.fallbackBaseURL
+        )
+    }
+
     // MARK: - Decoding
 
     func testPostDecodesWithMentions() throws {

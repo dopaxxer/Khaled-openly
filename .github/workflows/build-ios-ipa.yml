@@ -47,7 +47,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CURRENT_PROJECT_VERSION=8 \
+            CURRENT_PROJECT_VERSION=9 \
             MARKETING_VERSION=1.0.0 \
             build
 
@@ -58,8 +58,12 @@ jobs:
           plutil -lint build/Build/Products/Release-iphoneos/Openly.app/Info.plist
           bundle_identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           bundle_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
+          display_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
+          api_base_url="$(/usr/libexec/PlistBuddy -c 'Print :OpenlyAPIBaseURL' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           test "$bundle_identifier" = "ink.openly.app" || { echo "Unexpected bundle identifier: $bundle_identifier" >&2; exit 1; }
-          test "$bundle_version" = "8" || { echo "Unexpected build number: $bundle_version" >&2; exit 1; }
+          test "$bundle_version" = "9" || { echo "Unexpected build number: $bundle_version" >&2; exit 1; }
+          test "$display_name" = "Openly" || { echo "Unexpected display name: $display_name" >&2; exit 1; }
+          test "$api_base_url" = "https://openly.nootjetzt.workers.dev/api/" || { echo "Unexpected API base URL: $api_base_url" >&2; exit 1; }
           google_client_id="$(/usr/libexec/PlistBuddy -c 'Print :GIDClientID' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           google_server_client_id="$(/usr/libexec/PlistBuddy -c 'Print :GIDServerClientID' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           google_scheme="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"

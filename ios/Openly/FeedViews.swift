@@ -508,10 +508,8 @@ struct PostCard: View {
         )
         likeInFlight = true
 
-        var succeeded = false
         do {
             try await session.api.setLike(postID: post.id, enabled: next)
-            succeeded = true
         } catch {
             // Roll back only the like fields so a bookmark tapped at nearly the
             // same time keeps its own optimistic state.
@@ -526,9 +524,9 @@ struct PostCard: View {
         }
 
         likeInFlight = false
-        if succeeded && !bookmarkInFlight {
-            await loadEngagement()
-        }
+        // The server already acknowledged this optimistic state. Avoid an
+        // immediate read-back request; the broker will refresh naturally when
+        // this post is requested again.
     }
 
     @MainActor
@@ -554,10 +552,8 @@ struct PostCard: View {
         )
         bookmarkInFlight = true
 
-        var succeeded = false
         do {
             try await session.api.setBookmark(postID: post.id, enabled: next)
-            succeeded = true
         } catch {
             let latest = engagement ?? current
             engagement = Engagement(
@@ -570,9 +566,8 @@ struct PostCard: View {
         }
 
         bookmarkInFlight = false
-        if succeeded && !likeInFlight {
-            await loadEngagement()
-        }
+        // Keep the locally confirmed state instead of adding a second network
+        // round trip after every save/unsave tap.
     }
 }
 
