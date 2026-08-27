@@ -29,19 +29,36 @@ export function AppShell({ children }) {
   const [unread, setUnread] = useState(0)
 
   useEffect(() => {
-    const controller = new AbortController()
-    fetch('/api/auth/me', { cache: 'no-store', signal: controller.signal })
-      .then(r => r.ok ? r.json() : { user: null })
-      .then(async data => {
+    let controller = new AbortController()
+
+    async function syncAuthState() {
+      controller.abort()
+      controller = new AbortController()
+      try {
+        const response = await fetch('/api/auth/me', { cache: 'no-store', signal: controller.signal })
+        const data = response.ok ? await response.json() : { user: null }
         setUser(data.user || null)
-        if (data.user) {
-          const n = await fetch('/api/notifications/count', { cache: 'no-store', signal: controller.signal }).catch(() => null)
-          if (n?.ok) setUnread((await n.json()).unreadCount || 0)
-        } else setUnread(0)
-      })
-      .catch(() => setUser(null))
-    return () => controller.abort()
-  }, [pathname])
+        if (!data.user) {
+          setUnread(0)
+          return
+        }
+        const notifications = await fetch('/api/notifications/count', {
+          cache: 'no-store',
+          signal: controller.signal
+        }).catch(() => null)
+        if (notifications?.ok) setUnread((await notifications.json()).unreadCount || 0)
+      } catch (error) {
+        if (error?.name !== 'AbortError') setUser(null)
+      }
+    }
+
+    syncAuthState()
+    window.addEventListener('openly:auth-changed', syncAuthState)
+    return () => {
+      controller.abort()
+      window.removeEventListener('openly:auth-changed', syncAuthState)
+    }
+  }, [])
 
   const active = href => href === '/' ? pathname === '/' : pathname.startsWith(href)
 
