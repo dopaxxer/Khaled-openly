@@ -363,7 +363,8 @@ struct PostCard: View {
     @EnvironmentObject private var session: AppSession
     let post: Post
     @State private var engagement: Engagement?
-    @State private var isChanging = false
+    @State private var likeInFlight = false
+    @State private var bookmarkInFlight = false
     @State private var showReport = false
 
     var body: some View {
@@ -427,7 +428,7 @@ struct PostCard: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .disabled(isChanging)
+                .disabled(likeInFlight)
                 .frame(maxWidth: .infinity)
 
                 Button { Task { await toggleBookmark() } } label: {
@@ -438,7 +439,7 @@ struct PostCard: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .disabled(isChanging)
+                .disabled(bookmarkInFlight)
                 .frame(maxWidth: .infinity)
 
                 Button { showReport = true } label: {
@@ -471,31 +472,107 @@ struct PostCard: View {
 
     @MainActor
     private func loadEngagement() async {
-        engagement = try? await session.api.engagements(ids: [post.id]).first
+        do {
+            let loaded = try await session.api.engagements(ids: [post.id]).first
+            // An older request must never overwrite a tap that is already being
+            // shown optimistically on screen.
+            guard !likeInFlight && !bookmarkInFlight else { return }
+            engagement = loaded
+        } catch {
+            // Engagement is secondary feed metadata. Keep the post usable when
+            // this read fails instead of interrupting the whole timeline.
+        }
     }
 
     @MainActor
     private func toggleLike() async {
-        guard session.requireLogin() else { return }
-        let next = !(engagement?.viewerHasLiked ?? false)
-        isChanging = true
+        guard session.requireLogin(), !likeInFlight else { return }
+
+        let current = engagement ?? Engagement(
+            postId: post.id,
+            likeCount: 0,
+            viewerHasLiked: false,
+            viewerHasBookmarked: false
+        )
+        let previousLiked = current.viewerHasLiked
+        let previousCount = current.likeCount
+        let next = !previousLiked
+
+        // Native optimistic interaction: the heart and count change on the tap,
+        // not after a network round trip.
+        engagement = Engagement(
+            postId: current.postId,
+            likeCount: max(0, previousCount + (next ? 1 : -1)),
+            viewerHasLiked: next,
+            viewerHasBookmarked: current.viewerHasBookmarked
+        )
+        likeInFlight = true
+
+        var succeeded = false
         do {
             try await session.api.setLike(postID: post.id, enabled: next)
+            succeeded = true
+        } catch {
+            // Roll back only the like fields so a bookmark tapped at nearly the
+            // same time keeps its own optimistic state.
+            let latest = engagement ?? current
+            engagement = Engagement(
+                postId: latest.postId,
+                likeCount: previousCount,
+                viewerHasLiked: previousLiked,
+                viewerHasBookmarked: latest.viewerHasBookmarked
+            )
+            session.alertMessage = error.localizedDescription
+        }
+
+        likeInFlight = false
+        if succeeded && !bookmarkInFlight {
             await loadEngagement()
-        } catch { session.alertMessage = error.localizedDescription }
-        isChanging = false
+        }
     }
 
     @MainActor
     private func toggleBookmark() async {
-        guard session.requireLogin() else { return }
-        let next = !(engagement?.viewerHasBookmarked ?? false)
-        isChanging = true
+        guard session.requireLogin(), !bookmarkInFlight else { return }
+
+        let current = engagement ?? Engagement(
+            postId: post.id,
+            likeCount: 0,
+            viewerHasLiked: false,
+            viewerHasBookmarked: false
+        )
+        let previousBookmarked = current.viewerHasBookmarked
+        let next = !previousBookmarked
+
+        // Saving is optimistic for the same reason as liking: local UI first,
+        // server confirmation second.
+        engagement = Engagement(
+            postId: current.postId,
+            likeCount: current.likeCount,
+            viewerHasLiked: current.viewerHasLiked,
+            viewerHasBookmarked: next
+        )
+        bookmarkInFlight = true
+
+        var succeeded = false
         do {
             try await session.api.setBookmark(postID: post.id, enabled: next)
+            succeeded = true
+        } catch {
+            let latest = engagement ?? current
+            engagement = Engagement(
+                postId: latest.postId,
+                likeCount: latest.likeCount,
+                viewerHasLiked: latest.viewerHasLiked,
+                viewerHasBookmarked: previousBookmarked
+            )
+            session.alertMessage = error.localizedDescription
+        }
+
+        bookmarkInFlight = false
+        if succeeded && !likeInFlight {
             await loadEngagement()
-        } catch { session.alertMessage = error.localizedDescription }
-        isChanging = false
+        }
     }
 }
 
