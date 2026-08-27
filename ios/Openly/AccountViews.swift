@@ -749,54 +749,15 @@ struct UserProfileView: View {
     @State private var interests: PublicInterestProfile?
     @State private var music: PublicMusicProfile?
     @State private var isLoading = true
+    @State private var relationBusy = false
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: 14) {
                 if let user {
-                    VStack(spacing: 12) {
-                        IdentityAvatar(code: user.publicCode, color: user.identityColor, size: 62)
-                        Text(user.publicCode)
-                            .font(.system(size: 25, weight: .bold, design: .monospaced))
-                            .foregroundColor(OpenlyTheme.ink)
-                            .environment(\.layoutDirection, .leftToRight)
-                        if let bio = user.bio, !bio.isEmpty {
-                            Text(bio)
-                                .foregroundColor(OpenlyTheme.muted)
-                                .multilineTextAlignment(.center)
-                        }
-                        Text("انضم في \(OpenlyDate.short(user.createdAt))")
-                            .font(.caption)
-                            .foregroundColor(OpenlyTheme.subtle)
+                    profileHeader(user)
 
-                        if user.isSelf != true {
-                            HStack {
-                                Button(user.viewerIsFollowing == true ? "إلغاء المتابعة" : "متابعة") {
-                                    Task { await setRelation("follow", enabled: user.viewerIsFollowing != true) }
-                                }
-                                .buttonStyle(OpenlySecondaryButtonStyle())
-
-                                Menu {
-                                    Button(user.viewerHasMuted == true ? "إلغاء الكتم" : "كتم") {
-                                        Task { await setRelation("mute", enabled: user.viewerHasMuted != true) }
-                                    }
-                                    Button(user.viewerHasBlocked == true ? "إلغاء الحظر" : "حظر", role: .destructive) {
-                                        Task { await setRelation("block", enabled: user.viewerHasBlocked != true) }
-                                    }
-                                } label: {
-                                    Image(systemName: "ellipsis.circle")
-                                        .font(.title3)
-                                        .foregroundColor(OpenlyTheme.muted)
-                                }
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 28)
-                    .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
-
-                    if let interests {
+                    if let interests, !interests.items.isEmpty {
                         NativePublicInterestSection(profile: interests)
                     }
 
@@ -804,49 +765,163 @@ struct UserProfileView: View {
                         NativePublicMusicSection(music: music)
                     }
 
-                    if posts.isEmpty {
-                        EmptyState(icon: "text.bubble", title: "لا توجد منشورات", message: "لا توجد كتابات لهذه الهوية بعد.")
-                    } else {
-                        ForEach(posts) { post in PostCard(post: post) }
-                    }
+                    postsSection
                 } else if isLoading {
-                    ProgressView().tint(OpenlyTheme.accent).padding(.top, 50)
+                    VStack(spacing: 12) {
+                        ProgressView().tint(OpenlyTheme.accent)
+                        Text("جارِ تحميل الملف")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(OpenlyTheme.subtle)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 60)
+                } else {
+                    EmptyState(icon: "person.crop.circle.badge.questionmark", title: "تعذر فتح الملف", message: "حاول مرة أخرى.")
                 }
             }
+            .padding(.bottom, 28)
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle(code)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .task { await load() }
+        .task(id: code) { await load() }
+    }
+
+    @ViewBuilder
+    private func profileHeader(_ user: UserSummary) -> some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 10) {
+                IdentityAvatar(code: user.publicCode, color: user.identityColor, size: 72)
+
+                Text(user.publicCode)
+                    .font(.system(size: 27, weight: .bold, design: .monospaced))
+                    .tracking(-0.4)
+                    .foregroundColor(OpenlyTheme.ink)
+                    .environment(\.layoutDirection, .leftToRight)
+
+                if let bio = user.bio, !bio.isEmpty {
+                    Text(bio)
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundColor(OpenlyTheme.muted)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(3)
+                        .frame(maxWidth: 320)
+                        .padding(.top, 2)
+                }
+
+                Text("انضم في \(OpenlyDate.short(user.createdAt))")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(OpenlyTheme.subtle)
+                    .padding(.top, 1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 24)
+            .padding(.bottom, user.isSelf == true ? 24 : 18)
+
+            if user.isSelf != true {
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await setRelation("follow", enabled: user.viewerIsFollowing != true) }
+                    } label: {
+                        Text(user.viewerIsFollowing == true ? "إلغاء المتابعة" : "متابعة")
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                    }
+                    .buttonStyle(OpenlySecondaryButtonStyle())
+                    .disabled(relationBusy)
+
+                    Menu {
+                        Button(user.viewerHasMuted == true ? "إلغاء الكتم" : "كتم") {
+                            Task { await setRelation("mute", enabled: user.viewerHasMuted != true) }
+                        }
+                        Button(user.viewerHasBlocked == true ? "إلغاء الحظر" : "حظر", role: .destructive) {
+                            Task { await setRelation("block", enabled: user.viewerHasBlocked != true) }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(OpenlyTheme.muted)
+                            .frame(width: 46, height: 44)
+                            .background(OpenlyTheme.surfaceSoft)
+                            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(OpenlyTheme.line, lineWidth: 1))
+                    }
+                    .disabled(relationBusy)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
+            }
+        }
+        .background(OpenlyTheme.surface)
+        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
+    }
+
+    @ViewBuilder
+    private var postsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("الكتابات")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(OpenlyTheme.ink)
+                Spacer()
+                if !posts.isEmpty {
+                    Text("\(posts.count)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(OpenlyTheme.subtle)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+
+            if posts.isEmpty {
+                EmptyState(icon: "text.bubble", title: "لا توجد منشورات", message: "لا توجد كتابات لهذه الهوية بعد.")
+                    .padding(.top, -8)
+            } else {
+                ForEach(posts) { post in
+                    PostCard(post: post)
+                }
+            }
+        }
     }
 
     @MainActor
     private func load() async {
+        guard !isLoading || user == nil else { return }
         isLoading = true
         do {
             async let profile = session.api.user(code: code)
             async let feed = session.api.feed(author: code)
             async let commonGround = session.api.publicInterestProfile(code: code)
             async let taste = session.api.publicMusicProfile(code: code)
-            user = try await profile
+
+            let loadedUser = try await profile
             let feedResult = try await feed
+            user = loadedUser
             posts = feedResult.items
             interests = (try? await commonGround) ?? nil
             music = (try? await taste) ?? nil
-        } catch { session.alertMessage = error.localizedDescription }
+        } catch {
+            session.alertMessage = error.localizedDescription
+        }
         isLoading = false
     }
 
     @MainActor
     private func setRelation(_ kind: String, enabled: Bool) async {
-        guard session.requireLogin() else { return }
+        guard session.requireLogin(), !relationBusy else { return }
+        relationBusy = true
+        defer { relationBusy = false }
         do {
             try await session.api.setRelation(code: code, kind: kind, enabled: enabled)
             user = try await session.api.user(code: code)
-        } catch { session.alertMessage = error.localizedDescription }
+        } catch {
+            session.alertMessage = error.localizedDescription
+        }
     }
 }
 
