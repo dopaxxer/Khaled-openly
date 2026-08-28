@@ -302,12 +302,16 @@ struct MusicPreferencesView: View {
     private func saveSettings(discoveryOptIn: Bool, preferencesPublic _: Bool) async {
         busy = "settings"
         errorMessage = nil
+        guard let current = profile else {
+            busy = nil
+            return
+        }
         do {
             profile = try await session.api.updateMusicSettings(
                 discoveryOptIn: discoveryOptIn,
-                showTracks: profile.tracksArePublic,
-                showArtists: profile.artistsArePublic,
-                showGenres: profile.genresArePublic
+                showTracks: current.tracksArePublic,
+                showArtists: current.artistsArePublic,
+                showGenres: current.genresArePublic
             )
         } catch { errorMessage = error.localizedDescription }
         busy = nil
