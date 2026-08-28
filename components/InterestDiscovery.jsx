@@ -13,7 +13,6 @@ import {
   Sparkles
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Identity } from './Identity'
 import {
   INTEREST_KINDS,
   MAX_INTERESTS_PER_KIND,
