@@ -1,5 +1,6 @@
 import './globals.css'
 import './ios-polish.css'
+import './openly-v2.css'
 import { AppShell } from '@/components/AppShell'
 import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { LanguageBridge } from '@/components/LanguageBridge'
@@ -40,7 +41,7 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f3f1ec' },
+    { media: '(prefers-color-scheme: light)', color: '#f7f4ee' },
     { media: '(prefers-color-scheme: dark)', color: '#111113' }
   ]
 }
