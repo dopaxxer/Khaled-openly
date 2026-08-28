@@ -63,7 +63,7 @@ jobs:
           test "$bundle_identifier" = "ink.openly.app" || { echo "Unexpected bundle identifier: $bundle_identifier" >&2; exit 1; }
           test "$bundle_version" = "10" || { echo "Unexpected build number: $bundle_version" >&2; exit 1; }
           test "$display_name" = "Openly" || { echo "Unexpected display name: $display_name" >&2; exit 1; }
-          test "$api_base_url" = "https://openly.nootjetzt.workers.dev/api/" || { echo "Unexpected API base URL: $api_base_url" >&2; exit 1; }
+          test "$api_base_url" = "https://openly.ink/api/" || { echo "Unexpected API base URL: $api_base_url" >&2; exit 1; }
           google_client_id="$(/usr/libexec/PlistBuddy -c 'Print :GIDClientID' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           google_server_client_id="$(/usr/libexec/PlistBuddy -c 'Print :GIDServerClientID' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           google_scheme="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"

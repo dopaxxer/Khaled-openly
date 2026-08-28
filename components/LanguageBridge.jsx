@@ -138,7 +138,67 @@ const EN = {
   'كتم': 'Mute',
   'إلغاء الكتم': 'Unmute',
   'حظر': 'Block',
-  'إلغاء الحظر': 'Unblock'
+  'إلغاء الحظر': 'Unblock',
+
+  // Interests: the books, films and conversation topics screens, plus the
+  // people-discovery surface built on them.
+  'مواضيع الحديث': 'Conversation topics',
+  'مواضيع': 'Topics',
+  'موضوع': 'Topic',
+  'الكتب': 'Books',
+  'كتب': 'Books',
+  'الأفلام': 'Films',
+  'أفلام': 'Films',
+  'اهتمامات': 'Interests',
+  'اهتماماتي': 'My interests',
+  'نوع الاهتمام': 'Interest type',
+  'الكل': 'All',
+  'إزالة': 'Remove',
+  'ما الذي يهمك؟': 'What matters to you?',
+  'اختر أشياء تحبها فعلًا. سنستخدمها لإيجاد أشخاص ومواضيع بينكم أرضية مشتركة.':
+    'Pick things you genuinely love. We use them to find people and topics you share common ground with.',
+  'الكتب والأفلام ومواضيع الحديث تكمل ذوقك الموسيقي وتكوّن صورة أصدق عن اهتماماتك.':
+    'Books, films and conversation topics round out your music taste into a truer picture of what you care about.',
+  'ابحث أو أضف': 'Search or add',
+  'ابحث في الكتالوج': 'Search the catalog',
+  'مثال: The Stranger': 'Example: The Stranger',
+  'مثال: Interstellar': 'Example: Interstellar',
+  'مثال: علم النفس': 'Example: psychology',
+  'من الكتالوج': 'From the catalog',
+  'مضاف': 'Added',
+  'إضافة': 'Add',
+  'جارِ الإضافة…': 'Adding…',
+  'الخصوصية والاكتشاف': 'Privacy and discovery',
+  'استخدم اهتماماتي في الاكتشاف': 'Use my interests for discovery',
+  'يسمح لـOpenly باقتراح أشخاص بينكم اهتمامات مشتركة.':
+    'Lets Openly suggest people who share your interests.',
+  'اعرض اهتماماتي في ملفي': 'Show my interests on my profile',
+  'إذا أوقفته، يمكن حساب التوافق عند تفعيل الاكتشاف لكن لا نعرض قائمة اهتماماتك.':
+    'Turn this off and compatibility can still be calculated while discovery is on, but your list stays hidden.',
+  'تم حفظ اهتماماتك.': 'Your interests were saved.',
+  'جارِ الحفظ…': 'Saving…',
+  'احفظ وتابع': 'Save and continue',
+  'تخطي الآن': 'Skip for now',
+  'اكتشف أشخاصًا': 'Discover people',
+  'اكتشف': 'Discover',
+  'اختر اهتماماتك': 'Choose your interests',
+  'مشترك بينكما:': 'You both share:',
+  'التوافق الموسيقي:': 'Music compatibility:',
+  'قائمة الاهتمامات مخفية، لكن صاحب الحساب سمح باستخدامها في الاكتشاف.':
+    'This list is hidden, but its owner allows it to be used for discovery.',
+  'عرض الملف والكتابات': 'View profile and posts',
+  'لا توجد أرضية مشتركة كافية بعد.': 'Not enough common ground yet.',
+  'أضف بعض الكتب والأفلام ومواضيع الحديث التي تهمك.':
+    'Add a few books, films and conversation topics you care about.',
+  'سجّل الدخول لاختيار اهتماماتك.': 'Sign in to choose your interests.',
+  'سجّل الدخول لرؤية الاقتراحات المبنية على اهتماماتك.':
+    'Sign in to see suggestions based on your interests.',
+  'تعذر تحميل اهتماماتك': 'Could not load your interests',
+  'تعذر حفظ اهتماماتك': 'Could not save your interests',
+  'تعذر حفظ العنصر': 'Could not save this item',
+  'تعذر إضافة الموضوع': 'Could not add the topic',
+  'تعذر تحميل الاقتراحات': 'Could not load suggestions',
+  'تعذر تحميل الاقتراحات.': 'Could not load suggestions.'
 }
 
 function normalizeTerminology(value) {
@@ -164,6 +224,22 @@ function englishDynamic(value) {
   if (match) return `Connected ${match[1]}`
   match = value.match(/^حدث تطابق بينك وبين (.+)\. الاختيار كان متبادلًا\.$/)
   if (match) return `You and ${match[1]} chose each other.`
+
+  // Interest and music copy that carries a count or a user-typed label.
+  match = value.match(/^نسبة التوافق (\d+) بالمئة$/)
+  if (match) return `${match[1]} percent compatible`
+  match = value.match(/^نسبة التشابه (\d+) بالمئة$/)
+  if (match) return `${match[1]} percent similar`
+  match = value.match(/^(\d+) اختيار$/)
+  if (match) return `Chosen by ${match[1]}`
+  match = value.match(/^أضف موضوع «(.+)»$/)
+  if (match) return `Add the topic “${match[1]}”`
+  match = value.match(/^الحد الأقصى (\d+) اهتمامًا\.$/)
+  if (match) return `At most ${match[1]} interests.`
+  match = value.match(/^الحد الأقصى (\d+) من فئة (.+)\.$/)
+  if (match) return `At most ${match[1]} in ${EN[match[2]] || match[2]}.`
+  match = value.match(/^إلغاء التطابق مع (.+)؟$/)
+  if (match) return `Disconnect from ${match[1]}?`
   return null
 }
 

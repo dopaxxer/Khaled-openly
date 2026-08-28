@@ -15,6 +15,11 @@ on:
       - 'next.config.mjs'
       - 'proxy.js'
       - 'netlify.toml'
+      # The web suite asserts against the native client's origin, so an
+      # iOS-only change can turn it red. Run it here rather than discovering
+      # the break on the next unrelated web pull request.
+      - 'ios/project.yml'
+      - 'ios/Openly/APIClient.swift'
       - '.github/workflows/ui-redesign-check.yml'
   pull_request:
     paths:
@@ -27,6 +32,11 @@ on:
       - 'next.config.mjs'
       - 'proxy.js'
       - 'netlify.toml'
+      # The web suite asserts against the native client's origin, so an
+      # iOS-only change can turn it red. Run it here rather than discovering
+      # the break on the next unrelated web pull request.
+      - 'ios/project.yml'
+      - 'ios/Openly/APIClient.swift'
       - '.github/workflows/ui-redesign-check.yml'
 
 permissions:

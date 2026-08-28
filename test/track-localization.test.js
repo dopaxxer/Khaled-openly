@@ -9,6 +9,7 @@ const composer = read('components/Composer.jsx')
 const attachment = read('components/TrackAttachment.jsx')
 const preview = read('components/TrackPreview.jsx')
 const musicPreferences = read('components/MusicPreferences.jsx')
+const interests = read('components/InterestDiscovery.jsx')
 const publicProfile = read('components/PublicMusicProfile.jsx')
 
 // Comments carry Arabic prose that never reaches the DOM, so they would
@@ -105,4 +106,16 @@ test('the iOS attachment picker keys exist in both languages', () => {
     assert.ok(arabic.includes(`"${key}"`), `missing Arabic string for ${key}`)
     assert.ok(english.includes(`"${key}"`), `missing English string for ${key}`)
   }
+})
+
+
+// The interests screens are the newest surface and were shipped entirely in
+// Arabic, so the language switch left them untranslated. They render nothing
+// but interest UI, which puts all of their copy in scope.
+test('every Arabic string in the interests screens has an English entry', () => {
+  const strings = arabicCopy(interests)
+  assert.ok(strings.length > 0, 'the scanner found no Arabic copy to check')
+
+  const missing = strings.filter(value => !hasEntry(value))
+  assert.deepEqual(missing, [], `untranslated interface copy: ${missing.join(' | ')}`)
 })

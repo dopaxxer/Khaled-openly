@@ -33,12 +33,37 @@ test('post and report routes require UUIDs', () => {
   assert.equal(classifyAppRoute(['report', 'user', uuid]), null)
 })
 
+// The origin the native app really ships with comes from project.yml, which
+// XcodeGen writes into Info.plist -- not from the Swift fallback. Checking only
+// the Swift file is how a build pointed at a different host once reached main
+// with this test still green.
 test('production clients use the branded canonical origin', () => {
   const ios = readFileSync(new URL('../ios/Openly/APIClient.swift', import.meta.url), 'utf8')
+  const projectYml = readFileSync(new URL('../ios/project.yml', import.meta.url), 'utf8')
   const env = readFileSync(new URL('../.env.example', import.meta.url), 'utf8')
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
+  const publicOrigin = readFileSync(new URL('../lib/publicOrigin.js', import.meta.url), 'utf8')
 
-  assert.match(ios, /https:\/\/openly\.ink\/api\//)
+  assert.match(projectYml, /^\s*OPENLY_API_BASE_URL: "https:\/\/openly\.ink\/api\/"$/m)
+  assert.match(ios, /static let canonicalOrigin = "https:\/\/openly\.ink"/)
+  assert.match(publicOrigin, /export const CANONICAL_ORIGIN = 'https:\/\/openly\.ink'/)
   assert.match(env, /^NEXT_PUBLIC_SITE_URL=https:\/\/openly\.ink$/m)
-  assert.doesNotMatch(`${ios}\n${env}\n${readme}`, /khaled-openly\.vercel\.app/)
+
+  assert.doesNotMatch(
+    `${ios}\n${projectYml}\n${env}\n${readme}`,
+    /khaled-openly\.vercel\.app/
+  )
+})
+
+// One origin, written once per platform. A second literal is how the web and
+// the native app drift apart without any test noticing.
+test('the native origin is not duplicated across the Swift client', () => {
+  const ios = readFileSync(new URL('../ios/Openly/APIClient.swift', import.meta.url), 'utf8')
+  const literals = ios.match(/"https:\/\/[^"]+"/g) || []
+
+  assert.deepEqual(
+    literals,
+    ['"https://openly.ink"'],
+    `the Swift client should name exactly one origin, found: ${literals.join(' | ')}`
+  )
 })
