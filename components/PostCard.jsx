@@ -104,16 +104,18 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
 
   const time = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.createdAt))
   return <article className="post-card v2-post-card">
-    <Link href={`/u/${post.authorCode}`} className="v2-post-identity" aria-label={`صفحة ${post.authorCode}`}>
-      <span className="v2-post-dot" style={{ backgroundColor: post.authorColor }} aria-hidden="true" />
-    </Link>
-
-    <div className="post-main">
+    <div className="v2-post-head">
+      <Link href={`/u/${post.authorCode}`} className="v2-post-identity" aria-label={`صفحة ${post.authorCode}`}>
+        <span className="v2-post-dot" style={{ backgroundColor: post.authorColor }} aria-hidden="true" />
+      </Link>
       <div className="post-top">
         <Link href={`/u/${post.authorCode}`} className="post-author">{post.authorCode}</Link>
         <span className="dot-sep" aria-hidden="true">·</span>
         <time className="tiny subtle" dateTime={post.createdAt}>{time}</time>
       </div>
+    </div>
+
+    <div className="post-main">
 
       {editing
         ? <div className="owner-edit composer panel">
