@@ -124,7 +124,7 @@ export function MessageThread({ conversationId }) {
         setOlderCursor(data.nextCursor || null)
         setHasMore(!!data.hasMore)
       }
-      await markRead()
+      if (Number(data.conversation?.unreadCount || 0) > 0) await markRead()
     } catch (loadError) {
       if (!silent) setError(loadError.message || 'المحادثة غير متاحة')
     } finally {
@@ -147,8 +147,8 @@ export function MessageThread({ conversationId }) {
   }, [loadLatest])
 
   useEffect(() => {
-    if (!loading && !loadingOlder) bottomRef.current?.scrollIntoView({ block: 'end' })
-  }, [loading, loadingOlder])
+    if (!loading) bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [loading])
 
   async function loadOlder() {
     if (!olderCursor || loadingOlder) return
@@ -158,7 +158,7 @@ export function MessageThread({ conversationId }) {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'تعذر تحميل الرسائل')
       setMessages(current => mergeMessages(current, data.items || []))
-      setOlderCursor(data.nextBefore || null)
+      setOlderCursor(data.nextCursor || null)
       setHasMore(!!data.hasMore)
     } catch (loadError) {
       setError(loadError.message || 'تعذر تحميل الرسائل')
