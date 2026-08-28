@@ -184,7 +184,7 @@ struct DirectMessageThreadView: View {
 
     @State private var conversation: DirectConversation
     @State private var messages: [DirectMessage] = []
-    @State private var olderBefore: String?
+    @State private var olderCursor: String?
     @State private var hasMore = false
     @State private var draft = ""
     @State private var isLoading = true
@@ -193,6 +193,7 @@ struct DirectMessageThreadView: View {
     @State private var errorMessage: String?
     @State private var retryNonce: UUID?
     @State private var retryBody: String?
+    @State private var shouldScrollToBottom = true
     @FocusState private var composerFocused: Bool
 
     init(conversation: DirectConversation) {
@@ -238,7 +239,8 @@ struct DirectMessageThreadView: View {
                         .padding(.vertical, 12)
                     }
                     .onChange(of: messages.count) { _ in
-                        guard let last = messages.last else { return }
+                        guard shouldScrollToBottom, let last = messages.last else { return }
+                        shouldScrollToBottom = false
                         withAnimation(.easeOut(duration: 0.2)) {
                             proxy.scrollTo(last.id, anchor: .bottom)
                         }
@@ -333,14 +335,17 @@ struct DirectMessageThreadView: View {
                 limit: 100
             )
             conversation = response.conversation
+            if !silent { shouldScrollToBottom = true }
             messages = merge(messages, response.items)
             if !silent {
-                olderBefore = response.nextBefore
+                olderCursor = response.nextCursor
                 hasMore = response.hasMore
             }
-            _ = try? await session.api.markDirectConversationRead(
-                conversationID: conversation.conversationId
-            )
+            if (response.conversation.unreadCount ?? 0) > 0 {
+                _ = try? await session.api.markDirectConversationRead(
+                    conversationID: conversation.conversationId
+                )
+            }
         } catch {
             if !silent { errorMessage = error.localizedDescription }
         }
@@ -348,18 +353,18 @@ struct DirectMessageThreadView: View {
 
     @MainActor
     private func loadOlder() async {
-        guard let olderBefore, !isLoadingOlder else { return }
+        guard let olderCursor, !isLoadingOlder else { return }
         isLoadingOlder = true
         defer { isLoadingOlder = false }
 
         do {
             let response = try await session.api.directMessages(
                 conversationID: conversation.conversationId,
-                before: olderBefore,
+                cursor: olderCursor,
                 limit: 100
             )
             messages = merge(messages, response.items)
-            self.olderBefore = response.nextBefore
+            self.olderCursor = response.nextCursor
             hasMore = response.hasMore
         } catch {
             errorMessage = error.localizedDescription
@@ -390,6 +395,7 @@ struct DirectMessageThreadView: View {
                 body: body,
                 clientNonce: nonce
             )
+            shouldScrollToBottom = true
             messages = merge(messages, [message])
             draft = ""
             retryBody = nil
