@@ -157,7 +157,22 @@ struct NotificationsView: View {
     @State private var isLoading = false
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("Notifications")
+                    .font(.system(size: 28, weight: .bold))
+                    .tracking(-0.6)
+                    .foregroundColor(OpenlyTheme.ink)
+                Text("Only things that need your attention")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(OpenlyTheme.muted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 22)
+            .padding(.bottom, 14)
+
+            Group {
             if session.user == nil {
                 LoginRequiredView(message: "سجّل الدخول لرؤية الإشعارات.")
             } else if isLoading && response == nil {
@@ -187,7 +202,7 @@ struct NotificationsView: View {
                                         Circle().fill(OpenlyTheme.accent).frame(width: 7, height: 7)
                                     }
                                 }
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 24)
                                 .padding(.vertical, 18)
                                 .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
                             }
@@ -199,9 +214,10 @@ struct NotificationsView: View {
             } else {
                 EmptyState(icon: "bell.slash", title: "لا توجد إشعارات", message: "ستظهر هنا الإعجابات والردود المرتبطة بك.")
             }
+            }
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle("الإشعارات")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
@@ -559,7 +575,7 @@ struct LoginView: View {
                     BrandLockup(markSize: 38)
                     Spacer()
                 }
-                .padding(.bottom, 42)
+                .padding(.bottom, 34)
 
                 if step == "otp" {
                     otpContent
@@ -567,9 +583,9 @@ struct LoginView: View {
                     entryContent
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 28)
-            .padding(.bottom, 50)
+            .padding(.horizontal, 24)
+            .padding(.top, 32)
+            .padding(.bottom, 60)
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
         .navigationBarHidden(true)
@@ -581,14 +597,17 @@ struct LoginView: View {
 
     @ViewBuilder
     private var entryContent: some View {
-        Text("Openly")
-            .font(.system(size: 34, weight: .bold))
+        Text("Welcome to openly")
+            .font(.system(size: 30, weight: .bold))
+            .tracking(-0.7)
             .foregroundColor(OpenlyTheme.ink)
-        Text("دخول بسيط وآمن. لا تحتاج إلى كلمة مرور.")
-            .font(.system(size: 16, weight: .medium))
+        Text("A public space for thoughts, taste and conversation.")
+            .font(.system(size: 13, weight: .medium))
             .foregroundColor(OpenlyTheme.muted)
+            .lineSpacing(4)
             .padding(.top, 8)
             .padding(.bottom, 30)
+            .environment(\.layoutDirection, .leftToRight)
 
         if capabilities.apple {
             SignInWithAppleButton(.continue) { request in
@@ -745,24 +764,24 @@ struct LoginView: View {
 
     @ViewBuilder
     private var otpContent: some View {
-        Image(systemName: method == "phone" ? "message.badge" : "envelope.badge")
-            .font(.system(size: 42))
-            .foregroundColor(OpenlyTheme.accent)
-            .padding(.bottom, 18)
-        Text("أدخل رمز التحقق")
+        Text("Check your inbox")
             .font(.system(size: 29, weight: .bold))
+            .tracking(-0.6)
             .foregroundColor(OpenlyTheme.ink)
-        Text("أرسلنا رمزًا من 6 أرقام إلى \(maskedTarget).")
-            .font(.system(size: 15, weight: .medium))
+            .environment(\.layoutDirection, .leftToRight)
+        Text("Enter the 6-digit code sent to \(maskedTarget).")
+            .font(.system(size: 13, weight: .medium))
             .foregroundColor(OpenlyTheme.muted)
             .padding(.top, 8)
             .padding(.bottom, 28)
+            .environment(\.layoutDirection, .leftToRight)
 
         OpenlyFieldContainer {
             TextField("000000", text: $token)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
-                .font(.system(size: 25, weight: .semibold, design: .monospaced))
+                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                .tracking(10)
                 .multilineTextAlignment(.center)
                 .foregroundColor(OpenlyTheme.ink)
                 .environment(\.layoutDirection, .leftToRight)
