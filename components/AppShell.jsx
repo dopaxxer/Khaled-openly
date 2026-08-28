@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, CircleUserRound, Compass, House, LogIn, MessageCircle, PenLine, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { fetchViewer } from '@/lib/viewer'
 
 const nav = [
   { href: '/', label: 'الرئيسية', icon: House },
@@ -34,21 +35,25 @@ export function AppShell({ children }) {
   useEffect(() => {
     let controller = new AbortController()
 
-    async function syncAuthState() {
+    async function sync({ revalidateSession }) {
       controller.abort()
       controller = new AbortController()
+      const signal = controller.signal
       try {
-        const response = await fetch('/api/auth/me', { cache: 'no-store', signal: controller.signal })
-        const data = response.ok ? await response.json() : { user: null }
-        setUser(data.user || null)
-        if (!data.user) {
+        // The shell is the first thing on the page to ask who is looking, so
+        // it takes the fresh answer and leaves it where the composer, the
+        // timeline and the screens can reuse it instead of each asking again.
+        const viewer = await fetchViewer({ force: revalidateSession })
+        if (signal.aborted) return
+        setUser(viewer)
+        if (!viewer) {
           setUnread(0)
           setUnreadMessages(0)
           return
         }
         const [notifications, messages] = await Promise.all([
-          fetch('/api/notifications/count', { cache: 'no-store', signal: controller.signal }).catch(() => null),
-          fetch('/api/v1/messages/unread', { cache: 'no-store', signal: controller.signal }).catch(() => null)
+          fetch('/api/notifications/count', { cache: 'no-store', signal }).catch(() => null),
+          fetch('/api/v1/messages/unread', { cache: 'no-store', signal }).catch(() => null)
         ])
         if (notifications?.ok) setUnread((await notifications.json()).unreadCount || 0)
         if (messages?.ok) setUnreadMessages((await messages.json()).unreadCount || 0)
@@ -56,6 +61,12 @@ export function AppShell({ children }) {
         if (error?.name !== 'AbortError') setUser(null)
       }
     }
+
+    // A sign-in or sign-out changes who the session belongs to; a read receipt
+    // only changes a badge, and re-verifying the session for it was a round
+    // trip nobody asked for.
+    const syncAuthState = () => sync({ revalidateSession: true })
+    const syncBadges = () => sync({ revalidateSession: false })
 
     // Three requests a minute, forever, in every open tab. A backgrounded tab
     // has nobody to show a badge to, so it waits and catches up the moment it
@@ -68,17 +79,20 @@ export function AppShell({ children }) {
       if (document.visibilityState === 'visible') syncAuthState()
     }
 
-    syncAuthState()
+    // Nothing is staler than a session the page has just been served with, and
+    // the child screens have already asked by the time the shell's effect runs
+    // -- so the first pass joins their request instead of opening a second.
+    syncBadges()
     const timer = window.setInterval(poll, 60_000)
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('openly:auth-changed', syncAuthState)
-    window.addEventListener('openly:messages-changed', syncAuthState)
+    window.addEventListener('openly:messages-changed', syncBadges)
     return () => {
       controller.abort()
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('openly:auth-changed', syncAuthState)
-      window.removeEventListener('openly:messages-changed', syncAuthState)
+      window.removeEventListener('openly:messages-changed', syncBadges)
     }
   }, [])
 

@@ -34,6 +34,8 @@ function MatchReasons({ match }) {
   </div>
 }
 
+const matchedAtFormat = new Intl.DateTimeFormat('ar', { dateStyle: 'medium' })
+
 export function MusicDiscovery() {
   const [mode, setMode] = useState('suggestions')
   const [items, setItems] = useState([])
@@ -354,7 +356,7 @@ export function MusicDiscovery() {
               <Identity code={match.publicCode} color={match.identityColor} />
               <div>
                 <CompatibilityDial value={match.compatibility} />
-                {match.matchedAt && <div className="tiny subtle mt8">تطابق {new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(match.matchedAt))}</div>}
+                {match.matchedAt && <div className="tiny subtle mt8">تطابق {matchedAtFormat.format(new Date(match.matchedAt))}</div>}
               </div>
             </div>
             <MatchReasons match={match} />

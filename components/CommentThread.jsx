@@ -15,6 +15,8 @@ const MAX_LENGTH = COMMENT_MAX_LENGTH
 // rendering — they just stop stepping further in.
 const MAX_DEPTH = 4
 
+const commentTimeFormat = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' })
+
 function buildTree(comments) {
   const nodes = new Map()
   for (const c of comments) nodes.set(c.id, { ...c, children: [] })
@@ -71,7 +73,7 @@ function Comment({ node, depth, postId, viewerCode, onChanged }) {
     } catch (err) { setError(err.message); setBusy('') }
   }
 
-  const time = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(node.createdAt))
+  const time = commentTimeFormat.format(new Date(node.createdAt))
 
   return <div className={depth > 0 ? 'comment-branch' : undefined}>
     <article className="comment" id={`comment-${node.id}`}>

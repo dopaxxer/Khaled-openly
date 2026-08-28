@@ -6,6 +6,7 @@ import { MentionField } from '../MentionField'
 import { PostCard } from '../PostCard'
 import { COMMENT_MAX_LENGTH } from '@/lib/validation'
 import { NotFound } from './NotFound'
+import { fetchViewer } from '@/lib/viewer'
 
 export function PostScreen({ id }) {
   const [post, setPost] = useState(undefined)
@@ -53,10 +54,11 @@ export function PostScreen({ id }) {
 
   useEffect(() => { load() }, [id])
   useEffect(() => {
-    fetch('/api/auth/me', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : { user: null })
-      .then(d => setViewerCode(d.user?.publicCode || null))
+    let cancelled = false
+    fetchViewer()
+      .then(user => { if (!cancelled) setViewerCode(user?.publicCode || null) })
       .catch(() => {})
+    return () => { cancelled = true }
   }, [])
 
   async function comment(e) {

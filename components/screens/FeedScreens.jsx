@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Timeline } from '../Timeline'
 
+const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+
 export function NotificationsScreen() {
   const [items, setItems] = useState(undefined)
 
@@ -41,7 +43,7 @@ export function NotificationsScreen() {
             <p><strong>{n.actorCode}</strong>{' '}
               {n.kind === 'like' ? 'liked your post' : n.kind === 'mention' ? 'mentioned you' : 'replied to your post'}
             </p>
-            <time>{new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-Math.max(1, Math.round((Date.now()-new Date(n.createdAt).getTime())/60000)), 'minute')}</time>
+            <time>{relativeTime.format(-Math.max(1, Math.round((Date.now()-new Date(n.createdAt).getTime())/60000)), 'minute')}</time>
           </div>
         </Link>)
       : <div className="empty-state"><p>لا توجد إشعارات.</p></div>}

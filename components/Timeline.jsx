@@ -2,6 +2,7 @@
 import { RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PostCard } from './PostCard'
+import { fetchViewer } from '@/lib/viewer'
 
 function FeedSkeleton() {
   return <div className="feed-skeleton" aria-label="جارِ تحميل المنشورات">
@@ -84,12 +85,11 @@ export function Timeline({
   }, [load, refreshToken])
 
   useEffect(() => {
-    const controller = new AbortController()
-    fetch('/api/auth/me', { cache: 'no-store', signal: controller.signal })
-      .then(r => r.ok ? r.json() : { user: null })
-      .then(d => setViewerCode(d.user?.publicCode || null))
+    let cancelled = false
+    fetchViewer()
+      .then(user => { if (!cancelled) setViewerCode(user?.publicCode || null) })
       .catch(() => {})
-    return () => controller.abort()
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {

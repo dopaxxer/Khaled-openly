@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { Identity } from '../Identity'
 import { ThemeControl } from '../Settings'
 import { Timeline } from '../Timeline'
+import { fetchViewer } from '@/lib/viewer'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 const IDENTITY_PALETTE = [
@@ -39,10 +40,9 @@ export function MeScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const m = await fetch('/api/auth/me', { cache: 'no-store' })
-        const md = m.ok ? await m.json() : { user: null }
-        setUser(md.user || null)
-        if (md.user) {
+        const viewer = await fetchViewer()
+        setUser(viewer)
+        if (viewer) {
           const [a, b] = await Promise.all([
             fetch('/api/me/followers-count', { cache: 'no-store' }),
             fetch('/api/me/following', { cache: 'no-store' })
@@ -126,9 +126,9 @@ export function SettingsScreen() {
 
   useEffect(() => {
     (async () => {
-      const r = await fetch('/api/auth/me', { cache: 'no-store' })
-      const d = r.ok ? await r.json() : { user: null }
-      const next = d.user || null
+      // The settings form writes back to this profile, so it always reads a
+      // fresh answer rather than one a screen a moment ago put in the cache.
+      const next = await fetchViewer({ force: true }).catch(() => null)
       setUser(next)
       if (next) {
         setPublicCode(next.publicCode || '')
@@ -162,6 +162,10 @@ export function SettingsScreen() {
       setStatus(d.user.status || '')
       setBio(d.user.bio || '')
       setSaved(true)
+      // The identity that just changed is the one the shell shows and the one
+      // every other screen caches, so tell them rather than letting them find
+      // out on the next poll.
+      window.dispatchEvent(new Event('openly:auth-changed'))
       router.refresh()
     } catch (e) {
       setError(e.message)

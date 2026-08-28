@@ -11,6 +11,8 @@ import { NotFound } from './NotFound'
 const PublicMusicProfile = dynamic(() => import('../PublicMusicProfile').then(m => m.PublicMusicProfile))
 const PublicInterestProfile = dynamic(() => import('../InterestDiscovery').then(m => m.PublicInterestProfile))
 
+const joinedFormat = new Intl.DateTimeFormat('ar', { dateStyle: 'medium' })
+
 export function UserScreen({ code }) {
   const router = useRouter()
   const [user, setUser] = useState(undefined)
@@ -100,7 +102,7 @@ export function UserScreen({ code }) {
       <Identity code={user.publicCode} color={user.identityColor} large />
       {user.status && <p className="profile-status">{user.status}</p>}
       {user.bio && <p className="profile-bio" data-user-content="">{user.bio}</p>}
-      <p className="profile-meta">انضم في {new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(user.createdAt))}</p>
+      <p className="profile-meta">انضم في {joinedFormat.format(new Date(user.createdAt))}</p>
       {!user.isSelf && <div className="row wrap mt20">
         <button className="primary-button" disabled={busy === 'follow'} onClick={() => relation('follow', !user.viewerIsFollowing)}>{user.viewerIsFollowing ? 'إلغاء المتابعة' : 'متابعة'}</button>
         <button className="secondary-button" disabled={!!busy || user.viewerHasBlocked || user.viewerHasMuted} onClick={startMessage}>{busy === 'message' ? 'جارِ فتح المحادثة…' : 'رسالة خاصة'}</button>
