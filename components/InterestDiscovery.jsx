@@ -314,7 +314,7 @@ export function InterestPreferences({ onboarding = false }) {
                 onClick={() => addResult(item)}
               >
                 {item.artworkUrl
-                  ? <img className="interest-artwork" src={item.artworkUrl} alt="" loading="lazy" />
+                  ? <img className="interest-artwork" src={item.artworkUrl} alt="" loading="lazy" decoding="async" />
                   : <span className="interest-artwork placeholder" aria-hidden="true">
                       {item.kind === 'book' ? <BookOpen size={18} /> : item.kind === 'movie' ? <Film size={18} /> : <MessageCircle size={18} />}
                     </span>}

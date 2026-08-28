@@ -57,30 +57,63 @@ export function AppShell({ children }) {
       }
     }
 
+    // Three requests a minute, forever, in every open tab. A backgrounded tab
+    // has nobody to show a badge to, so it waits and catches up the moment it
+    // is looked at again.
+    function poll() {
+      if (document.visibilityState === 'visible') syncAuthState()
+    }
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') syncAuthState()
+    }
+
     syncAuthState()
-    const timer = window.setInterval(syncAuthState, 60_000)
+    const timer = window.setInterval(poll, 60_000)
+    document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('openly:auth-changed', syncAuthState)
     window.addEventListener('openly:messages-changed', syncAuthState)
     return () => {
       controller.abort()
       window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('openly:auth-changed', syncAuthState)
       window.removeEventListener('openly:messages-changed', syncAuthState)
     }
   }, [])
 
   useEffect(() => {
+    // The header collapses on scroll, so this listener runs on every frame of
+    // every flick. It reads the scroll position inside a rAF and writes the
+    // class only when the state actually flips -- a scroll handler that
+    // touches the DOM on each event is what makes a feed feel sticky.
+    const root = document.documentElement
     let last = window.scrollY
-    function onScroll() {
+    let compact = false
+    let queued = false
+
+    function measure() {
+      queued = false
       const y = window.scrollY
-      if (y > last + 8 && y > 52) document.documentElement.classList.add('openly-compact')
-      else if (y < last - 8 || y < 20) document.documentElement.classList.remove('openly-compact')
+      const next = y > last + 8 && y > 52 ? true
+        : y < last - 8 || y < 20 ? false
+          : compact
       last = y
+      if (next === compact) return
+      compact = next
+      root.classList.toggle('openly-compact', compact)
     }
+
+    function onScroll() {
+      if (queued) return
+      queued = true
+      requestAnimationFrame(measure)
+    }
+
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       window.removeEventListener('scroll', onScroll)
-      document.documentElement.classList.remove('openly-compact')
+      root.classList.remove('openly-compact')
     }
   }, [pathname])
 

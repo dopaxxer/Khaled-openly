@@ -477,7 +477,13 @@ const EN = {
   '،': ','
 }
 
+// The bridge walks every text node of every DOM mutation, so the cheapest
+// possible answer for "this string needs nothing done to it" is what keeps a
+// scrolling feed off the main thread. Almost no string carries either term.
+const TERMINOLOGY_PATTERN = /ماتش|تطابق/
+
 function normalizeTerminology(value) {
+  if (!TERMINOLOGY_PATTERN.test(value)) return value
   return value
     .replaceAll('الماتشات', 'التوافقات')
     .replaceAll('ماتشات', 'توافقات')
@@ -521,6 +527,10 @@ function englishDynamic(value) {
 
 function translateValue(raw, language) {
   if (typeof raw !== 'string' || !raw.trim()) return raw
+  // Arabic is the default, and Arabic copy is only rewritten when it carries
+  // one of the two terms above. Answering that with a single regex test beats
+  // trimming, rewriting and re-joining every label on the page.
+  if (language === 'ar' && !TERMINOLOGY_PATTERN.test(raw)) return raw
   const leading = raw.match(/^\s*/)?.[0] || ''
   const trailing = raw.match(/\s*$/)?.[0] || ''
   const core = normalizeTerminology(raw.trim())
@@ -530,13 +540,15 @@ function translateValue(raw, language) {
   return `${leading}${translated}${trailing}`
 }
 
+const SKIP_SELECTOR = 'script, style, code, pre, .post-body, .comment-body, [data-user-content]'
+
 function shouldSkip(node) {
   const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement
-  return !!element?.closest('script, style, code, pre, .post-body, .comment-body, [data-user-content]')
+  return !!element?.closest(SKIP_SELECTOR)
 }
 
 function translateElement(element, language) {
-  if (!(element instanceof Element) || shouldSkip(element)) return
+  if (!(element instanceof Element) || element.matches(SKIP_SELECTOR)) return
   for (const attribute of ['aria-label', 'title', 'placeholder']) {
     if (element.hasAttribute(attribute)) {
       const current = element.getAttribute(attribute)
@@ -557,17 +569,24 @@ function translateSubtree(root, language) {
   if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return
   if (root.nodeType === Node.ELEMENT_NODE) translateElement(root, language)
 
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT)
+  // Rejecting a shielded element skips its whole subtree in one step. Asking
+  // every node for its own `closest()` instead re-walked the ancestor chain
+  // per node, which made the cost of a post body grow with its depth.
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      return node.nodeType === Node.ELEMENT_NODE && node.matches(SKIP_SELECTOR)
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT
+    }
+  })
   let node = walker.nextNode()
   while (node) {
-    if (!shouldSkip(node)) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const current = node.nodeValue
-        const next = translateValue(current, language)
-        if (next !== current) node.nodeValue = next
-      } else {
-        translateElement(node, language)
-      }
+    if (node.nodeType === Node.TEXT_NODE) {
+      const current = node.nodeValue
+      const next = translateValue(current, language)
+      if (next !== current) node.nodeValue = next
+    } else {
+      translateElement(node, language)
     }
     node = walker.nextNode()
   }

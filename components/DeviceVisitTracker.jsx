@@ -125,8 +125,18 @@ export function DeviceVisitTracker() {
       }
     }
 
-    track()
-    return () => { cancelled = true }
+    // Analytics must never be in front of the page it measures: this used to
+    // fire during the same tick as the feed's first request, competing with it
+    // for the connection and the main thread. Idle time is soon enough.
+    const idle = globalThis.requestIdleCallback
+      ? globalThis.requestIdleCallback(track, { timeout: 4000 })
+      : globalThis.setTimeout(track, 1200)
+
+    return () => {
+      cancelled = true
+      if (globalThis.cancelIdleCallback && globalThis.requestIdleCallback) globalThis.cancelIdleCallback(idle)
+      else globalThis.clearTimeout(idle)
+    }
   }, [pathname])
 
   return null

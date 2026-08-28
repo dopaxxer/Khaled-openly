@@ -1988,3 +1988,22 @@ body::before {
   }
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* Rendering cost — a feed has to stay cheap as it grows                      */
+/* -------------------------------------------------------------------------- */
+
+/* Every page of posts stays in the document, so by the third page the browser
+   lays out and paints a hundred cards it cannot show. A card that is nowhere
+   near the viewport skips both until it is. `auto` in the intrinsic size makes
+   each card remember its real height once rendered, so the scrollbar and the
+   scroll position stay honest while it is skipped.
+
+   The card is also a self-contained box -- a like, an inline edit or a body
+   that reflows changes nothing outside it -- so its layout stops invalidating
+   the rest of the timeline. */
+.post-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
+  contain: layout style;
+}

@@ -19,6 +19,7 @@ export function TrackAttachment({ track }) {
           width={48}
           height={48}
           loading="lazy"
+          decoding="async"
           referrerPolicy="no-referrer"
         />
       : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}

@@ -216,6 +216,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
                     alt=""
                     width={48}
                     height={48}
+                    decoding="async"
                     referrerPolicy="no-referrer"
                   />
                 : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
@@ -276,6 +277,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
                               width={48}
                               height={48}
                               loading="lazy"
+                              decoding="async"
                               referrerPolicy="no-referrer"
                             />
                           : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
