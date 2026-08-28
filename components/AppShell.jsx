@@ -11,6 +11,13 @@ const nav = [
   { href: '/me', label: 'حسابي', icon: CircleUserRound }
 ]
 
+const mobileNav = [
+  { href: '/', label: 'Home', icon: House },
+  { href: '/discover', label: 'Explore', icon: Compass },
+  { href: '/write', label: 'Write', icon: MessageCircle },
+  { href: '/me', label: 'You', icon: CircleUserRound }
+]
+
 function Brand() {
   return <Link href="/" className="brand" aria-label="open — الرئيسية" dir="ltr">
     <span className="brand-mark" aria-hidden="true">O</span>
@@ -68,7 +75,7 @@ export function AppShell({ children }) {
     <aside className="desktop-sidebar">
       <Brand />
       <nav className="side-nav" aria-label="التنقل الرئيسي">
-        {nav.map(({ href, label, icon: Icon }) => {
+        {mobileNav.map(({ href, label, icon: Icon }) => {
           const isActive = active(href)
           return <Link key={href} href={href} className={`nav-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
             <Icon size={20} strokeWidth={1.75} aria-hidden="true"/>
@@ -97,7 +104,10 @@ export function AppShell({ children }) {
     </aside>
 
     <div className="mobile-header">
-      <Brand />
+      <div className="mobile-brand-stack">
+        <Brand />
+        {pathname === '/' && <span className="mobile-brand-context">Public space · chronological</span>}
+      </div>
       <div className="mobile-header-actions">
         {user && <Link href="/messages" className="icon-button" aria-label="الرسائل">
           <MessageCircle size={20} aria-hidden="true"/>
