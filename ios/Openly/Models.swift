@@ -470,16 +470,47 @@ enum OpenlyLocale {
 }
 
 enum OpenlyDate {
-    private static let parser: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
+    static func date(from value: String) -> Date? {
+        let normalized = Self.normalize(value)
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: normalized) { return date }
 
-    private static let fallback = ISO8601DateFormatter()
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+        if let date = standard.date(from: normalized) { return date }
+
+        let posix = DateFormatter()
+        posix.locale = Locale(identifier: "en_US_POSIX")
+        posix.timeZone = TimeZone(secondsFromGMT: 0)
+        for format in [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXXXX"
+        ] {
+            posix.dateFormat = format
+            if let date = posix.date(from: value) ?? posix.date(from: normalized) {
+                return date
+            }
+        }
+        return nil
+    }
+
+    private static func normalize(_ value: String) -> String {
+        var s = value
+        if s.hasSuffix("+00:00") {
+            s = String(s.dropLast(6)) + "Z"
+        }
+        guard let dot = s.firstIndex(of: ".") else { return s }
+        let fractionStart = s.index(after: dot)
+        guard let end = s[fractionStart...].firstIndex(where: { !$0.isNumber }) else { return s }
+        let fraction = s[fractionStart..<end]
+        let millis = fraction.prefix(3).padding(toLength: 3, withPad: "0", startingAt: 0)
+        return String(s[..<fractionStart]) + millis + String(s[end...])
+    }
 
     static func relative(_ value: String) -> String {
-        guard let date = parser.date(from: value) ?? fallback.date(from: value) else { return "" }
+        guard let date = date(from: value) else { return "" }
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = OpenlyLocale.locale
         formatter.unitsStyle = .full
@@ -487,8 +518,7 @@ enum OpenlyDate {
     }
 
     static func short(_ value: String?) -> String {
-        guard let value,
-              let date = parser.date(from: value) ?? fallback.date(from: value) else { return "" }
+        guard let value, let date = date(from: value) else { return "" }
         let formatter = DateFormatter()
         formatter.locale = OpenlyLocale.locale
         formatter.dateStyle = .medium

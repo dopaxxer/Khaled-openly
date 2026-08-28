@@ -36,7 +36,10 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
   const isOwner = !!viewerCode && post.authorCode === viewerCode
 
   useEffect(() => {
-    if (initialEngagement) return
+    if (initialEngagement) {
+      setEng(initialEngagement)
+      return
+    }
     fetch(`/api/engagement?ids=${encodeURIComponent(post.id)}`, { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(data => data?.items?.[0] && setEng(data.items[0]))

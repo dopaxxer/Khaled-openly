@@ -177,6 +177,7 @@ final class AppSession: ObservableObject {
     @Published var alertMessage: String?
     @Published var needsInterestOnboarding = false
     @Published private(set) var feedRevision = 0
+    @Published var notificationsRevision: UInt = 0
     let api = APIClient.shared
 
     private static let cachedUserKey = "openly.cachedUser"
@@ -228,6 +229,7 @@ final class AppSession: ObservableObject {
             status: status,
             bio: bio
         )
+        if let user { Self.cacheUser(user) }
         markFeedChanged()
     }
 
@@ -297,17 +299,7 @@ final class AppSession: ObservableObject {
     }
 
     private static func isRecentlyCreated(_ raw: String?) -> Bool {
-        guard let raw else { return false }
-
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let standard = ISO8601DateFormatter()
-        standard.formatOptions = [.withInternetDateTime]
-
-        guard let created = fractional.date(from: raw) ?? standard.date(from: raw) else {
-            return false
-        }
-
+        guard let raw, let created = OpenlyDate.date(from: raw) else { return false }
         let age = Date().timeIntervalSince(created)
         return age >= -300 && age <= 24 * 60 * 60
     }
@@ -459,7 +451,7 @@ struct AppHeader: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 BrandLockup(markSize: 34)
-                Text("Public space · chronological")
+                Text("مساحة عامة · الأحدث أولًا")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(OpenlyTheme.muted)
                     .environment(\.layoutDirection, .leftToRight)
@@ -510,7 +502,7 @@ struct AppHeader: View {
         .padding(.top, 18)
         .padding(.bottom, 12)
         .background(OpenlyTheme.background)
-        .task(id: session.user?.publicCode) {
+        .task(id: "\(session.user?.publicCode ?? "")-\(session.notificationsRevision)") {
             if session.user != nil, let count = try? await session.api.unreadNotificationCount() {
                 unreadCount = count
             } else {

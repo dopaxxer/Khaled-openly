@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CircleUserRound, Compass, House, LogIn, MessageCircle, Search } from 'lucide-react'
+import { Bell, CircleUserRound, Compass, House, LogIn, MessageCircle, PenLine, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 const nav = [
@@ -12,10 +12,10 @@ const nav = [
 ]
 
 const mobileNav = [
-  { href: '/', label: 'Home', icon: House },
-  { href: '/discover', label: 'Explore', icon: Compass },
-  { href: '/write', label: 'Write', icon: MessageCircle },
-  { href: '/me', label: 'You', icon: CircleUserRound }
+  { href: '/', label: 'الرئيسية', icon: House },
+  { href: '/discover', label: 'اكتشف', icon: Compass },
+  { href: '/write', label: 'اكتب', icon: PenLine },
+  { href: '/me', label: 'أنت', icon: CircleUserRound }
 ]
 
 function Brand() {
@@ -106,7 +106,7 @@ export function AppShell({ children }) {
     <div className="mobile-header">
       <div className="mobile-brand-stack">
         <Brand />
-        {pathname === '/' && <span className="mobile-brand-context">Public space · chronological</span>}
+        {pathname === '/' && <span className="mobile-brand-context">مساحة عامة · الأحدث أولًا</span>}
       </div>
       <div className="mobile-header-actions">
         {user && <Link href="/messages" className="icon-button" aria-label="الرسائل">

@@ -265,6 +265,7 @@ struct NotificationsView: View {
             response = value
             let unread = value.items.filter { $0.readAt == nil }.map(\.id)
             if !unread.isEmpty { try? await session.api.markNotificationsRead(ids: unread) }
+            session.notificationsRevision &+= 1
         } catch { session.alertMessage = error.localizedDescription }
         isLoading = false
     }
@@ -1441,9 +1442,10 @@ struct UserProfileView: View {
             async let taste = session.api.publicMusicProfile(code: code)
 
             let loadedUser = try await profile
-            let feedResult = try await feed
             user = loadedUser
-            posts = feedResult.items
+            if let feedResult = try? await feed {
+                posts = feedResult.items
+            }
             interests = (try? await commonGround) ?? nil
             music = (try? await taste) ?? nil
         } catch {

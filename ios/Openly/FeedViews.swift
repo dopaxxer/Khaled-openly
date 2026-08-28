@@ -73,6 +73,7 @@ struct FeedView: View {
     @State private var posts: [Post] = []
     @State private var nextCursor: String?
     @State private var isLoading = false
+    @State private var pendingReset = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -113,6 +114,12 @@ struct FeedView: View {
                                     }
                             }
 
+                            if let errorMessage, !posts.isEmpty {
+                                Text(errorMessage)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(OpenlyTheme.danger)
+                                    .padding(.vertical, 12)
+                            }
                             if isLoading {
                                 ProgressView()
                                     .tint(OpenlyTheme.accent)
@@ -150,16 +157,20 @@ struct FeedView: View {
 
     @MainActor
     private func load(reset: Bool) async {
-        guard !isLoading else { return }
-        isLoading = true
-        if reset {
-            nextCursor = nil
-            errorMessage = nil
+        if isLoading {
+            if reset { pendingReset = true }
+            return
         }
+        isLoading = true
+        if reset { errorMessage = nil }
         do {
             let response = try await session.api.feed(cursor: reset ? nil : nextCursor)
-            posts = reset ? response.items : posts + response.items.filter { item in
-                !posts.contains(where: { $0.id == item.id })
+            if reset {
+                posts = response.items
+            } else {
+                posts += response.items.filter { item in
+                    !posts.contains(where: { $0.id == item.id })
+                }
             }
             nextCursor = response.nextCursor
             errorMessage = nil
@@ -167,6 +178,10 @@ struct FeedView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+        if pendingReset {
+            pendingReset = false
+            await load(reset: true)
+        }
     }
 }
 

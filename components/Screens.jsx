@@ -19,7 +19,7 @@ import {
   UserRound
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CommentThread } from './CommentThread'
 import { Composer } from './Composer'
 import { MessageThread, MessagesInbox } from './DirectMessages'
@@ -567,8 +567,8 @@ function SearchScreen() {
 
   return <section className="v2-search">
     <header className="v2-search-head">
-      <h1>Search</h1>
-      <p>People, posts and cultural context</p>
+      <h1>بحث</h1>
+      <p>أشخاص، منشورات، وسياق ثقافي</p>
     </header>
 
     <form className="v2-search-box" onSubmit={run}>
@@ -577,42 +577,42 @@ function SearchScreen() {
         value={q}
         onChange={e => setQ(e.target.value)}
         maxLength={120}
-        placeholder="Search people or posts…"
-        aria-label="Search"
+        placeholder="ابحث عن هوية أو منشور…"
+        aria-label="بحث"
       />
       {q && <button type="button" className="v2-search-clear" onClick={() => { setQ(''); setPosts([]); setUsers([]); setDone(false) }}>×</button>}
     </form>
 
     <div className="v2-search-tabs" aria-hidden="true">
-      <span className="active">People</span>
-      <span>Posts</span>
-      <span>Music</span>
-      <span>Books</span>
-      <span>Films</span>
+      <span className="active">أشخاص</span>
+      <span>منشورات</span>
+      <span>موسيقى</span>
+      <span>كتب</span>
+      <span>أفلام</span>
     </div>
 
     {error && <p className="status-message error v2-search-status">{error}</p>}
     {busy && <div className="screen-pad"><div className="skeleton" /></div>}
 
     {!busy && users.length > 0 && <section>
-      <div className="v2-search-section-title">People</div>
+      <div className="v2-search-section-title">أشخاص</div>
       {users.map(u => <Link className="v2-search-person" key={u.publicCode} href={`/u/${u.publicCode}`}>
         <span className="v2-search-person-dot" style={{ backgroundColor: u.identityColor }} aria-hidden="true" />
         <span className="v2-search-person-copy">
           <strong>{u.publicCode}</strong>
-          <span>Open profile</span>
+          <span>افتح الملف</span>
         </span>
         <span className="v2-search-arrow">›</span>
       </Link>)}
     </section>}
 
     {!busy && posts.length > 0 && <section>
-      <div className="v2-search-section-title">Posts</div>
+      <div className="v2-search-section-title">منشورات</div>
       {posts.map(p => <PostCard key={p.id} post={p} />)}
     </section>}
 
     {!busy && !done && <section className="v2-search-recents">
-      <div className="v2-search-section-title">Try searching</div>
+      <div className="v2-search-section-title">جرّب البحث</div>
       <button type="button" onClick={() => setQ('K7M2')}>K7M2</button>
       <button type="button" onClick={() => setQ('music')}>music</button>
       <button type="button" onClick={() => setQ('film')}>film</button>
@@ -630,16 +630,20 @@ function MeScreen() {
 
   useEffect(() => {
     (async () => {
-      const m = await fetch('/api/auth/me', { cache: 'no-store' })
-      const md = m.ok ? await m.json() : { user: null }
-      setUser(md.user || null)
-      if (md.user) {
-        const [a, b] = await Promise.all([
-          fetch('/api/me/followers-count', { cache: 'no-store' }),
-          fetch('/api/me/following', { cache: 'no-store' })
-        ])
-        if (a.ok) setCount((await a.json()).count)
-        if (b.ok) setFollowing((await b.json()).items || [])
+      try {
+        const m = await fetch('/api/auth/me', { cache: 'no-store' })
+        const md = m.ok ? await m.json() : { user: null }
+        setUser(md.user || null)
+        if (md.user) {
+          const [a, b] = await Promise.all([
+            fetch('/api/me/followers-count', { cache: 'no-store' }),
+            fetch('/api/me/following', { cache: 'no-store' })
+          ])
+          if (a.ok) setCount((await a.json()).count)
+          if (b.ok) setFollowing((await b.json()).items || [])
+        }
+      } catch {
+        setUser(null)
       }
     })()
   }, [])
@@ -659,7 +663,7 @@ function MeScreen() {
       <div className="v2-profile-top">
         <div>
           <Identity code={user.publicCode} color={user.identityColor} large />
-          <p className="v2-profile-code-label">public code</p>
+          <p className="v2-profile-code-label">رمز عام</p>
         </div>
         <Link href="/settings" className="v2-profile-settings">الإعدادات</Link>
       </div>
@@ -863,18 +867,27 @@ function UserScreen({ code }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    (async () => {
-      const [u, p, m, i] = await Promise.all([
-        fetch(`/api/users/${encodeURIComponent(code)}`, { cache: 'no-store' }),
-        fetch(`/api/posts?author=${encodeURIComponent(code)}`, { cache: 'no-store' }),
-        fetch(`/api/v1/users/${encodeURIComponent(code)}/music`, { cache: 'no-store' }),
-        fetch(`/api/v1/users/${encodeURIComponent(code)}/interests`, { cache: 'no-store' })
-      ])
-      setUser(u.ok ? (await u.json()).user : null)
-      if (p.ok) setPosts((await p.json()).items || [])
-      setMusic(m.ok ? (await m.json()).profile : null)
-      setInterests(i.ok ? (await i.json()).profile : null)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [u, p, m, i] = await Promise.all([
+          fetch(`/api/users/${encodeURIComponent(code)}`, { cache: 'no-store' }),
+          fetch(`/api/posts?author=${encodeURIComponent(code)}`, { cache: 'no-store' }),
+          fetch(`/api/v1/users/${encodeURIComponent(code)}/music`, { cache: 'no-store' }),
+          fetch(`/api/v1/users/${encodeURIComponent(code)}/interests`, { cache: 'no-store' })
+        ])
+        if (cancelled) return
+        if (u.status === 404) { setUser(null); return }
+        if (!u.ok) { setError('تعذر فتح الملف'); setUser(null); return }
+        setUser((await u.json()).user)
+        if (p.ok) setPosts((await p.json()).items || [])
+        setMusic(m.ok ? (await m.json()).profile : null)
+        setInterests(i.ok ? (await i.json()).profile : null)
+      } catch {
+        if (!cancelled) { setError('تعذر فتح الملف'); setUser(null) }
+      }
     })()
+    return () => { cancelled = true }
   }, [code])
 
   async function startMessage() {
@@ -958,13 +971,41 @@ function PostScreen({ id }) {
   const [busy, setBusy] = useState(false)
   const [viewerCode, setViewerCode] = useState(null)
   const [commentError, setCommentError] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const postRef = useRef(null)
 
   async function load() {
-    const r = await fetch(`/api/posts/${id}`, { cache: 'no-store' })
-    if (!r.ok) { setPost(null); return }
-    const d = await r.json()
-    setPost(d.post)
-    setComments(d.comments || [])
+    try {
+      const r = await fetch(`/api/posts/${id}`, { cache: 'no-store' })
+      if (r.status === 404) {
+        postRef.current = null
+        setPost(null)
+        setLoadError('')
+        return
+      }
+      if (!r.ok) {
+        if (postRef.current) {
+          setCommentError('تعذر تحديث المنشور. حاول مجددًا.')
+          return
+        }
+        setLoadError('تعذر فتح المنشور.')
+        setPost(null)
+        return
+      }
+      const d = await r.json()
+      postRef.current = d.post
+      setPost(d.post)
+      setComments(d.comments || [])
+      setCommentError('')
+      setLoadError('')
+    } catch {
+      if (postRef.current) {
+        setCommentError('تعذر تحديث المنشور. حاول مجددًا.')
+        return
+      }
+      setLoadError('تعذر فتح المنشور.')
+      setPost(null)
+    }
   }
 
   useEffect(() => { load() }, [id])
@@ -996,23 +1037,25 @@ function PostScreen({ id }) {
   }
 
   if (post === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
-  if (!post) return <NotFound />
+  if (!post) return loadError
+    ? <div className="empty-state"><div><p>{loadError}</p><button className="secondary-button mt16" onClick={load}>المحاولة مجددًا</button></div></div>
+    : <NotFound />
 
   return <section className="v2-post-detail">
     <header className="v2-post-detail-head">
-      <Link href="/" className="v2-back-link">‹ Back</Link>
-      <h1>Post</h1>
+      <Link href="/" className="v2-back-link">‹ العودة</Link>
+      <h1>المنشور</h1>
     </header>
     <PostCard post={post} viewerCode={viewerCode} onChanged={load} />
     <form className="comment-form v2-comment-form" onSubmit={comment}>
-      <MentionField maxLength={COMMENT_MAX_LENGTH} value={body} onChange={setBody} placeholder="Reply…" aria-label="نص التعليق" />
+      <MentionField maxLength={COMMENT_MAX_LENGTH} value={body} onChange={setBody} placeholder="أضف ردًا…" aria-label="نص التعليق" />
       <div className="row between">
         <span className="tiny subtle" dir="ltr">{body.length} / {COMMENT_MAX_LENGTH}</span>
-        <button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'Reply'}</button>
+        <button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'رد'}</button>
       </div>
       {commentError && <p className="status-message error">{commentError}</p>}
     </form>
-    <div className="v2-replies-title">Replies</div>
+    <div className="v2-replies-title">الردود</div>
     <CommentThread comments={comments} postId={id} viewerCode={viewerCode} onChanged={load} />
   </section>
 }

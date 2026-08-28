@@ -6,7 +6,16 @@ import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { LanguageBridge } from '@/components/LanguageBridge'
 import { CANONICAL_ORIGIN } from '@/lib/publicOrigin'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
+import { IBM_Plex_Sans_Arabic } from 'next/font/google'
 import { headers } from 'next/headers'
+
+const plexArabic = IBM_Plex_Sans_Arabic({
+  subsets: ['arabic', 'latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-arabic',
+  adjustFontFallback: false
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -49,9 +58,9 @@ export const viewport = {
 export default async function RootLayout({ children }) {
   const nonce = (await headers()).get('x-nonce') || undefined
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" className={plexArabic.variable} suppressHydrationWarning>
       <head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}/></head>
-      <body>
+      <body className={plexArabic.className}>
         <LanguageBridge />
         <DeviceVisitTracker />
         <AppShell>{children}</AppShell>
