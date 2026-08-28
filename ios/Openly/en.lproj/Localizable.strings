@@ -304,3 +304,20 @@
 "interest_shared_count_format" = "%d topics · %d books · %d movies";
 "interest_music_compatibility_format" = "Music compatibility %d%%";
 
+
+/* Private direct messages */
+"الرسائل" = "Messages";
+"سجّل الدخول لرؤية رسائلك." = "Sign in to see your messages.";
+"جارِ تحميل الرسائل" = "Loading messages";
+"تعذر تحميل الرسائل" = "Could not load messages";
+"لا توجد رسائل بعد" = "No messages yet";
+"ابدأ من صفحة أي هوية واضغط «رسالة خاصة»." = "Open any identity profile and tap “Private message” to start.";
+"لا توجد رسائل في هذه المحادثة بعد." = "There are no messages in this conversation yet.";
+"أنت:" = "You:";
+"تعذر بدء المحادثة" = "Could not start the conversation";
+"جارِ فتح المحادثة…" = "Opening conversation…";
+"عرض رسائل أقدم" = "Show older messages";
+"لا توجد رسائل" = "No messages";
+"اكتب رسالة خاصة…" = "Write a private message…";
+"لا يمكن إرسال رسائل جديدة في هذه المحادثة." = "You cannot send new messages in this conversation.";
+"رسالة خاصة" = "Private message";

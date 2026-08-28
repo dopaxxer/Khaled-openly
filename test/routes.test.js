@@ -9,6 +9,7 @@ test('the catch-all accepts only known application routes', () => {
   assert.equal(classifyAppRoute(['login']).kind, 'private')
   assert.equal(classifyAppRoute(['discover']).kind, 'private')
   assert.equal(classifyAppRoute(['interests']).kind, 'private')
+  assert.equal(classifyAppRoute(['messages']).kind, 'private')
   assert.equal(classifyAppRoute(['onboarding', 'interests']).kind, 'private')
   assert.equal(classifyAppRoute(['discover', 'music']).kind, 'private')
   assert.equal(classifyAppRoute(['anything', 'else']), null)
@@ -27,6 +28,8 @@ test('public identity routes normalize and validate identity codes', () => {
 })
 
 test('post and report routes require UUIDs', () => {
+  assert.equal(classifyAppRoute(['messages', uuid]).kind, 'private')
+  assert.equal(classifyAppRoute(['messages', 'not-a-conversation']), null)
   assert.equal(classifyAppRoute(['post', uuid]).kind, 'post')
   assert.equal(classifyAppRoute(['post', 'not-a-post']), null)
   assert.equal(classifyAppRoute(['report', 'post', uuid]).kind, 'private')

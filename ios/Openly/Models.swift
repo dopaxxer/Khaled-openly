@@ -319,6 +319,61 @@ struct Engagement: Codable, Identifiable, Hashable {
     let viewerHasBookmarked: Bool
 }
 
+struct DirectConversation: Codable, Identifiable, Hashable {
+    var id: String { conversationId }
+    let conversationId: String
+    let publicCode: String
+    let identityColor: String?
+    let createdAt: String?
+    let lastMessageBody: String?
+    let lastMessageAt: String?
+    let lastMessageIsMine: Bool?
+    let unreadCount: Int?
+    let canMessage: Bool
+}
+
+struct DirectMessage: Codable, Identifiable, Hashable {
+    let id: String
+    let body: String
+    let createdAt: String
+    let readAt: String?
+    let senderCode: String
+    let senderColor: String?
+    let isMine: Bool
+}
+
+struct DirectConversationListResponse: Codable {
+    let items: [DirectConversation]
+    let total: Int
+    let limit: Int
+    let offset: Int
+    let hasMore: Bool
+}
+
+struct DirectConversationResponse: Codable {
+    let conversation: DirectConversation
+}
+
+struct DirectThreadResponse: Codable {
+    let conversation: DirectConversation
+    let items: [DirectMessage]
+    let nextCursor: String?
+    let hasMore: Bool
+}
+
+struct DirectMessageResponse: Codable {
+    let message: DirectMessage
+}
+
+struct DirectUnreadResponse: Codable {
+    let unreadCount: Int
+}
+
+struct DirectReadResponse: Codable {
+    let ok: Bool
+    let readCount: Int
+}
+
 struct NotificationItem: Codable, Identifiable, Hashable {
     let id: String
     let kind: String

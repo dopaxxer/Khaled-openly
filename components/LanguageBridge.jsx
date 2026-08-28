@@ -421,6 +421,26 @@ const EN = {
   'تطابق متبادل': 'Mutual connection',
   'لا توجد ماتشات متبادلة بعد.': 'No mutual connections yet.',
 
+  // Private messages.
+  'الرسائل': 'Messages',
+  'الرسائل الخاصة': 'Private messages',
+  'محادثاتك الخاصة بين هويات Openly. لا يظهر بريدك أو اسمك الحقيقي.': 'Private conversations between Openly identities. Your email and real name are never shown.',
+  'سجّل الدخول لرؤية رسائلك.': 'Sign in to see your messages.',
+  'لا توجد رسائل بعد.': 'No messages yet.',
+  'ابدأ من صفحة أي هوية واضغط «رسالة خاصة».': 'Open any identity profile and tap “Private message” to start.',
+  'لا توجد رسائل في هذه المحادثة بعد.': 'There are no messages in this conversation yet.',
+  'أنت:': 'You:',
+  'تعذر تحميل الرسائل': 'Could not load messages',
+  'تعذر بدء المحادثة': 'Could not start the conversation',
+  'جارِ فتح المحادثة…': 'Opening conversation…',
+  'رسالة خاصة': 'Private message',
+  'المحادثة غير متاحة': 'This conversation is unavailable',
+  'العودة إلى الرسائل': 'Back to messages',
+  'عرض رسائل أقدم': 'Show older messages',
+  'لا يمكن إرسال رسائل جديدة في هذه المحادثة.': 'You cannot send new messages in this conversation.',
+  'اكتب رسالة خاصة…': 'Write a private message…',
+  'تعذر إرسال الرسالة': 'Could not send the message',
+
   // Shell and small labels.
   'open — الرئيسية': 'Openly — Home',
   'التنقل الرئيسي': 'Main navigation',

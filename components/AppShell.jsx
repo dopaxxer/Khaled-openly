@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CircleUserRound, Compass, House, LogIn, Search } from 'lucide-react'
+import { Bell, CircleUserRound, Compass, House, LogIn, MessageCircle, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 const nav = [
@@ -22,6 +22,7 @@ export function AppShell({ children }) {
   const pathname = usePathname()
   const [user, setUser] = useState(undefined)
   const [unread, setUnread] = useState(0)
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     let controller = new AbortController()
@@ -35,23 +36,29 @@ export function AppShell({ children }) {
         setUser(data.user || null)
         if (!data.user) {
           setUnread(0)
+          setUnreadMessages(0)
           return
         }
-        const notifications = await fetch('/api/notifications/count', {
-          cache: 'no-store',
-          signal: controller.signal
-        }).catch(() => null)
+        const [notifications, messages] = await Promise.all([
+          fetch('/api/notifications/count', { cache: 'no-store', signal: controller.signal }).catch(() => null),
+          fetch('/api/v1/messages/unread', { cache: 'no-store', signal: controller.signal }).catch(() => null)
+        ])
         if (notifications?.ok) setUnread((await notifications.json()).unreadCount || 0)
+        if (messages?.ok) setUnreadMessages((await messages.json()).unreadCount || 0)
       } catch (error) {
         if (error?.name !== 'AbortError') setUser(null)
       }
     }
 
     syncAuthState()
+    const timer = window.setInterval(syncAuthState, 60_000)
     window.addEventListener('openly:auth-changed', syncAuthState)
+    window.addEventListener('openly:messages-changed', syncAuthState)
     return () => {
       controller.abort()
+      window.clearInterval(timer)
       window.removeEventListener('openly:auth-changed', syncAuthState)
+      window.removeEventListener('openly:messages-changed', syncAuthState)
     }
   }, [])
 
@@ -68,6 +75,11 @@ export function AppShell({ children }) {
             <span>{label}</span>
           </Link>
         })}
+        {user && <Link href="/messages" className={`nav-link${active('/messages') ? ' active' : ''}`} aria-current={active('/messages') ? 'page' : undefined}>
+          <MessageCircle size={20} strokeWidth={1.75} aria-hidden="true"/>
+          <span>الرسائل</span>
+          {unreadMessages > 0 && <span className="nav-badge">{unreadMessages > 99 ? '99+' : unreadMessages}</span>}
+        </Link>}
         {user && <Link href="/notifications" className={`nav-link${active('/notifications') ? ' active' : ''}`} aria-current={active('/notifications') ? 'page' : undefined}>
           <Bell size={20} strokeWidth={1.75} aria-hidden="true"/>
           <span>الإشعارات</span>
@@ -87,6 +99,10 @@ export function AppShell({ children }) {
     <div className="mobile-header">
       <Brand />
       <div className="mobile-header-actions">
+        {user && <Link href="/messages" className="icon-button" aria-label="الرسائل">
+          <MessageCircle size={20} aria-hidden="true"/>
+          {unreadMessages > 0 && <span className="icon-badge">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}
+        </Link>}
         {user && <Link href="/notifications" className="icon-button" aria-label="الإشعارات">
           <Bell size={20} aria-hidden="true"/>
           {unread > 0 && <span className="icon-badge">{unread > 9 ? '9+' : unread}</span>}
