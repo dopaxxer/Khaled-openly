@@ -67,14 +67,12 @@ export function HomeScreen() {
   // owns its own fetch, so the counter is what tells it to run again.
   const [published, setPublished] = useState(0)
 
-  return <>
-    <header className="page-header">
-      <h1 className="page-title">المساحة العامة</h1>
-      <p className="page-description">الأحدث أولًا. بلا خوارزمية ترتيب.</p>
-    </header>
+  return <section className="v2-home-screen">
     <Composer inline onPublished={() => setPublished(count => count + 1)} />
-    <Timeline refreshToken={published} />
-  </>
+    <div className="v2-home-timeline">
+      <Timeline refreshToken={published} />
+    </div>
+  </section>
 }
 
 export function ScreenRouter({ slug }) {
