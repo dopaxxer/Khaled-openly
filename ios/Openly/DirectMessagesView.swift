@@ -94,7 +94,7 @@ private struct DirectConversationRow: View {
                 }
 
                 if let body = conversation.lastMessageBody, !body.isEmpty {
-                    Text(verbatim: (conversation.lastMessageIsMine == true ? "أنت: " : "") + body)
+                    Text(verbatim: (conversation.lastMessageIsMine == true ? NSLocalizedString("أنت:", comment: "") + " " : "") + body)
                         .font(.system(size: 13))
                         .foregroundColor(OpenlyTheme.muted)
                         .lineLimit(1)
