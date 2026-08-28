@@ -250,7 +250,7 @@ export function InterestPreferences({ onboarding = false }) {
     item.kind === kind
   )
 
-  return <>
+  return <section className={onboarding ? "v2-onboarding" : "v2-interest-preferences"}>
     <header className="page-header">
       <div className="page-title-row">
         <Sparkles size={20} />
@@ -372,7 +372,7 @@ export function InterestPreferences({ onboarding = false }) {
         اختر حتى {MAX_INTERESTS_PER_PROFILE} اهتمامًا إجمالًا. الموسيقى تبقى في ملفها الحالي وتدخل في نسبة التوافق فقط عندما تسمح إعداداتها بذلك.
       </p>
     </div>
-  </>
+  </section>
 }
 
 export function InterestDiscovery() {
