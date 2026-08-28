@@ -374,6 +374,12 @@ struct DirectReadResponse: Codable {
     let readCount: Int
 }
 
+struct DirectPresenceResponse: Codable, Hashable {
+    let online: Bool
+    let typing: Bool
+    let lastSeenAt: String?
+}
+
 struct NotificationItem: Codable, Identifiable, Hashable {
     let id: String
     let kind: String
