@@ -9,7 +9,8 @@ function formatMessageTime(value) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('ar', {
+  const locale = typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en' : 'ar'
+  return new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -160,7 +161,7 @@ export function MessageThread({ conversationId }) {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'تعذر تحميل الرسائل')
       setMessages(current => mergeMessages(current, data.items || []))
-      setOlderCursor(data.nextBefore || null)
+      setOlderCursor(data.nextCursor || null)
       setHasMore(!!data.hasMore)
     } catch (loadError) {
       setError(loadError.message || 'تعذر تحميل الرسائل')
