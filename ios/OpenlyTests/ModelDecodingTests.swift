@@ -254,6 +254,49 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(discovery.items.first?.musicCompatibility, 40)
     }
 
+    func testDirectMessageContractsDecode() throws {
+        let start = try decode(DirectConversationResponse.self, """
+        {
+          "conversation": {
+            "conversationId": "11111111-1111-4111-8111-111111111111",
+            "publicCode": "AB23",
+            "identityColor": "#3F7CAC",
+            "canMessage": true
+          }
+        }
+        """)
+        XCTAssertEqual(start.conversation.publicCode, "AB23")
+        XCTAssertNil(start.conversation.lastMessageBody)
+        XCTAssertTrue(start.conversation.canMessage)
+
+        let thread = try decode(DirectThreadResponse.self, """
+        {
+          "conversation": {
+            "conversationId": "11111111-1111-4111-8111-111111111111",
+            "publicCode": "AB23",
+            "identityColor": "#3F7CAC",
+            "createdAt": "2026-08-28T12:00:00.000Z",
+            "unreadCount": 1,
+            "canMessage": true
+          },
+          "items": [{
+            "id": "22222222-2222-4222-8222-222222222222",
+            "body": "مرحبا",
+            "createdAt": "2026-08-28T12:01:00.000Z",
+            "readAt": null,
+            "senderCode": "AB23",
+            "senderColor": "#3F7CAC",
+            "isMine": false
+          }],
+          "nextBefore": null,
+          "hasMore": false
+        }
+        """)
+        XCTAssertEqual(thread.items.first?.body, "مرحبا")
+        XCTAssertEqual(thread.items.first?.isMine, false)
+        XCTAssertEqual(thread.conversation.unreadCount, 1)
+    }
+
     // MARK: - Mention grammar (parity with SQL and lib/mentions.js)
 
     func testMentionParserMatchesTheSharedFixtures() {
