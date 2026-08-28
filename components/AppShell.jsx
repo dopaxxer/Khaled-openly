@@ -75,7 +75,7 @@ export function AppShell({ children }) {
     <aside className="desktop-sidebar">
       <Brand />
       <nav className="side-nav" aria-label="التنقل الرئيسي">
-        {mobileNav.map(({ href, label, icon: Icon }) => {
+        {nav.map(({ href, label, icon: Icon }) => {
           const isActive = active(href)
           return <Link key={href} href={href} className={`nav-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
             <Icon size={20} strokeWidth={1.75} aria-hidden="true"/>
@@ -126,7 +126,7 @@ export function AppShell({ children }) {
     <main className="content-column"><div key={pathname} className="route-stage">{children}</div></main>
 
     <nav className="mobile-nav" aria-label="التنقل الرئيسي">
-      {nav.map(({ href, label, icon: Icon }) => {
+      {mobileNav.map(({ href, label, icon: Icon }) => {
         const isActive = active(href)
         return <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
           <Icon size={20} strokeWidth={isActive ? 2.1 : 1.75} aria-hidden="true"/>
