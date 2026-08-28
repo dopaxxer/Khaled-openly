@@ -69,7 +69,23 @@ export function AppShell({ children }) {
     }
   }, [])
 
+  useEffect(() => {
+    let last = window.scrollY
+    function onScroll() {
+      const y = window.scrollY
+      if (y > last + 8 && y > 52) document.documentElement.classList.add('openly-compact')
+      else if (y < last - 8 || y < 20) document.documentElement.classList.remove('openly-compact')
+      last = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      document.documentElement.classList.remove('openly-compact')
+    }
+  }, [pathname])
+
   const active = href => href === '/' ? pathname === '/' : pathname.startsWith(href)
+  const mobileIndex = mobileNav.findIndex(({ href }) => active(href))
 
   return <div className="app-shell">
     <aside className="desktop-sidebar">
@@ -125,7 +141,11 @@ export function AppShell({ children }) {
 
     <main className="content-column"><div key={pathname} className="route-stage">{children}</div></main>
 
-    <nav className="mobile-nav" aria-label="التنقل الرئيسي">
+    <nav
+      className="mobile-nav"
+      aria-label="التنقل الرئيسي"
+      style={mobileIndex >= 0 ? { '--nav-i': mobileIndex } : undefined}
+    >
       {mobileNav.map(({ href, label, icon: Icon }) => {
         const isActive = active(href)
         return <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
