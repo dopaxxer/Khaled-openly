@@ -42,7 +42,12 @@ npm run cf:preview # تشغيل الـWorker محليًا عبر wrangler
   و`open-next.config.ts`. لا يُنشر بناء Next.js مباشرة: محوّل `@opennextjs/cloudflare` يحوّله إلى
   `.open-next/worker.js` وهو ما تنشره Cloudflare فعليًا.
 
-  إعدادات Workers Builds في لوحة Cloudflare — يجب أن تطابق هذه القيم وإلا فشل البناء:
+  **أمر البناء في اللوحة يجب أن يكون `npm run cf:build`، ولا يمكن الاستغناء عن ذلك بتعديل المستودع.**
+  المحوّل ينفّذ `npm run build` داخليًا ليُنتج بناء Next.js (انظر `buildNextjsApp` في
+  `@opennextjs/aws`)، فلو جعلتَ `build` يشير إلى المحوّل صار يستدعي نفسه بلا نهاية. لذلك يبقى
+  `build` هو `next build` دائمًا، ويبقى إنتاج الـWorker على `cf:build` وحده.
+
+  إعدادات Workers Builds في لوحة Cloudflare — أمر البناء هنا هو الفارق بين نشر يعمل ونشر فاشل:
 
   | الإعداد | القيمة |
   | --- | --- |
