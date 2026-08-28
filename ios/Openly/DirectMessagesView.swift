@@ -94,7 +94,7 @@ private struct DirectConversationRow: View {
                 }
 
                 if let body = conversation.lastMessageBody, !body.isEmpty {
-                    Text(verbatim: (conversation.lastMessageIsMine == true ? "أنت: " : "") + body)
+                    Text(verbatim: (conversation.lastMessageIsMine == true ? NSLocalizedString("أنت:", comment: "") + " " : "") + body)
                         .font(.system(size: 13))
                         .foregroundColor(OpenlyTheme.muted)
                         .lineLimit(1)
@@ -459,7 +459,7 @@ private enum DirectMessageTime {
         guard let date else { return nil }
 
         let output = DateFormatter()
-        output.locale = Locale.current
+        output.locale = Locale(identifier: OpenlyLocale.currentLanguageCode == "en" ? "en" : "ar")
         output.dateStyle = Calendar.current.isDateInToday(date) ? .none : .short
         output.timeStyle = .short
         return output.string(from: date)
