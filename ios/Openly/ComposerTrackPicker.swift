@@ -22,6 +22,21 @@ struct ComposerTrackPicker: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("Music")
+                        .font(.system(size: 28, weight: .bold))
+                        .tracking(-0.6)
+                        .foregroundColor(OpenlyTheme.ink)
+                    Text("Add a song as context, not as the post itself.")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(OpenlyTheme.muted)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.top, 22)
+                .padding(.bottom, 14)
+                .environment(\.layoutDirection, .leftToRight)
+
                 searchField
 
                 ScrollView {
@@ -30,7 +45,7 @@ struct ComposerTrackPicker: View {
                             Text(errorMessage)
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(OpenlyTheme.danger)
-                                .padding(.horizontal, 18)
+                                .padding(.horizontal, 24)
                         }
 
                         if isSearching {
@@ -49,7 +64,7 @@ struct ComposerTrackPicker: View {
                 }
             }
             .background(OpenlyTheme.background.ignoresSafeArea())
-            .navigationTitle(Text("composer_track_search_title"))
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -78,14 +93,14 @@ struct ComposerTrackPicker: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 48)
-        .background(OpenlyTheme.elevated)
+        .background(OpenlyTheme.surface)
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(OpenlyTheme.lineStrong, lineWidth: 1)
+            Capsule()
+                .stroke(OpenlyTheme.line, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .padding(.horizontal, 18)
-        .padding(.top, 14)
+        .clipShape(Capsule())
+        .padding(.horizontal, 24)
+        .padding(.top, 4)
     }
 
     private func statusText(_ key: LocalizedStringKey) -> some View {
@@ -119,9 +134,13 @@ struct ComposerTrackPicker: View {
                     ProgressView().tint(OpenlyTheme.accent)
                 }
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(OpenlyTheme.elevated)
+            .background(OpenlyTheme.surface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(OpenlyTheme.line, lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -210,9 +229,9 @@ struct ComposerTrackChip: View {
             .accessibilityLabel(Text("composer_track_remove"))
         }
         .padding(10)
-        .background(OpenlyTheme.background)
+        .background(OpenlyTheme.surface)
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(OpenlyTheme.line, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
