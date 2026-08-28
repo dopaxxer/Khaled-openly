@@ -105,7 +105,9 @@ export function MessageThread({ conversationId }) {
 
   const markRead = useCallback(async () => {
     const response = await fetch(`/api/v1/messages/${conversationId}/read`, { method: 'POST' }).catch(() => null)
-    if (response?.ok) window.dispatchEvent(new Event('openly:messages-changed'))
+    if (!response?.ok) return
+    const data = await response.json().catch(() => ({ readCount: 0 }))
+    if (data.readCount > 0) window.dispatchEvent(new Event('openly:messages-changed'))
   }, [conversationId])
 
   const loadLatest = useCallback(async ({ silent = false } = {}) => {
