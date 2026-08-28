@@ -681,6 +681,68 @@ final class APIClient {
         return response.profile
     }
 
+    // MARK: - Private direct messages
+
+    func directConversations(limit: Int = 50, offset: Int = 0) async throws -> DirectConversationListResponse {
+        try await request(
+            "v1/messages",
+            query: [
+                URLQueryItem(name: "limit", value: String(limit)),
+                URLQueryItem(name: "offset", value: String(offset))
+            ]
+        )
+    }
+
+    func startDirectConversation(code: String) async throws -> DirectConversation {
+        let response: DirectConversationResponse = try await request(
+            "v1/messages",
+            method: "POST",
+            body: ["publicCode": code.uppercased()]
+        )
+        return response.conversation
+    }
+
+    func directMessages(
+        conversationID: String,
+        before: String? = nil,
+        limit: Int = 100
+    ) async throws -> DirectThreadResponse {
+        var query = [URLQueryItem(name: "limit", value: String(limit))]
+        if let before, !before.isEmpty {
+            query.append(URLQueryItem(name: "before", value: before))
+        }
+        return try await request("v1/messages/\(conversationID)", query: query)
+    }
+
+    func sendDirectMessage(
+        conversationID: String,
+        body: String,
+        clientNonce: UUID
+    ) async throws -> DirectMessage {
+        let response: DirectMessageResponse = try await request(
+            "v1/messages/\(conversationID)",
+            method: "POST",
+            body: [
+                "body": body,
+                "clientNonce": clientNonce.uuidString.lowercased()
+            ]
+        )
+        return response.message
+    }
+
+    func markDirectConversationRead(conversationID: String) async throws -> Int {
+        let response: DirectReadResponse = try await request(
+            "v1/messages/\(conversationID)/read",
+            method: "POST"
+        )
+        return response.readCount
+    }
+
+    func unreadDirectMessageCount() async throws -> Int {
+        let response: DirectUnreadResponse = try await request("v1/messages/unread")
+        return response.unreadCount
+    }
+
     func report(postID: String, reason: String, description: String) async throws {
         let _: ActionResponse = try await request(
             "reports",
