@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import {
+  directMessageCursor,
   mapDirectMessage,
   normalizeDirectMessageBody,
-  parseMessageBefore,
+  parseDirectMessageCursor,
   validDirectMessageNonce
 } from '@/lib/directMessages'
 import { consumeRateLimit, RATE_LIMITS, rateLimitKey } from '@/lib/rateLimit'
@@ -57,17 +58,18 @@ export async function GET(request, { params }) {
 
   const url = new URL(request.url)
   const limit = boundedInt(url.searchParams.get('limit'), 50, 1, 100)
-  const before = parseMessageBefore(url.searchParams.get('before'))
-  if (before === undefined) {
+  const cursor = parseDirectMessageCursor(url.searchParams.get('cursor'))
+  if (cursor === undefined) {
     return reply({ error: 'مؤشر الرسائل غير صالح', code: 'invalid_cursor' }, 400)
   }
 
   const [metaResult, messagesResult] = await Promise.all([
     auth.supabase.rpc('get_direct_conversation', { p_conversation_id: id }),
-    auth.supabase.rpc('get_direct_messages', {
+    auth.supabase.rpc('get_direct_messages_page', {
       p_conversation_id: id,
-      p_before: before,
-      p_limit: limit
+      p_before: cursor?.createdAt || null,
+      p_before_id: cursor?.id || null,
+      p_limit: limit + 1
     })
   ])
 
@@ -76,12 +78,14 @@ export async function GET(request, { params }) {
   }
 
   const rows = messagesResult.data || []
-  const oldest = rows.length ? rows[rows.length - 1].created_at : null
+  const hasMore = rows.length > limit
+  const page = rows.slice(0, limit)
+  const oldest = page.length ? page[page.length - 1] : null
   return reply({
     conversation: metaResult.data,
-    items: rows.map(mapDirectMessage).reverse(),
-    nextBefore: rows.length === limit ? oldest : null,
-    hasMore: rows.length === limit
+    items: page.map(mapDirectMessage).reverse(),
+    nextCursor: hasMore ? directMessageCursor(oldest) : null,
+    hasMore
   })
 }
 
