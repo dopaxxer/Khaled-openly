@@ -245,49 +245,117 @@ struct NotificationsView: View {
 struct AccountView: View {
     @EnvironmentObject private var session: AppSession
     @State private var followersCount = 0
+    @State private var followingCount = 0
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                AppHeader()
-
+            Group {
                 if let user = session.user {
                     ScrollView {
-                        VStack(spacing: 0) {
-                            VStack(spacing: 13) {
-                                IdentityAvatar(code: user.publicCode, color: user.identityColor, size: 66)
-                                Text(user.publicCode)
-                                    .font(.system(size: 25, weight: .bold, design: .monospaced))
-                                    .foregroundColor(OpenlyTheme.ink)
-                                    .environment(\.layoutDirection, .leftToRight)
-                                Text("انضم في \(OpenlyDate.short(user.createdAt))")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(OpenlyTheme.subtle)
-                                if let bio = user.bio, !bio.isEmpty {
-                                    Text(bio)
-                                        .font(.system(size: 15))
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 7) {
+                                    HStack(spacing: 9) {
+                                        Circle()
+                                            .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
+                                            .frame(width: 14, height: 14)
+                                        Text(user.publicCode)
+                                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                            .tracking(0.6)
+                                            .foregroundColor(OpenlyTheme.ink)
+                                            .environment(\.layoutDirection, .leftToRight)
+                                    }
+
+                                    Text("public code")
+                                        .font(.system(size: 11, weight: .medium))
                                         .foregroundColor(OpenlyTheme.muted)
-                                        .multilineTextAlignment(.center)
+                                        .environment(\.layoutDirection, .leftToRight)
                                 }
-                                Text("\(followersCount) متابع")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(OpenlyTheme.muted)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 34)
-                            .padding(.bottom, 30)
 
-                            Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+                                Spacer()
 
-                            NavigationLink(destination: NotificationsView()) {
-                                AccountMenuRow(icon: "bell", title: "الإشعارات")
+                                NavigationLink(destination: SettingsView()) {
+                                    Text("الإعدادات")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(OpenlyTheme.accentForeground)
+                                        .padding(.horizontal, 15)
+                                        .frame(height: 34)
+                                        .background(OpenlyTheme.ink)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
 
-                            NavigationLink(destination: DirectMessagesView()) {
-                                AccountMenuRow(icon: "message", title: "الرسائل")
+                            if let status = user.status, !status.isEmpty {
+                                Text(status)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundColor(OpenlyTheme.ink)
+                                    .padding(.top, 20)
                             }
-                            .buttonStyle(.plain)
+
+                            if let bio = user.bio, !bio.isEmpty {
+                                Text(bio)
+                                    .font(.system(size: 17, weight: .regular))
+                                    .foregroundColor(OpenlyTheme.ink)
+                                    .lineSpacing(5)
+                                    .padding(.top, 10)
+                            }
+
+                            HStack(spacing: 8) {
+                                Text("\(followersCount)")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(OpenlyTheme.ink)
+                                Text("followers")
+                                Text("·")
+                                Text("\(followingCount)")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(OpenlyTheme.ink)
+                                Text("following")
+                            }
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(OpenlyTheme.muted)
+                            .environment(\.layoutDirection, .leftToRight)
+                            .padding(.top, 20)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 28)
+                        .padding(.bottom, 26)
+
+                        Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Taste")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(OpenlyTheme.muted)
+
+                            HStack(spacing: 10) {
+                                NavigationLink(destination: MusicPreferencesView()) {
+                                    Text("Music")
+                                }
+                                NavigationLink(destination: InterestPreferencesView()) {
+                                    Text("Books · Films · Topics")
+                                }
+                            }
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(OpenlyTheme.ink)
+
+                            Text("Music, books and films are part of the profile — not separate badges.")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(OpenlyTheme.muted)
+                                .lineSpacing(3)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 20)
+
+                        Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Posts")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(OpenlyTheme.muted)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 20)
+                                .padding(.bottom, 8)
 
                             NavigationLink(destination: UserPostsView(code: user.publicCode)) {
                                 AccountMenuRow(icon: "text.bubble", title: "كتاباتي")
@@ -300,27 +368,12 @@ struct AccountView: View {
                             .buttonStyle(.plain)
 
                             NavigationLink(destination: FollowingView()) {
-                                AccountMenuRow(icon: "person.2", title: "الأكواد التي أتابعها")
+                                AccountMenuRow(icon: "person.2", title: "المتابَعون")
                             }
                             .buttonStyle(.plain)
 
-                            NavigationLink(destination: SettingsView()) {
-                                AccountMenuRow(icon: "gearshape", title: "الإعدادات")
-                            }
-                            .buttonStyle(.plain)
-
-                            NavigationLink(destination: InterestPreferencesView()) {
-                                AccountMenuRow(icon: "sparkles", title: "اهتماماتي")
-                            }
-                            .buttonStyle(.plain)
-
-                            NavigationLink(destination: MusicPreferencesView()) {
-                                AccountMenuRow(icon: "music.note", title: "ذوقي الموسيقي")
-                            }
-                            .buttonStyle(.plain)
-
-                            NavigationLink(destination: MusicVisibilitySettingsView()) {
-                                AccountMenuRow(icon: "eye", title: "ما يظهر في ملفي")
+                            NavigationLink(destination: DirectMessagesView()) {
+                                AccountMenuRow(icon: "message", title: "الرسائل")
                             }
                             .buttonStyle(.plain)
 
@@ -328,16 +381,23 @@ struct AccountView: View {
                                 AccountMenuRow(icon: "hand.raised", title: "الخصوصية")
                             }
                             .buttonStyle(.plain)
-
-                            Button(role: .destructive) {
-                                Task { await session.logout() }
-                            } label: {
-                                AccountMenuRow(icon: "rectangle.portrait.and.arrow.right", title: "تسجيل الخروج", danger: true)
-                            }
-                            .buttonStyle(.plain)
                         }
+
+                        Button(role: .destructive) {
+                            Task { await session.logout() }
+                        } label: {
+                            AccountMenuRow(icon: "rectangle.portrait.and.arrow.right", title: "تسجيل الخروج", danger: true)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.bottom, 30)
                     }
-                    .task { followersCount = (try? await session.api.followersCount()) ?? 0 }
+                    .background(OpenlyTheme.background)
+                    .task {
+                        async let followers = try? session.api.followersCount()
+                        async let following = try? session.api.following()
+                        followersCount = await followers ?? 0
+                        followingCount = await following?.count ?? 0
+                    }
                 } else {
                     LoginRequiredView(message: "سجّل الدخول لرؤية حسابك.")
                         .frame(maxHeight: .infinity)
