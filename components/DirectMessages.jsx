@@ -26,6 +26,10 @@ function mergeMessages(current, incoming) {
   })
 }
 
+function messageCursor(message) {
+  return message?.createdAt && message?.id ? `${message.createdAt}|${message.id}` : null
+}
+
 export function MessagesInbox() {
   const [state, setState] = useState({ loading: true, unauthorized: false, items: [], error: '' })
 
@@ -100,8 +104,13 @@ export function MessageThread({ conversationId }) {
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [presence, setPresence] = useState({ online: false, typing: false })
   const pendingRetry = useRef(null)
   const bottomRef = useRef(null)
+  const latestCursor = useRef(null)
+  const refreshBusy = useRef(false)
+  const lastTypingSentAt = useRef(0)
+  const typingStopTimer = useRef(null)
 
   const markRead = useCallback(async () => {
     const response = await fetch(`/api/v1/messages/${conversationId}/read`, { method: 'POST' }).catch(() => null)
@@ -111,7 +120,10 @@ export function MessageThread({ conversationId }) {
   const loadLatest = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setError('')
     try {
-      const response = await fetch(`/api/v1/messages/${conversationId}?limit=100`, { cache: 'no-store' })
+      const query = silent && latestCursor.current
+        ? `?limit=50&after=${encodeURIComponent(latestCursor.current)}`
+        : '?limit=60'
+      const response = await fetch(`/api/v1/messages/${conversationId}${query}`, { cache: 'no-store' })
       if (response.status === 401) {
         location.href = '/login'
         return
@@ -119,7 +131,11 @@ export function MessageThread({ conversationId }) {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'المحادثة غير متاحة')
       setConversation(data.conversation)
-      setMessages(current => mergeMessages(current, data.items || []))
+      setMessages(current => {
+        const merged = mergeMessages(current, data.items || [])
+        latestCursor.current = messageCursor(merged[merged.length - 1])
+        return merged
+      })
       if (!silent) {
         setOlderCursor(data.nextCursor || null)
         setHasMore(!!data.hasMore)
@@ -140,11 +156,44 @@ export function MessageThread({ conversationId }) {
   }, [loadLatest])
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') loadLatest({ silent: true })
-    }, 5000)
+    const timer = window.setInterval(async () => {
+      if (document.visibilityState !== 'visible' || refreshBusy.current) return
+      refreshBusy.current = true
+      try { await loadLatest({ silent: true }) } finally { refreshBusy.current = false }
+    }, 2500)
     return () => window.clearInterval(timer)
   }, [loadLatest])
+
+  const touchPresence = useCallback(async (typing = false) => {
+    await fetch(`/api/v1/messages/${conversationId}/presence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ typing }),
+      keepalive: true
+    }).catch(() => null)
+  }, [conversationId])
+
+  const loadPresence = useCallback(async () => {
+    const response = await fetch(`/api/v1/messages/${conversationId}/presence`, { cache: 'no-store' }).catch(() => null)
+    if (!response?.ok) return
+    const data = await response.json().catch(() => null)
+    if (data) setPresence({ online: !!data.online, typing: !!data.typing })
+  }, [conversationId])
+
+  useEffect(() => {
+    touchPresence(false)
+    loadPresence()
+    const heartbeat = window.setInterval(() => touchPresence(false), 15_000)
+    const status = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadPresence()
+    }, 3000)
+    return () => {
+      window.clearInterval(heartbeat)
+      window.clearInterval(status)
+      if (typingStopTimer.current) window.clearTimeout(typingStopTimer.current)
+      touchPresence(false)
+    }
+  }, [loadPresence, touchPresence])
 
   useEffect(() => {
     if (!loading) bottomRef.current?.scrollIntoView({ block: 'end' })
@@ -165,6 +214,18 @@ export function MessageThread({ conversationId }) {
     } finally {
       setLoadingOlder(false)
     }
+  }
+
+  function updateDraft(value) {
+    setDraft(value)
+    const hasText = !!value.trim()
+    const now = Date.now()
+    if (hasText && now - lastTypingSentAt.current > 1100) {
+      lastTypingSentAt.current = now
+      touchPresence(true)
+    }
+    if (typingStopTimer.current) window.clearTimeout(typingStopTimer.current)
+    typingStopTimer.current = window.setTimeout(() => touchPresence(false), 2200)
   }
 
   async function send(event) {
@@ -188,7 +249,12 @@ export function MessageThread({ conversationId }) {
       if (!response.ok) throw new Error(data.error || 'تعذر إرسال الرسالة')
       pendingRetry.current = null
       setDraft('')
-      setMessages(current => mergeMessages(current, [data.message]))
+      setMessages(current => {
+        const merged = mergeMessages(current, [data.message])
+        latestCursor.current = messageCursor(merged[merged.length - 1])
+        return merged
+      })
+      touchPresence(false)
       window.dispatchEvent(new Event('openly:messages-changed'))
       requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }))
     } catch (sendError) {
@@ -206,6 +272,13 @@ export function MessageThread({ conversationId }) {
       <Link href="/messages" className="icon-button" aria-label="العودة إلى الرسائل"><ChevronLeft size={20} /></Link>
       <Link href={`/u/${conversation.publicCode}`} className="message-peer">
         <Identity code={conversation.publicCode} color={conversation.identityColor} />
+        <span className="message-peer-copy">
+          <strong dir="ltr">{conversation.publicCode}</strong>
+          <span className={`message-presence${presence.online ? ' online' : ''}`}>
+            <span className="message-presence-dot" aria-hidden="true" />
+            {presence.typing ? 'يكتب…' : presence.online ? 'متصل الآن' : 'غير متصل'}
+          </span>
+        </span>
       </Link>
     </header>
 
@@ -234,9 +307,13 @@ export function MessageThread({ conversationId }) {
             <textarea
               className="form-control"
               value={draft}
-              onChange={event => setDraft(event.target.value)}
+              onChange={event => {
+                updateDraft(event.target.value)
+                event.currentTarget.style.height = '44px'
+                event.currentTarget.style.height = Math.min(event.currentTarget.scrollHeight, 140) + 'px'
+              }}
               maxLength={2000}
-              rows={2}
+              rows={1}
               placeholder="اكتب رسالة خاصة…"
               aria-label="اكتب رسالة خاصة…"
             />
