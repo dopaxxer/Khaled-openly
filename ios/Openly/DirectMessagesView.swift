@@ -186,6 +186,7 @@ struct DirectMessageThreadView: View {
     @State private var conversation: DirectConversation
     @State private var messages: [DirectMessage] = []
     @State private var olderCursor: String?
+    @State private var latestCursor: String?
     @State private var hasMore = false
     @State private var draft = ""
     @State private var isLoading = true
@@ -195,6 +196,9 @@ struct DirectMessageThreadView: View {
     @State private var retryNonce: UUID?
     @State private var retryBody: String?
     @State private var shouldScrollToBottom = true
+    @State private var presence = DirectPresenceResponse(online: false, typing: false, lastSeenAt: nil)
+    @State private var lastTypingSignalAt = Date.distantPast
+    @State private var typingSequence = 0
     @FocusState private var composerFocused: Bool
 
     init(conversation: DirectConversation) {
@@ -203,6 +207,8 @@ struct DirectMessageThreadView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            presenceStrip
+
             if isLoading && messages.isEmpty {
                 Spacer()
                 ProgressView("جارِ تحميل الرسائل")
@@ -239,10 +245,11 @@ struct DirectMessageThreadView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
                     }
+                    .scrollDismissesKeyboard(.interactively)
                     .onChange(of: messages.count) { _ in
                         guard shouldScrollToBottom, let last = messages.last else { return }
                         shouldScrollToBottom = false
-                        withAnimation(.easeOut(duration: 0.2)) {
+                        withAnimation(.easeOut(duration: 0.18)) {
                             proxy.scrollTo(last.id, anchor: .bottom)
                         }
                     }
@@ -257,17 +264,54 @@ struct DirectMessageThreadView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom) { composer }
         .task(id: conversation.conversationId) {
-            await loadLatest(silent: false)
+            await loadLatest()
+            await touchPresence(typing: false)
+            await refreshPresence()
+
+            var heartbeatTick = 0
             while !Task.isCancelled {
                 do {
-                    try await Task.sleep(nanoseconds: 5_000_000_000)
+                    try await Task.sleep(nanoseconds: 2_500_000_000)
                 } catch {
                     return
                 }
-                if scenePhase == .active {
-                    await loadLatest(silent: true)
+                guard scenePhase == .active else { continue }
+
+                await loadIncremental()
+                await refreshPresence()
+
+                heartbeatTick += 1
+                if heartbeatTick >= 6 {
+                    heartbeatTick = 0
+                    await touchPresence(typing: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+        }
+        .onChange(of: draft) { value in
+            signalTyping(for: value)
+        }
+        .onDisappear {
+            Task { await touchPresence(typing: false) }
+        }
+    }
+
+    private var presenceStrip: some View {
+        HStack(spacing: 7) {
+            Circle()
+                .fill(presence.online ? Color.green : OpenlyTheme.line)
+                .frame(width: 7, height: 7)
+
+            Text(presence.typing ? "يكتب…" : (presence.online ? "متصل الآن" : "غير متصل"))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(presence.typing ? OpenlyTheme.accent : OpenlyTheme.subtle)
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 27)
+        .background(OpenlyTheme.surface.opacity(0.96))
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(OpenlyTheme.line).frame(height: 1)
         }
     }
 
@@ -283,9 +327,9 @@ struct DirectMessageThreadView: View {
                         .padding(.horizontal, 13)
                         .padding(.vertical, 11)
                         .background(OpenlyTheme.surfaceSoft)
-                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            RoundedRectangle(cornerRadius: 17, style: .continuous)
                                 .stroke(OpenlyTheme.line, lineWidth: 1)
                         )
 
@@ -323,32 +367,102 @@ struct DirectMessageThreadView: View {
     }
 
     @MainActor
-    private func loadLatest(silent: Bool) async {
-        if !silent {
-            isLoading = true
-            errorMessage = nil
-        }
-        defer { if !silent { isLoading = false } }
+    private func loadLatest() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
 
         do {
             let response = try await session.api.directMessages(
                 conversationID: conversation.conversationId,
-                limit: 100
+                limit: 60
             )
             conversation = response.conversation
-            if !silent { shouldScrollToBottom = true }
+            shouldScrollToBottom = true
             messages = merge(messages, response.items)
-            if !silent {
-                olderCursor = response.nextCursor
-                hasMore = response.hasMore
-            }
+            olderCursor = response.nextCursor
+            hasMore = response.hasMore
+            latestCursor = cursor(for: messages.last)
+
             if (response.conversation.unreadCount ?? 0) > 0 {
                 _ = try? await session.api.markDirectConversationRead(
                     conversationID: conversation.conversationId
                 )
             }
         } catch {
-            if !silent { errorMessage = error.localizedDescription }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func loadIncremental() async {
+        guard let latestCursor else { return }
+
+        do {
+            let response = try await session.api.directMessages(
+                conversationID: conversation.conversationId,
+                afterCursor: latestCursor,
+                limit: 50
+            )
+            conversation = response.conversation
+
+            if !response.items.isEmpty {
+                shouldScrollToBottom = true
+                messages = merge(messages, response.items)
+                self.latestCursor = cursor(for: messages.last)
+            }
+
+            if (response.conversation.unreadCount ?? 0) > 0 {
+                _ = try? await session.api.markDirectConversationRead(
+                    conversationID: conversation.conversationId
+                )
+            }
+        } catch {
+            // Silent refresh errors should never freeze or replace the thread.
+        }
+    }
+
+    @MainActor
+    private func refreshPresence() async {
+        do {
+            presence = try await session.api.directMessagePresence(
+                conversationID: conversation.conversationId
+            )
+        } catch {
+            // Presence is best-effort and must not affect the conversation.
+        }
+    }
+
+    @MainActor
+    private func touchPresence(typing: Bool) async {
+        try? await session.api.touchDirectMessagePresence(
+            conversationID: conversation.conversationId,
+            typing: typing
+        )
+    }
+
+    @MainActor
+    private func signalTyping(for value: String) {
+        typingSequence += 1
+        let sequence = typingSequence
+        let hasText = !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let now = Date()
+
+        if hasText && now.timeIntervalSince(lastTypingSignalAt) >= 1.1 {
+            lastTypingSignalAt = now
+            Task { await touchPresence(typing: true) }
+        } else if !hasText {
+            Task { await touchPresence(typing: false) }
+        }
+
+        Task {
+            do {
+                try await Task.sleep(nanoseconds: 2_200_000_000)
+            } catch {
+                return
+            }
+            guard sequence == typingSequence else { return }
+            await touchPresence(typing: false)
         }
     }
 
@@ -362,8 +476,9 @@ struct DirectMessageThreadView: View {
             let response = try await session.api.directMessages(
                 conversationID: conversation.conversationId,
                 cursor: olderCursor,
-                limit: 100
+                limit: 60
             )
+            shouldScrollToBottom = false
             messages = merge(messages, response.items)
             self.olderCursor = response.nextCursor
             hasMore = response.hasMore
@@ -398,13 +513,20 @@ struct DirectMessageThreadView: View {
             )
             shouldScrollToBottom = true
             messages = merge(messages, [message])
+            latestCursor = cursor(for: messages.last)
             draft = ""
             retryBody = nil
             retryNonce = nil
             composerFocused = true
+            await touchPresence(typing: false)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func cursor(for message: DirectMessage?) -> String? {
+        guard let message else { return nil }
+        return "\(message.createdAt)|\(message.id)"
     }
 
     private func merge(_ current: [DirectMessage], _ incoming: [DirectMessage]) -> [DirectMessage] {
