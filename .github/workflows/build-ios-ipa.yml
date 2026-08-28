@@ -38,6 +38,8 @@ jobs:
       - name: Build native iPhone app
         working-directory: ios
         run: |
+          build_number="$(awk '/CURRENT_PROJECT_VERSION:/ { gsub(/"/, "", $2); print $2; exit }' project.yml)"
+          test -n "$build_number"
           xcodebuild \
             -project Openly.xcodeproj \
             -scheme Openly \
@@ -47,7 +49,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CURRENT_PROJECT_VERSION=10 \
+            CURRENT_PROJECT_VERSION="$build_number" \
             MARKETING_VERSION=1.0.0 \
             build
 
@@ -56,12 +58,14 @@ jobs:
         run: |
           test -d build/Build/Products/Release-iphoneos/Openly.app
           plutil -lint build/Build/Products/Release-iphoneos/Openly.app/Info.plist
+          expected_build_number="$(awk '/CURRENT_PROJECT_VERSION:/ { gsub(/"/, "", $2); print $2; exit }' project.yml)"
           bundle_identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           bundle_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           display_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           api_base_url="$(/usr/libexec/PlistBuddy -c 'Print :OpenlyAPIBaseURL' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
           test "$bundle_identifier" = "ink.openly.app" || { echo "Unexpected bundle identifier: $bundle_identifier" >&2; exit 1; }
-          test "$bundle_version" = "10" || { echo "Unexpected build number: $bundle_version" >&2; exit 1; }
+          test -n "$expected_build_number" || { echo "Missing CURRENT_PROJECT_VERSION in project.yml" >&2; exit 1; }
+          test "$bundle_version" = "$expected_build_number" || { echo "Unexpected build number: $bundle_version (expected $expected_build_number)" >&2; exit 1; }
           test "$display_name" = "Openly" || { echo "Unexpected display name: $display_name" >&2; exit 1; }
           test "$api_base_url" = "https://openly.nootjetzt.workers.dev/api/" || { echo "Unexpected API base URL: $api_base_url" >&2; exit 1; }
           google_client_id="$(/usr/libexec/PlistBuddy -c 'Print :GIDClientID' build/Build/Products/Release-iphoneos/Openly.app/Info.plist)"
