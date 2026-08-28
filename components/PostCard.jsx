@@ -103,8 +103,10 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
   if (gone) return null
 
   const time = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.createdAt))
-  return <article className="post-card">
-    <Link href={`/u/${post.authorCode}`} className="post-avatar-link" aria-label={`صفحة ${post.authorCode}`}><Avatar code={post.authorCode} color={post.authorColor} size={40}/></Link>
+  return <article className="post-card v2-post-card">
+    <Link href={`/u/${post.authorCode}`} className="v2-post-identity" aria-label={`صفحة ${post.authorCode}`}>
+      <span className="v2-post-dot" style={{ backgroundColor: post.authorColor }} aria-hidden="true" />
+    </Link>
 
     <div className="post-main">
       <div className="post-top">
