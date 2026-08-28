@@ -664,10 +664,33 @@ struct InterestDiscoveryView: View {
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
-                            ScreenHeader(
-                                "اكتشف",
-                                subtitle: "أشخاص بينكم أرضية مشتركة في الكتب والأفلام والمواضيع، ومع الموسيقى عندما تكون مفعلة."
-                            )
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Explore")
+                                    .font(.system(size: 28, weight: .bold))
+                                    .tracking(-0.6)
+                                    .foregroundColor(OpenlyTheme.ink)
+                                Text("Find people through what they care about")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(OpenlyTheme.muted)
+                                NavigationLink(destination: SearchView()) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "magnifyingglass")
+                                        Text("Search people, music, books, films…")
+                                        Spacer()
+                                    }
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(OpenlyTheme.muted)
+                                    .padding(.horizontal, 16)
+                                    .frame(height: 48)
+                                    .background(OpenlyTheme.surface)
+                                    .overlay(Capsule().stroke(OpenlyTheme.line, lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.top, 10)
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 22)
+                            .padding(.bottom, 16)
 
                             filterBar
 
@@ -741,8 +764,8 @@ struct InterestDiscoveryView: View {
                     filterButton(title: value.title, image: value.systemImage, value: value)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 18)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
         }
     }
 
@@ -755,9 +778,9 @@ struct InterestDiscoveryView: View {
             Label(title, systemImage: image)
                 .font(.system(size: 13, weight: selected ? .bold : .semibold))
                 .foregroundColor(selected ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
-                .padding(.horizontal, 14)
-                .frame(height: 40)
-                .background(selected ? OpenlyTheme.accent : OpenlyTheme.surfaceSoft)
+                .padding(.horizontal, 13)
+                .frame(height: 36)
+                .background(selected ? OpenlyTheme.ink : OpenlyTheme.surface)
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(selected ? Color.clear : OpenlyTheme.lineStrong, lineWidth: 1))
         }
@@ -765,21 +788,31 @@ struct InterestDiscoveryView: View {
     }
 
     private func matchCard(_ match: InterestMatch) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
                 NavigationLink(destination: UserProfileView(code: match.publicCode)) {
-                    IdentityBadge(code: match.publicCode, color: match.identityColor)
+                    HStack(spacing: 9) {
+                        Circle()
+                            .fill(Color(hex: match.identityColor) ?? OpenlyTheme.accent)
+                            .frame(width: 12, height: 12)
+                        Text(match.publicCode)
+                            .font(.system(size: 13, weight: .bold))
+                            .tracking(0.5)
+                            .foregroundColor(OpenlyTheme.ink)
+                            .environment(\.layoutDirection, .leftToRight)
+                    }
                 }
                 .buttonStyle(.plain)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("\(match.compatibility)%")
-                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundColor(OpenlyTheme.ink)
                         .environment(\.layoutDirection, .leftToRight)
-                    Text("توافق")
-                        .font(.system(size: 11, weight: .medium))
+                    Text("shared taste")
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundColor(OpenlyTheme.subtle)
+                        .environment(\.layoutDirection, .leftToRight)
                 }
             }
 
@@ -832,8 +865,8 @@ struct InterestDiscoveryView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 20)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 18)
         .overlay(alignment: .bottom) {
             Rectangle().fill(OpenlyTheme.line).frame(height: 1)
         }
