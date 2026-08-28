@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { getPublicOrigin, safeInternalPath } from '../lib/publicOrigin.js'
-import { isStrongPassword, isValidEmail, parseCursor, readJson } from '../lib/validation.js'
+import { isStrongPassword, isValidEmail, identitySearchNeedle, parseCursor, readJson } from '../lib/validation.js'
 
 test('public origin ignores an untrusted request host', () => {
   const request = new Request('https://attacker.example/api/auth/register')
@@ -26,6 +26,14 @@ test('internal redirects reject protocol-relative and newline paths', () => {
   assert.equal(safeInternalPath('//attacker.example'), '/')
   assert.equal(safeInternalPath('/\\attacker.example'), '/')
   assert.equal(safeInternalPath('/safe\r\nLocation: https://attacker.example'), '/')
+})
+
+test('identity search strips ILIKE wildcards before they reach Postgres', () => {
+  assert.equal(identitySearchNeedle('%'), '')
+  assert.equal(identitySearchNeedle('_abc'), 'ABC')
+  assert.equal(identitySearchNeedle('k7m2'), 'K7M2')
+  assert.equal(identitySearchNeedle('@@K7M2!!'), 'K7M2')
+  assert.equal(identitySearchNeedle('abcdefghijk'), 'ABCDEFGH')
 })
 
 test('cursor parser accepts an ISO timestamp and UUID only', () => {

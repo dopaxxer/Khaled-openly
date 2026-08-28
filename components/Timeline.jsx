@@ -1,6 +1,6 @@
 'use client'
 import { RotateCcw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PostCard } from './PostCard'
 
 function FeedSkeleton() {
@@ -28,35 +28,47 @@ export function Timeline({
   const [moreLoading, setMoreLoading] = useState(false)
   const [error, setError] = useState('')
   const [viewerCode, setViewerCode] = useState(null)
+  const loadGeneration = useRef(0)
 
-  async function load(next = null) {
+  async function load(next = null, signal = undefined) {
+    const generation = ++loadGeneration.current
     next ? setMoreLoading(true) : setLoading(true)
     setError('')
     try {
       const sep = endpoint.includes('?') ? '&' : '?'
       const url = next ? `${endpoint}${sep}cursor=${encodeURIComponent(next)}` : endpoint
-      const res = await fetch(url, { cache: 'no-store' })
+      const res = await fetch(url, { cache: 'no-store', signal })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'تعذر تحميل المنشورات')
+      if (generation !== loadGeneration.current) return
       const incoming = data.items || []
       setPosts(old => next ? [...old, ...incoming.filter(p => !old.some(x => x.id === p.id))] : incoming)
       setCursor(data.nextCursor || null)
       if (incoming.length) {
-        const er = await fetch(`/api/engagement?ids=${encodeURIComponent(incoming.map(p => p.id).join(','))}`, { cache: 'no-store' })
+        const er = await fetch(`/api/engagement?ids=${encodeURIComponent(incoming.map(p => p.id).join(','))}`, { cache: 'no-store', signal })
+        if (generation !== loadGeneration.current) return
         if (er.ok) {
           const ed = await er.json()
           setEngagement(old => ({ ...old, ...Object.fromEntries((ed.items || []).map(x => [x.postId, x])) }))
         }
       }
     } catch (e) {
+      if (e?.name === 'AbortError') return
+      if (generation !== loadGeneration.current) return
       setError(e.message || 'تعذر تحميل المنشورات')
     } finally {
-      setLoading(false)
-      setMoreLoading(false)
+      if (generation === loadGeneration.current) {
+        setLoading(false)
+        setMoreLoading(false)
+      }
     }
   }
 
-  useEffect(() => { load() }, [endpoint, refreshToken])
+  useEffect(() => {
+    const controller = new AbortController()
+    load(null, controller.signal)
+    return () => controller.abort()
+  }, [endpoint, refreshToken])
 
   useEffect(() => {
     const controller = new AbortController()

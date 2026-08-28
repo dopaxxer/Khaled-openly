@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, CircleUserRound, Compass, House, LogIn, MessageCircle, Search } from 'lucide-react'
+import { Bell, CircleUserRound, Compass, House, LogIn, MessageCircle, PenLine, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 const nav = [
@@ -11,10 +11,17 @@ const nav = [
   { href: '/me', label: 'حسابي', icon: CircleUserRound }
 ]
 
+const mobileNav = [
+  { href: '/', label: 'الرئيسية', icon: House },
+  { href: '/discover', label: 'اكتشف', icon: Compass },
+  { href: '/write', label: 'اكتب', icon: PenLine },
+  { href: '/me', label: 'أنت', icon: CircleUserRound }
+]
+
 function Brand() {
   return <Link href="/" className="brand" aria-label="open — الرئيسية" dir="ltr">
     <span className="brand-mark" aria-hidden="true">O</span>
-    <span>open</span>
+    <span>openly</span>
   </Link>
 }
 
@@ -97,7 +104,10 @@ export function AppShell({ children }) {
     </aside>
 
     <div className="mobile-header">
-      <Brand />
+      <div className="mobile-brand-stack">
+        <Brand />
+        {pathname === '/' && <span className="mobile-brand-context">مساحة عامة · الأحدث أولًا</span>}
+      </div>
       <div className="mobile-header-actions">
         {user && <Link href="/messages" className="icon-button" aria-label="الرسائل">
           <MessageCircle size={20} aria-hidden="true"/>
@@ -116,7 +126,7 @@ export function AppShell({ children }) {
     <main className="content-column"><div key={pathname} className="route-stage">{children}</div></main>
 
     <nav className="mobile-nav" aria-label="التنقل الرئيسي">
-      {nav.map(({ href, label, icon: Icon }) => {
+      {mobileNav.map(({ href, label, icon: Icon }) => {
         const isActive = active(href)
         return <Link key={href} href={href} className={`mobile-link${isActive ? ' active' : ''}`} aria-current={isActive ? 'page' : undefined}>
           <Icon size={20} strokeWidth={isActive ? 2.1 : 1.75} aria-hidden="true"/>

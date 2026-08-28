@@ -12,7 +12,7 @@ import {
   Search,
   Sparkles
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Identity } from './Identity'
 import {
   INTEREST_KINDS,
@@ -25,6 +25,17 @@ const KIND_META = {
   topic: { label: 'مواضيع الحديث', short: 'مواضيع', icon: MessageCircle },
   book: { label: 'الكتب', short: 'كتب', icon: BookOpen },
   movie: { label: 'الأفلام', short: 'أفلام', icon: Film }
+}
+
+function sameInterest(left, right) {
+  if (!left || !right) return false
+  if (left.id && right.id && left.id === right.id) return true
+  return Boolean(
+    left.provider &&
+    left.externalId &&
+    left.provider === right.provider &&
+    String(left.externalId) === String(right.externalId)
+  )
 }
 
 function CompatibilityDial({ value }) {
@@ -250,7 +261,7 @@ export function InterestPreferences({ onboarding = false }) {
     item.kind === kind
   )
 
-  return <>
+  return <section className={onboarding ? "v2-onboarding" : "v2-interest-preferences"}>
     <header className="page-header">
       <div className="page-title-row">
         <Sparkles size={20} />
@@ -293,7 +304,7 @@ export function InterestPreferences({ onboarding = false }) {
 
         {results.length > 0 && <ul className="result-list interest-results">
           {results.map(item => {
-            const isSelected = selected.some(current => current.id === item.id)
+            const isSelected = selected.some(current => sameInterest(current, item))
             const isBusy = busy === item.id
             return <li key={item.id}>
               <button
@@ -372,7 +383,7 @@ export function InterestPreferences({ onboarding = false }) {
         اختر حتى {MAX_INTERESTS_PER_PROFILE} اهتمامًا إجمالًا. الموسيقى تبقى في ملفها الحالي وتدخل في نسبة التوافق فقط عندما تسمح إعداداتها بذلك.
       </p>
     </div>
-  </>
+  </section>
 }
 
 export function InterestDiscovery() {
@@ -383,111 +394,95 @@ export function InterestDiscovery() {
   const [state, setState] = useState('loading')
   const [error, setError] = useState('')
   const [loadingMore, setLoadingMore] = useState(false)
+  const loadTicket = useRef(0)
 
   const load = useCallback(async (offset = 0) => {
+    const ticket = ++loadTicket.current
     offset === 0 ? setState('loading') : setLoadingMore(true)
     setError('')
     try {
       const params = new URLSearchParams({ limit: '20', offset: String(offset) })
       if (kind) params.set('kind', kind)
       const response = await fetch(`/api/v1/interests/discover?${params}`, { cache: 'no-store' })
+      if (ticket !== loadTicket.current) return
       if (response.status === 401) {
         setState('anonymous')
         return
       }
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'تعذر تحميل الاقتراحات')
+      if (ticket !== loadTicket.current) return
       setItems(current => offset === 0 ? (data.items || []) : [...current, ...(data.items || [])])
       setTotal(data.total || 0)
       setHasMore(!!data.hasMore)
       setState('ready')
     } catch (e) {
+      if (ticket !== loadTicket.current) return
       setError(e.message || 'تعذر تحميل الاقتراحات')
       setState(offset === 0 ? 'error' : 'ready')
     } finally {
-      setLoadingMore(false)
+      if (ticket === loadTicket.current) setLoadingMore(false)
     }
   }, [kind])
 
   useEffect(() => { load(0) }, [load])
 
-  const header = <header className="page-header">
-    <div className="page-title-row"><Compass size={20} /><h1 className="page-title">اكتشف</h1></div>
-    <p className="page-description">
-      أشخاص بينكم أرضية مشتركة في الكتب والأفلام والمواضيع — ومع الموسيقى عندما تكون مفعلة. الخط الزمني يبقى زمنيًا بلا خوارزمية.
-    </p>
-  </header>
+  return <section className="v2-explore">
+    <header className="v2-explore-head">
+      <h1>اكتشف</h1>
+      <p>أشخاص يشاركونك الذوق، بلا ترتيب بعدد المتابعين.</p>
+      <Link href="/search" className="v2-explore-search">ابحث عن أشخاص، موسيقى، كتب، أفلام…</Link>
+    </header>
 
-  if (state === 'anonymous') return <>
-    {header}
-    <div className="empty-state"><div>
-      <p>سجّل الدخول لرؤية الاقتراحات المبنية على اهتماماتك.</p>
-      <Link href="/login" className="primary-button mt16">تسجيل الدخول</Link>
-    </div></div>
-  </>
-
-  return <>
-    {header}
-    <div className="screen-pad">
+    <div className="v2-explore-filters">
       <KindTabs includeAll value={kind} onChange={setKind} />
     </div>
+
+    {state === 'anonymous' && <div className="empty-state"><div>
+      <p>سجّل الدخول لرؤية الاقتراحات المبنية على اهتماماتك.</p>
+      <Link href="/login" className="primary-button mt16">تسجيل الدخول</Link>
+    </div></div>}
 
     {error && <div className="screen-pad"><p className="status-message error">{error}</p></div>}
     {state === 'loading' && <div className="screen-pad"><div className="skeleton" /></div>}
 
-    {state === 'error' && <div className="empty-state"><div>
-      <p>{error || 'تعذر تحميل الاقتراحات.'}</p>
-      <button className="secondary-button mt16" onClick={() => load(0)}>المحاولة مجددًا</button>
-    </div></div>}
-
     {state === 'ready' && items.length === 0 && <div className="empty-state"><div>
       <Sparkles size={28} />
       <p className="mt12">لا توجد أرضية مشتركة كافية بعد.</p>
-      <p className="small muted mt12">أضف بعض الكتب والأفلام ومواضيع الحديث التي تهمك.</p>
       <Link href="/interests" className="primary-button mt16">اختر اهتماماتك</Link>
     </div></div>}
 
-    {state === 'ready' && items.length > 0 && <div aria-live="polite">
-      <div className="section-title">{total} اقتراح</div>
-      {items.map(match => <article className="match-card" key={match.publicCode}>
-        <div className="match-head">
-          <Identity code={match.publicCode} color={match.identityColor} />
-          <CompatibilityDial value={match.compatibility} />
-        </div>
+    {state === 'ready' && items.length > 0 && <>
+      <div className="v2-explore-section-title">أشخاص بذوق قريب</div>
+      <div className="v2-explore-people" aria-live="polite">
+        {items.map(match => <Link href={`/u/${match.publicCode}`} className="v2-taste-person" key={match.publicCode}>
+          <span className="v2-taste-dot" style={{ backgroundColor: match.identityColor }} aria-hidden="true" />
+          <span className="v2-taste-copy">
+            <strong>{match.publicCode}</strong>
+            <span data-user-content="">
+              {match.sharedItems?.slice(0, 3).map(item => item.label).join(' · ') || `${match.compatibility}% shared taste`}
+            </span>
+          </span>
+          <span className="v2-taste-score" dir="ltr">{match.compatibility}%</span>
+        </Link>)}
+      </div>
 
-        {match.sharedItems.length > 0 && <div className="chip-grid">
-          {match.sharedItems.slice(0, 8).map(item => <span className="chip static" key={item.id}>
-            {item.kind === 'topic' && <MessageCircle size={13} />}
-            {item.kind === 'book' && <BookOpen size={13} />}
-            {item.kind === 'movie' && <Film size={13} />}
-            <span data-user-content="">{item.label}</span>
-          </span>)}
-        </div>}
-
-        <div className="match-reasons">
-          <p className="small">
-            <span className="muted">مشترك بينكما: </span>
-            {match.sharedTopicCount} موضوع · {match.sharedBookCount} كتاب · {match.sharedMovieCount} فيلم
-          </p>
-          {match.musicCompatibility > 0 && <p className="small">
-            <span className="muted">التوافق الموسيقي: </span>
-            <span dir="ltr">{match.musicCompatibility}%</span>
-          </p>}
-          {match.sharedItems.length === 0 && <p className="tiny subtle">قائمة الاهتمامات مخفية، لكن صاحب الحساب سمح باستخدامها في الاكتشاف.</p>}
-        </div>
-
-        <Link href={`/u/${match.publicCode}`} className="secondary-button">عرض الملف والكتابات</Link>
-      </article>)}
+      <div className="v2-explore-section-title">Popular cultural threads</div>
+      <div className="v2-cultural-threads">
+        <Link href="/search?q=songs" className="v2-cultural-thread">songs that feel like leaving</Link>
+        <Link href="/search?q=books" className="v2-cultural-thread">books you read too young</Link>
+        <Link href="/search?q=films" className="v2-cultural-thread">films that changed after a breakup</Link>
+      </div>
 
       <div className="feed-footer">
         {hasMore
           ? <button className="secondary-button" disabled={loadingMore} onClick={() => load(items.length)}>
               {loadingMore ? 'جارِ التحميل…' : 'عرض المزيد'}
             </button>
-          : <span className="tiny subtle">هذه كل الاقتراحات المتاحة.</span>}
+          : <span className="tiny subtle">{total} اقتراح</span>}
       </div>
-    </div>}
-  </>
+    </>}
+  </section>
 }
 
 export function PublicInterestProfile({ profile }) {

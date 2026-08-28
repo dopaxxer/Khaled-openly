@@ -570,22 +570,12 @@ private struct DirectMessageBubble: View {
 
             if !message.isMine { Spacer(minLength: 54) }
         }
-        .environment(\.layoutDirection, .rightToLeft)
     }
 }
 
 private enum DirectMessageTime {
     static func label(_ raw: String?) -> String? {
-        guard let raw, !raw.isEmpty else { return nil }
-
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var date = formatter.date(from: raw)
-        if date == nil {
-            formatter.formatOptions = [.withInternetDateTime]
-            date = formatter.date(from: raw)
-        }
-        guard let date else { return nil }
+        guard let raw, !raw.isEmpty, let date = OpenlyDate.date(from: raw) else { return nil }
 
         let output = DateFormatter()
         output.locale = Locale.current

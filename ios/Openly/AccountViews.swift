@@ -16,16 +16,28 @@ struct SearchView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                AppHeader()
-
                 ScrollView {
                     VStack(spacing: 0) {
-                        ScreenHeader("بحث", subtitle: "ابحث عن كلمات عامة أو كود هوية.")
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text("Search")
+                                .font(.system(size: 28, weight: .bold))
+                                .tracking(-0.6)
+                                .foregroundColor(OpenlyTheme.ink)
+                            Text("People, posts and cultural context")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(OpenlyTheme.muted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 22)
+                        .padding(.bottom, 16)
 
-                        HStack(spacing: 14) {
+                        HStack(spacing: 10) {
                             OpenlyFieldContainer {
                                 HStack(spacing: 10) {
-                                    TextField("إبحث...", text: $query)
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundColor(OpenlyTheme.muted)
+                                    TextField("Search people or posts…", text: $query)
                                         .foregroundColor(OpenlyTheme.ink)
                                         .textInputAutocapitalization(.never)
                                         .autocorrectionDisabled()
@@ -51,19 +63,19 @@ struct SearchView: View {
                                 if isLoading {
                                     ProgressView().tint(OpenlyTheme.accentForeground)
                                 } else {
-                                    Text("بحث")
-                                        .font(.system(size: 17, weight: .bold))
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 16, weight: .bold))
                                 }
                             }
                             .foregroundColor(OpenlyTheme.accentForeground)
-                            .frame(width: 92, height: 56)
-                            .background(OpenlyTheme.accentSoft)
-                            .clipShape(Capsule())
+                            .frame(width: 54, height: 54)
+                            .background(OpenlyTheme.ink)
+                            .clipShape(Circle())
                             .buttonStyle(.plain)
                             .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 26)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 22)
 
                         if isLoading {
                             ProgressView("جارِ البحث")
@@ -157,7 +169,22 @@ struct NotificationsView: View {
     @State private var isLoading = false
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("Notifications")
+                    .font(.system(size: 28, weight: .bold))
+                    .tracking(-0.6)
+                    .foregroundColor(OpenlyTheme.ink)
+                Text("Only things that need your attention")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(OpenlyTheme.muted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 22)
+            .padding(.bottom, 14)
+
+            Group {
             if session.user == nil {
                 LoginRequiredView(message: "سجّل الدخول لرؤية الإشعارات.")
             } else if isLoading && response == nil {
@@ -187,7 +214,7 @@ struct NotificationsView: View {
                                         Circle().fill(OpenlyTheme.accent).frame(width: 7, height: 7)
                                     }
                                 }
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 24)
                                 .padding(.vertical, 18)
                                 .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
                             }
@@ -199,9 +226,10 @@ struct NotificationsView: View {
             } else {
                 EmptyState(icon: "bell.slash", title: "لا توجد إشعارات", message: "ستظهر هنا الإعجابات والردود المرتبطة بك.")
             }
+            }
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle("الإشعارات")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
@@ -237,6 +265,7 @@ struct NotificationsView: View {
             response = value
             let unread = value.items.filter { $0.readAt == nil }.map(\.id)
             if !unread.isEmpty { try? await session.api.markNotificationsRead(ids: unread) }
+            session.notificationsRevision &+= 1
         } catch { session.alertMessage = error.localizedDescription }
         isLoading = false
     }
@@ -245,49 +274,117 @@ struct NotificationsView: View {
 struct AccountView: View {
     @EnvironmentObject private var session: AppSession
     @State private var followersCount = 0
+    @State private var followingCount = 0
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                AppHeader()
-
+            Group {
                 if let user = session.user {
                     ScrollView {
-                        VStack(spacing: 0) {
-                            VStack(spacing: 13) {
-                                IdentityAvatar(code: user.publicCode, color: user.identityColor, size: 66)
-                                Text(user.publicCode)
-                                    .font(.system(size: 25, weight: .bold, design: .monospaced))
-                                    .foregroundColor(OpenlyTheme.ink)
-                                    .environment(\.layoutDirection, .leftToRight)
-                                Text("انضم في \(OpenlyDate.short(user.createdAt))")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(OpenlyTheme.subtle)
-                                if let bio = user.bio, !bio.isEmpty {
-                                    Text(bio)
-                                        .font(.system(size: 15))
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 7) {
+                                    HStack(spacing: 9) {
+                                        Circle()
+                                            .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
+                                            .frame(width: 14, height: 14)
+                                        Text(user.publicCode)
+                                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                            .tracking(0.6)
+                                            .foregroundColor(OpenlyTheme.ink)
+                                            .environment(\.layoutDirection, .leftToRight)
+                                    }
+
+                                    Text("public code")
+                                        .font(.system(size: 11, weight: .medium))
                                         .foregroundColor(OpenlyTheme.muted)
-                                        .multilineTextAlignment(.center)
+                                        .environment(\.layoutDirection, .leftToRight)
                                 }
-                                Text("\(followersCount) متابع")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(OpenlyTheme.muted)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 34)
-                            .padding(.bottom, 30)
 
-                            Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+                                Spacer()
 
-                            NavigationLink(destination: NotificationsView()) {
-                                AccountMenuRow(icon: "bell", title: "الإشعارات")
+                                NavigationLink(destination: SettingsView()) {
+                                    Text("الإعدادات")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(OpenlyTheme.accentForeground)
+                                        .padding(.horizontal, 15)
+                                        .frame(height: 34)
+                                        .background(OpenlyTheme.ink)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
 
-                            NavigationLink(destination: DirectMessagesView()) {
-                                AccountMenuRow(icon: "message", title: "الرسائل")
+                            if let status = user.status, !status.isEmpty {
+                                Text(status)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundColor(OpenlyTheme.ink)
+                                    .padding(.top, 20)
                             }
-                            .buttonStyle(.plain)
+
+                            if let bio = user.bio, !bio.isEmpty {
+                                Text(bio)
+                                    .font(.system(size: 17, weight: .regular))
+                                    .foregroundColor(OpenlyTheme.ink)
+                                    .lineSpacing(5)
+                                    .padding(.top, 10)
+                            }
+
+                            HStack(spacing: 8) {
+                                Text("\(followersCount)")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(OpenlyTheme.ink)
+                                Text("followers")
+                                Text("·")
+                                Text("\(followingCount)")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(OpenlyTheme.ink)
+                                Text("following")
+                            }
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(OpenlyTheme.muted)
+                            .environment(\.layoutDirection, .leftToRight)
+                            .padding(.top, 20)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 28)
+                        .padding(.bottom, 26)
+
+                        Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Taste")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(OpenlyTheme.muted)
+
+                            HStack(spacing: 10) {
+                                NavigationLink(destination: MusicPreferencesView()) {
+                                    Text("Music")
+                                }
+                                NavigationLink(destination: InterestPreferencesView()) {
+                                    Text("Books · Films · Topics")
+                                }
+                            }
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(OpenlyTheme.ink)
+
+                            Text("Music, books and films are part of the profile — not separate badges.")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(OpenlyTheme.muted)
+                                .lineSpacing(3)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 20)
+
+                        Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Posts")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(OpenlyTheme.muted)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 20)
+                                .padding(.bottom, 8)
 
                             NavigationLink(destination: UserPostsView(code: user.publicCode)) {
                                 AccountMenuRow(icon: "text.bubble", title: "كتاباتي")
@@ -300,27 +397,12 @@ struct AccountView: View {
                             .buttonStyle(.plain)
 
                             NavigationLink(destination: FollowingView()) {
-                                AccountMenuRow(icon: "person.2", title: "الأكواد التي أتابعها")
+                                AccountMenuRow(icon: "person.2", title: "المتابَعون")
                             }
                             .buttonStyle(.plain)
 
-                            NavigationLink(destination: SettingsView()) {
-                                AccountMenuRow(icon: "gearshape", title: "الإعدادات")
-                            }
-                            .buttonStyle(.plain)
-
-                            NavigationLink(destination: InterestPreferencesView()) {
-                                AccountMenuRow(icon: "sparkles", title: "اهتماماتي")
-                            }
-                            .buttonStyle(.plain)
-
-                            NavigationLink(destination: MusicPreferencesView()) {
-                                AccountMenuRow(icon: "music.note", title: "ذوقي الموسيقي")
-                            }
-                            .buttonStyle(.plain)
-
-                            NavigationLink(destination: MusicVisibilitySettingsView()) {
-                                AccountMenuRow(icon: "eye", title: "ما يظهر في ملفي")
+                            NavigationLink(destination: DirectMessagesView()) {
+                                AccountMenuRow(icon: "message", title: "الرسائل")
                             }
                             .buttonStyle(.plain)
 
@@ -328,16 +410,23 @@ struct AccountView: View {
                                 AccountMenuRow(icon: "hand.raised", title: "الخصوصية")
                             }
                             .buttonStyle(.plain)
-
-                            Button(role: .destructive) {
-                                Task { await session.logout() }
-                            } label: {
-                                AccountMenuRow(icon: "rectangle.portrait.and.arrow.right", title: "تسجيل الخروج", danger: true)
-                            }
-                            .buttonStyle(.plain)
                         }
+
+                        Button(role: .destructive) {
+                            Task { await session.logout() }
+                        } label: {
+                            AccountMenuRow(icon: "rectangle.portrait.and.arrow.right", title: "تسجيل الخروج", danger: true)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.bottom, 30)
                     }
-                    .task { followersCount = (try? await session.api.followersCount()) ?? 0 }
+                    .background(OpenlyTheme.background)
+                    .task {
+                        async let followers = try? session.api.followersCount()
+                        async let following = try? session.api.following()
+                        followersCount = await followers ?? 0
+                        followingCount = await following?.count ?? 0
+                    }
                 } else {
                     LoginRequiredView(message: "سجّل الدخول لرؤية حسابك.")
                         .frame(maxHeight: .infinity)
@@ -499,7 +588,7 @@ struct LoginView: View {
                     BrandLockup(markSize: 38)
                     Spacer()
                 }
-                .padding(.bottom, 42)
+                .padding(.bottom, 34)
 
                 if step == "otp" {
                     otpContent
@@ -507,9 +596,9 @@ struct LoginView: View {
                     entryContent
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 28)
-            .padding(.bottom, 50)
+            .padding(.horizontal, 24)
+            .padding(.top, 32)
+            .padding(.bottom, 60)
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
         .navigationBarHidden(true)
@@ -521,14 +610,17 @@ struct LoginView: View {
 
     @ViewBuilder
     private var entryContent: some View {
-        Text("Openly")
-            .font(.system(size: 34, weight: .bold))
+        Text("Welcome to openly")
+            .font(.system(size: 30, weight: .bold))
+            .tracking(-0.7)
             .foregroundColor(OpenlyTheme.ink)
-        Text("دخول بسيط وآمن. لا تحتاج إلى كلمة مرور.")
-            .font(.system(size: 16, weight: .medium))
+        Text("A public space for thoughts, taste and conversation.")
+            .font(.system(size: 13, weight: .medium))
             .foregroundColor(OpenlyTheme.muted)
+            .lineSpacing(4)
             .padding(.top, 8)
             .padding(.bottom, 30)
+            .environment(\.layoutDirection, .leftToRight)
 
         if capabilities.apple {
             SignInWithAppleButton(.continue) { request in
@@ -685,24 +777,24 @@ struct LoginView: View {
 
     @ViewBuilder
     private var otpContent: some View {
-        Image(systemName: method == "phone" ? "message.badge" : "envelope.badge")
-            .font(.system(size: 42))
-            .foregroundColor(OpenlyTheme.accent)
-            .padding(.bottom, 18)
-        Text("أدخل رمز التحقق")
+        Text("Check your inbox")
             .font(.system(size: 29, weight: .bold))
+            .tracking(-0.6)
             .foregroundColor(OpenlyTheme.ink)
-        Text("أرسلنا رمزًا من 6 أرقام إلى \(maskedTarget).")
-            .font(.system(size: 15, weight: .medium))
+            .environment(\.layoutDirection, .leftToRight)
+        Text("Enter the 6-digit code sent to \(maskedTarget).")
+            .font(.system(size: 13, weight: .medium))
             .foregroundColor(OpenlyTheme.muted)
             .padding(.top, 8)
             .padding(.bottom, 28)
+            .environment(\.layoutDirection, .leftToRight)
 
         OpenlyFieldContainer {
             TextField("000000", text: $token)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
-                .font(.system(size: 25, weight: .semibold, design: .monospaced))
+                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                .tracking(10)
                 .multilineTextAlignment(.center)
                 .foregroundColor(OpenlyTheme.ink)
                 .environment(\.layoutDirection, .leftToRight)
@@ -1350,9 +1442,10 @@ struct UserProfileView: View {
             async let taste = session.api.publicMusicProfile(code: code)
 
             let loadedUser = try await profile
-            let feedResult = try await feed
             user = loadedUser
-            posts = feedResult.items
+            if let feedResult = try? await feed {
+                posts = feedResult.items
+            }
             interests = (try? await commonGround) ?? nil
             music = (try? await taste) ?? nil
         } catch {
@@ -1401,7 +1494,22 @@ struct BookmarksView: View {
     @State private var isLoading = true
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("Bookmarks")
+                    .font(.system(size: 28, weight: .bold))
+                    .tracking(-0.6)
+                    .foregroundColor(OpenlyTheme.ink)
+                Text("Private. Only you can see what you save.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(OpenlyTheme.muted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 22)
+            .padding(.bottom, 14)
+
+            Group {
             if isLoading {
                 ProgressView().tint(OpenlyTheme.accent)
             } else if posts.isEmpty {
@@ -1413,9 +1521,10 @@ struct BookmarksView: View {
                     }
                 }
             }
+            }
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle("المحفوظات")
+        .navigationTitle("")
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)

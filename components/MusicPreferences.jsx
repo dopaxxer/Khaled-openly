@@ -300,6 +300,7 @@ export function MusicPreferences() {
       await addExistingArtist(data.artist)
     } catch (e) {
       setError(e.message)
+    } finally {
       setBusy('')
     }
   }

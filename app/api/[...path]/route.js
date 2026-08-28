@@ -5,6 +5,7 @@ import { logError } from '@/lib/logger'
 import { PASSWORD_RECOVERY_COOKIE } from '@/lib/publicOrigin'
 import {
   COMMENT_MAX_LENGTH,
+  identitySearchNeedle,
   isStrongPassword,
   isMailDeliveryFailure,
   isUuid,
@@ -202,9 +203,12 @@ export async function GET(request, { params }) {
   if (path[0] === 'search' && path.length === 1) {
     const q = String(url.searchParams.get('q') || '').trim().slice(0, 120)
     if (!q) return json({ posts: [], users: [] })
+    const needle = identitySearchNeedle(q)
     const [{ data: posts, error: postsError }, { data: users, error: usersError }] = await Promise.all([
       supabase.rpc('search_posts', { p_query: q, p_limit: 30 }),
-      supabase.from('profiles').select('public_code,identity_color').ilike('public_code', `%${code(q)}%`).limit(10)
+      needle
+        ? supabase.from('profiles').select('public_code,identity_color').ilike('public_code', `${needle}%`).limit(10)
+        : Promise.resolve({ data: [], error: null })
     ])
     if (postsError || usersError) return serverError('search', postsError || usersError, 'تعذر إكمال البحث')
     return json({

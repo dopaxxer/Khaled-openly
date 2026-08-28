@@ -97,7 +97,9 @@ export async function GET(request) {
   const catalogKeys = new Set(catalog.map(identityKey))
   const enrichedCatalog = catalog.map(item => {
     const existing = savedByIdentity.get(identityKey(item))
-    return existing ? { ...item, popularity: existing.popularity || 0 } : item
+    return existing
+      ? { ...item, id: existing.id, source: 'saved', popularity: existing.popularity || 0 }
+      : item
   })
 
   return ok({

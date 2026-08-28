@@ -107,6 +107,7 @@ export function MessageThread({ conversationId }) {
   const [presence, setPresence] = useState({ online: false, typing: false })
   const pendingRetry = useRef(null)
   const bottomRef = useRef(null)
+  const scrollerRef = useRef(null)
   const latestCursor = useRef(null)
   const refreshBusy = useRef(false)
   const lastTypingSentAt = useRef(0)
@@ -196,8 +197,13 @@ export function MessageThread({ conversationId }) {
   }, [loadPresence, touchPresence])
 
   useEffect(() => {
-    if (!loading) bottomRef.current?.scrollIntoView({ block: 'end' })
-  }, [loading])
+    if (loading) return
+    const last = messages[messages.length - 1]
+    if (!last) return
+    const node = scrollerRef.current
+    const nearBottom = !node || (node.scrollHeight - node.scrollTop - node.clientHeight) < 80
+    if (nearBottom) bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [loading, messages])
 
   async function loadOlder() {
     if (!olderCursor || loadingOlder) return
@@ -282,7 +288,7 @@ export function MessageThread({ conversationId }) {
       </Link>
     </header>
 
-    <div className="message-thread-scroll">
+    <div className="message-thread-scroll" ref={scrollerRef}>
       {hasMore && <button className="secondary-button message-load-older" onClick={loadOlder} disabled={loadingOlder}>
         {loadingOlder ? 'جارِ التحميل…' : 'عرض رسائل أقدم'}
       </button>}

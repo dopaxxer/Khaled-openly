@@ -55,6 +55,7 @@ export function MusicDiscovery() {
   const searchTicket = useRef(0)
 
   const loadSuggestions = useCallback(async (offset = 0) => {
+    const ticket = ++searchTicket.current
     offset === 0 ? setState('loading') : setLoadingMore(true)
     setError('')
     try {
@@ -63,22 +64,25 @@ export function MusicDiscovery() {
       if (genreId) params.set('genreId', genreId)
 
       const response = await fetch(`/api/v1/music/match-suggestions?${params}`, { cache: 'no-store' })
+      if (ticket !== searchTicket.current) return
       if (response.status === 401) {
         setState('anonymous')
         return
       }
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'تعذر تحميل الاقتراحات')
+      if (ticket !== searchTicket.current) return
 
       setItems(previous => offset === 0 ? (data.items || []) : [...previous, ...(data.items || [])])
       setTotal(data.total || 0)
       setHasMore(!!data.hasMore)
       setState('ready')
     } catch (e) {
+      if (ticket !== searchTicket.current) return
       setError(e.message || 'تعذر تحميل الاقتراحات')
       setState(offset === 0 ? 'error' : 'ready')
     } finally {
-      setLoadingMore(false)
+      if (ticket === searchTicket.current) setLoadingMore(false)
     }
   }, [artistId, genreId])
 

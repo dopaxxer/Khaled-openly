@@ -88,6 +88,13 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNil(post.track)
     }
 
+    func testOpenlyDateParsesPostgresTimestamptz() {
+        XCTAssertNotNil(OpenlyDate.date(from: "2026-08-28T19:18:00.123456+00:00"))
+        XCTAssertNotNil(OpenlyDate.date(from: "2026-08-24T12:00:00.000Z"))
+        XCTAssertNotNil(OpenlyDate.date(from: "2026-08-24T12:00:00Z"))
+        XCTAssertFalse(OpenlyDate.relative("2026-08-28T19:18:00.123456+00:00").isEmpty)
+    }
+
     func testPostDecodesWithTrack() throws {
         let post = try decode(Post.self, """
         {

@@ -19,7 +19,7 @@ import {
   UserRound
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CommentThread } from './CommentThread'
 import { Composer } from './Composer'
 import { MessageThread, MessagesInbox } from './DirectMessages'
@@ -67,14 +67,12 @@ export function HomeScreen() {
   // owns its own fetch, so the counter is what tells it to run again.
   const [published, setPublished] = useState(0)
 
-  return <>
-    <header className="page-header">
-      <h1 className="page-title">المساحة العامة</h1>
-      <p className="page-description">الأحدث أولًا. بلا خوارزمية ترتيب.</p>
-    </header>
+  return <section className="v2-home-screen">
     <Composer inline onPublished={() => setPublished(count => count + 1)} />
-    <Timeline refreshToken={published} />
-  </>
+    <div className="v2-home-timeline">
+      <Timeline refreshToken={published} />
+    </div>
+  </section>
 }
 
 export function ScreenRouter({ slug }) {
@@ -252,13 +250,13 @@ function AuthScreen() {
   }
 
   if (step === 'email-link') {
-    return <div className="auth-wrap">
-      <div className="auth-head">
+    return <div className="auth-wrap v2-auth">
+      <div className="auth-head v2-auth-head">
         <div className="auth-icon"><CircleCheck size={21} /></div>
         <h1 className="auth-title">تحقق من بريدك</h1>
         <p className="auth-sub">أرسلنا رابط تسجيل دخول إلى {maskedTarget}. افتح الرسالة واضغط الرابط لإكمال الدخول.</p>
       </div>
-      <div className="panel auth-form">
+      <div className="panel auth-form v2-auth-card">
         {error && <p className="status-message error" role="alert">{error}</p>}
         {notice && <p className="status-message" style={{ color: 'var(--success)' }}>{notice}</p>}
         <button
@@ -286,17 +284,17 @@ function AuthScreen() {
   }
 
   if (step === 'otp') {
-    return <div className="auth-wrap">
-      <div className="auth-head">
+    return <div className="auth-wrap v2-auth">
+      <div className="auth-head v2-auth-head">
         <div className="auth-icon"><CircleCheck size={21} /></div>
         <h1 className="auth-title">أدخل رمز التحقق</h1>
         <p className="auth-sub">أرسلنا رمزًا من 6 أرقام إلى {maskedTarget}.</p>
       </div>
-      <form className="panel auth-form" onSubmit={verify}>
+      <form className="panel auth-form v2-auth-card v2-otp-card" onSubmit={verify}>
         <label className="label">
           رمز التحقق
           <input
-            className="form-control"
+            className="form-control v2-otp-input"
             value={code}
             onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
             inputMode="numeric"
@@ -338,14 +336,14 @@ function AuthScreen() {
     </div>
   }
 
-  return <div className="auth-wrap">
-    <div className="auth-head">
+  return <div className="auth-wrap v2-auth">
+    <div className="auth-head v2-auth-head">
       <div className="auth-icon"><LogIn size={21} /></div>
-      <h1 className="auth-title">Openly</h1>
-      <p className="auth-sub">دخول بسيط وآمن. لا تحتاج إلى كلمة مرور.</p>
+      <h1 className="auth-title">Welcome to openly</h1>
+      <p className="auth-sub">A public space for thoughts, taste and conversation.</p>
     </div>
 
-    <div className="panel auth-form">
+    <div className="panel auth-form v2-auth-card">
       {capabilities.apple && <a className="secondary-button full" href="/api/auth/oauth/apple?next=/">
         <span aria-hidden="true"></span> Continue with Apple
       </a>}
@@ -456,8 +454,8 @@ function ForgotPasswordScreen() {
     </div>
   }
 
-  return <div className="auth-wrap">
-    <div className="auth-head">
+  return <div className="auth-wrap v2-auth">
+    <div className="auth-head v2-auth-head">
       <div className="auth-icon"><KeyRound size={21} /></div>
       <h1 className="auth-title">استعادة كلمة المرور</h1>
       <p className="auth-sub">أدخل البريد المرتبط بحسابك وسنرسل لك رابط الاستعادة.</p>
@@ -515,8 +513,8 @@ function UpdatePasswordScreen() {
     }
   }
 
-  return <div className="auth-wrap">
-    <div className="auth-head">
+  return <div className="auth-wrap v2-auth">
+    <div className="auth-head v2-auth-head">
       <div className="auth-icon"><KeyRound size={21} /></div>
       <h1 className="auth-title">كلمة مرور جديدة</h1>
       <p className="auth-sub">اختر كلمة مرور جديدة لا تقل عن {PASSWORD_MIN_LENGTH} حرفًا وتضم حرفًا ورقمًا.</p>
@@ -567,29 +565,61 @@ function SearchScreen() {
     }
   }
 
-  return <>
-    <header className="page-header">
-      <div className="page-title-row"><Search size={20} /><h1 className="page-title">بحث</h1></div>
-      <p className="page-description">ابحث عن كلمات عامة أو كود هوية.</p>
+  return <section className="v2-search">
+    <header className="v2-search-head">
+      <h1>بحث</h1>
+      <p>أشخاص، منشورات، وسياق ثقافي</p>
     </header>
-    <form className="search-box row" onSubmit={run}>
-      <input className="form-control" value={q} onChange={e => setQ(e.target.value)} maxLength={120} placeholder="ابحث…" />
-      <button className="primary-button" disabled={busy || !q.trim()}>{busy ? '…' : 'بحث'}</button>
+
+    <form className="v2-search-box" onSubmit={run}>
+      <Search size={17} aria-hidden="true" />
+      <input
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        maxLength={120}
+        placeholder="ابحث عن هوية أو منشور…"
+        aria-label="بحث"
+      />
+      {q && <button type="button" className="v2-search-clear" onClick={() => { setQ(''); setPosts([]); setUsers([]); setDone(false) }}>×</button>}
     </form>
-    {error && <p className="status-message error mt16">{error}</p>}
-    {users.length > 0 && <>
-      <div className="section-title">الهويات</div>
-      {users.map(u => <div className="list-row" key={u.publicCode}>
-        <Identity code={u.publicCode} color={u.identityColor} />
-        <Link className="small muted" href={`/u/${u.publicCode}`}>عرض</Link>
-      </div>)}
-    </>}
-    {posts.length > 0 && <>
-      <div className="section-title">المنشورات</div>
+
+    <div className="v2-search-tabs" aria-hidden="true">
+      <span className="active">أشخاص</span>
+      <span>منشورات</span>
+      <span>موسيقى</span>
+      <span>كتب</span>
+      <span>أفلام</span>
+    </div>
+
+    {error && <p className="status-message error v2-search-status">{error}</p>}
+    {busy && <div className="screen-pad"><div className="skeleton" /></div>}
+
+    {!busy && users.length > 0 && <section>
+      <div className="v2-search-section-title">أشخاص</div>
+      {users.map(u => <Link className="v2-search-person" key={u.publicCode} href={`/u/${u.publicCode}`}>
+        <span className="v2-search-person-dot" style={{ backgroundColor: u.identityColor }} aria-hidden="true" />
+        <span className="v2-search-person-copy">
+          <strong>{u.publicCode}</strong>
+          <span>افتح الملف</span>
+        </span>
+        <span className="v2-search-arrow">›</span>
+      </Link>)}
+    </section>}
+
+    {!busy && posts.length > 0 && <section>
+      <div className="v2-search-section-title">منشورات</div>
       {posts.map(p => <PostCard key={p.id} post={p} />)}
-    </>}
-    {done && !users.length && !posts.length && <div className="empty-state"><p>لا توجد نتائج.</p></div>}
-  </>
+    </section>}
+
+    {!busy && !done && <section className="v2-search-recents">
+      <div className="v2-search-section-title">جرّب البحث</div>
+      <button type="button" onClick={() => setQ('K7M2')}>K7M2</button>
+      <button type="button" onClick={() => setQ('music')}>music</button>
+      <button type="button" onClick={() => setQ('film')}>film</button>
+    </section>}
+
+    {!busy && done && !users.length && !posts.length && <div className="empty-state"><p>لا توجد نتائج.</p></div>}
+  </section>
 }
 
 function MeScreen() {
@@ -600,16 +630,20 @@ function MeScreen() {
 
   useEffect(() => {
     (async () => {
-      const m = await fetch('/api/auth/me', { cache: 'no-store' })
-      const md = m.ok ? await m.json() : { user: null }
-      setUser(md.user || null)
-      if (md.user) {
-        const [a, b] = await Promise.all([
-          fetch('/api/me/followers-count', { cache: 'no-store' }),
-          fetch('/api/me/following', { cache: 'no-store' })
-        ])
-        if (a.ok) setCount((await a.json()).count)
-        if (b.ok) setFollowing((await b.json()).items || [])
+      try {
+        const m = await fetch('/api/auth/me', { cache: 'no-store' })
+        const md = m.ok ? await m.json() : { user: null }
+        setUser(md.user || null)
+        if (md.user) {
+          const [a, b] = await Promise.all([
+            fetch('/api/me/followers-count', { cache: 'no-store' }),
+            fetch('/api/me/following', { cache: 'no-store' })
+          ])
+          if (a.ok) setCount((await a.json()).count)
+          if (b.ok) setFollowing((await b.json()).items || [])
+        }
+      } catch {
+        setUser(null)
       }
     })()
   }, [])
@@ -624,36 +658,51 @@ function MeScreen() {
   if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
   if (user === null) return <div className="empty-state"><div><p>سجّل الدخول لرؤية حسابك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div></div>
 
-  return <>
-    <header className="page-header">
-      <h1 className="page-title">حسابي</h1>
-      <p className="page-description">هويتك الخاصة وإعدادات علاقاتك العامة.</p>
-    </header>
-    <section className="profile-hero">
-      <Identity code={user.publicCode} color={user.identityColor} large />
+  return <section className="v2-self-profile">
+    <section className="profile-hero v2-profile-hero">
+      <div className="v2-profile-top">
+        <div>
+          <Identity code={user.publicCode} color={user.identityColor} large />
+          <p className="v2-profile-code-label">رمز عام</p>
+        </div>
+        <Link href="/settings" className="v2-profile-settings">الإعدادات</Link>
+      </div>
+
       {user.status && <p className="profile-status">{user.status}</p>}
       {user.bio && <p className="profile-bio" data-user-content="">{user.bio}</p>}
-      <div className="stat-grid">
-        <div className="panel stat"><span className="small muted">الأشخاص المهتمون بما تكتب</span><strong>{count ?? '—'}</strong></div>
-        <div className="panel stat"><span className="small muted">خاص بك فقط</span><p className="small mt12">لا نعرض عدد متابَعاتك للآخرين.</p></div>
+
+      <p className="v2-profile-stats">
+        <strong>{count ?? '—'}</strong> followers
+        <span aria-hidden="true"> · </span>
+        <strong>{following.length}</strong> following
+      </p>
+    </section>
+
+    <section className="v2-profile-taste">
+      <span className="v2-profile-kicker">Taste</span>
+      <div className="v2-profile-taste-links">
+        <Link href="/music">ذوقي الموسيقي</Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/interests">اهتماماتي</Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/bookmarks">المحفوظات</Link>
       </div>
-      <div className="row wrap mt20">
-        <Link href={`/u/${user.publicCode}`} className="secondary-button">صفحة كتاباتي</Link>
-        <Link href="/settings" className="secondary-button"><Settings size={15} />الإعدادات</Link>
-        <Link href="/bookmarks" className="secondary-button"><Bookmark size={15} />المحفوظات</Link>
+      <p>Music, books and films are part of the profile — not separate badges.</p>
+    </section>
+
+    <div className="v2-profile-posts-title">Posts</div>
+    <Timeline endpoint={`/api/posts?author=${encodeURIComponent(user.publicCode)}`} empty="لا توجد منشورات." />
+
+    <details className="v2-profile-controls">
+      <summary>الإعدادات</summary>
+      <div className="row wrap">
         <Link href="/messages" className="secondary-button">الرسائل الخاصة</Link>
-        <Link href="/interests" className="secondary-button"><Sparkles size={15} />اهتماماتي</Link>
         <Link href="/discover" className="secondary-button"><Compass size={15} />اكتشف</Link>
-        <Link href="/music" className="secondary-button"><Music size={15} />ذوقي الموسيقي</Link>
         <Link href="/privacy" className="secondary-button">الخصوصية</Link>
         <button onClick={logout} className="danger-button">تسجيل الخروج</button>
       </div>
-    </section>
-    <div className="section-title">الأكواد التي أتابعها</div>
-    {following.length
-      ? following.map(x => <div key={x.publicCode} className="list-row"><Identity code={x.publicCode} color={x.identityColor} /><Link href={`/u/${x.publicCode}`} className="small muted">عرض</Link></div>)
-      : <div className="empty-state"><p>لم تتابع أي كود بعد.</p></div>}
-  </>
+    </details>
+  </section>
 }
 
 function SettingsScreen() {
@@ -716,12 +765,12 @@ function SettingsScreen() {
   if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
   if (user === null) return <div className="empty-state"><div><p>سجّل الدخول لتعديل هويتك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div></div>
 
-  return <>
-    <header className="page-header">
+  return <section className="v2-settings-screen">
+    <header className="page-header v2-settings-head">
       <div className="page-title-row"><Settings size={20} /><h1 className="page-title">الإعدادات</h1></div>
       <p className="page-description">عدّل هويتك العامة من دون إضافة اسم حقيقي أو صورة شخصية.</p>
     </header>
-    <div className="screen-pad stack">
+    <div className="screen-pad stack v2-settings-body">
       <form className="panel auth-form" onSubmit={submit}>
         <div className="row wrap" style={{ alignItems: 'center', gap: 16 }}>
           <Identity code={publicCode || user.publicCode} color={identityColor} large />
@@ -805,7 +854,7 @@ function SettingsScreen() {
         <ThemeControl />
       </div>
     </div>
-  </>
+  </section>
 }
 
 function UserScreen({ code }) {
@@ -818,18 +867,27 @@ function UserScreen({ code }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    (async () => {
-      const [u, p, m, i] = await Promise.all([
-        fetch(`/api/users/${encodeURIComponent(code)}`, { cache: 'no-store' }),
-        fetch(`/api/posts?author=${encodeURIComponent(code)}`, { cache: 'no-store' }),
-        fetch(`/api/v1/users/${encodeURIComponent(code)}/music`, { cache: 'no-store' }),
-        fetch(`/api/v1/users/${encodeURIComponent(code)}/interests`, { cache: 'no-store' })
-      ])
-      setUser(u.ok ? (await u.json()).user : null)
-      if (p.ok) setPosts((await p.json()).items || [])
-      setMusic(m.ok ? (await m.json()).profile : null)
-      setInterests(i.ok ? (await i.json()).profile : null)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [u, p, m, i] = await Promise.all([
+          fetch(`/api/users/${encodeURIComponent(code)}`, { cache: 'no-store' }),
+          fetch(`/api/posts?author=${encodeURIComponent(code)}`, { cache: 'no-store' }),
+          fetch(`/api/v1/users/${encodeURIComponent(code)}/music`, { cache: 'no-store' }),
+          fetch(`/api/v1/users/${encodeURIComponent(code)}/interests`, { cache: 'no-store' })
+        ])
+        if (cancelled) return
+        if (u.status === 404) { setUser(null); return }
+        if (!u.ok) { setError('تعذر فتح الملف'); setUser(null); return }
+        setUser((await u.json()).user)
+        if (p.ok) setPosts((await p.json()).items || [])
+        setMusic(m.ok ? (await m.json()).profile : null)
+        setInterests(i.ok ? (await i.json()).profile : null)
+      } catch {
+        if (!cancelled) { setError('تعذر فتح الملف'); setUser(null) }
+      }
     })()
+    return () => { cancelled = true }
   }, [code])
 
   async function startMessage() {
@@ -913,20 +971,44 @@ function PostScreen({ id }) {
   const [busy, setBusy] = useState(false)
   const [viewerCode, setViewerCode] = useState(null)
   const [commentError, setCommentError] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const postRef = useRef(null)
 
   async function load() {
-    const r = await fetch(`/api/posts/${id}`, { cache: 'no-store' })
-    if (!r.ok) {
+    try {
+      const r = await fetch(`/api/posts/${id}`, { cache: 'no-store' })
+      if (r.status === 404) {
+        postRef.current = null
+        setPost(null)
+        setLoadError('')
+        return
+      }
+      if (!r.ok) {
+        if (postRef.current) {
+          setCommentError('تعذر تحديث المنشور. حاول مجددًا.')
+          return
+        }
+        setLoadError('تعذر فتح المنشور.')
+        setPost(null)
+        return
+      }
+      const d = await r.json()
+      postRef.current = d.post
+      setPost(d.post)
+      setComments(d.comments || [])
+      setCommentError('')
+      setLoadError('')
+    } catch {
+      if (postRef.current) {
+        setCommentError('تعذر تحديث المنشور. حاول مجددًا.')
+        return
+      }
+      setLoadError('تعذر فتح المنشور.')
       setPost(null)
-      return
     }
-    const d = await r.json()
-    setPost(d.post)
-    setComments(d.comments || [])
   }
 
   useEffect(() => { load() }, [id])
-
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : { user: null })
@@ -937,42 +1019,45 @@ function PostScreen({ id }) {
   async function comment(e) {
     e.preventDefault()
     if (!body.trim()) return
-    setBusy(true)
-    setCommentError('')
+    setBusy(true); setCommentError('')
     try {
       const r = await fetch(`/api/posts/${id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body })
       })
-      if (r.status === 401) {
-        location.href = '/login'
-        return
-      }
+      if (r.status === 401) { location.href = '/login'; return }
       const data = await r.json()
       if (!r.ok) throw new Error(data.error || 'تعذر إضافة التعليق')
       setBody('')
       await load()
     } catch (e) {
       setCommentError(e.message || 'تعذر إضافة التعليق')
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
 
   if (post === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
-  if (!post) return <NotFound />
+  if (!post) return loadError
+    ? <div className="empty-state"><div><p>{loadError}</p><button className="secondary-button mt16" onClick={load}>المحاولة مجددًا</button></div></div>
+    : <NotFound />
 
-  return <>
+  return <section className="v2-post-detail">
+    <header className="v2-post-detail-head">
+      <Link href="/" className="v2-back-link">‹ العودة</Link>
+      <h1>المنشور</h1>
+    </header>
     <PostCard post={post} viewerCode={viewerCode} onChanged={load} />
-    <form className="comment-form" onSubmit={comment}>
-      <MentionField maxLength={COMMENT_MAX_LENGTH} value={body} onChange={setBody} placeholder="اكتب تعليقًا… استخدم @ للإشارة" aria-label="نص التعليق" />
-      <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / {COMMENT_MAX_LENGTH}</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
+    <form className="comment-form v2-comment-form" onSubmit={comment}>
+      <MentionField maxLength={COMMENT_MAX_LENGTH} value={body} onChange={setBody} placeholder="أضف ردًا…" aria-label="نص التعليق" />
+      <div className="row between">
+        <span className="tiny subtle" dir="ltr">{body.length} / {COMMENT_MAX_LENGTH}</span>
+        <button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'رد'}</button>
+      </div>
       {commentError && <p className="status-message error">{commentError}</p>}
     </form>
-    <div className="section-title">التعليقات</div>
+    <div className="v2-replies-title">الردود</div>
     <CommentThread comments={comments} postId={id} viewerCode={viewerCode} onChanged={load} />
-  </>
+  </section>
 }
 
 function NotificationsScreen() {
@@ -980,10 +1065,7 @@ function NotificationsScreen() {
 
   async function load() {
     const r = await fetch('/api/notifications', { cache: 'no-store' })
-    if (r.status === 401) {
-      setItems(null)
-      return
-    }
+    if (r.status === 401) { setItems(null); return }
     const d = await r.json()
     setItems(d.items || [])
     if ((d.items || []).some(x => !x.readAt)) {
@@ -1000,39 +1082,38 @@ function NotificationsScreen() {
   if (items === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
   if (items === null) return <div className="empty-state"><Link href="/login" className="primary-button">تسجيل الدخول</Link></div>
 
-  return <>
-    <header className="page-header">
-      <div className="page-title-row"><Bell size={20} /><h1 className="page-title">الإشعارات</h1></div>
-      <p className="page-description">التفاعلات والردود المرتبطة بك.</p>
+  return <section className="v2-notifications">
+    <header className="v2-notifications-head">
+      <h1>Notifications</h1>
+      <p>Only things that need your attention</p>
     </header>
     {items.length
       ? items.map(n => <Link
           href={n.commentId ? `/post/${n.postId}#comment-${n.commentId}` : `/post/${n.postId}`}
-          className={`notification${n.readAt ? '' : ' unread'}`}
+          className={`notification v2-notification${n.readAt ? '' : ' unread'}`}
           key={n.id}
         >
-          <span className="notification-icon">{n.kind === 'like' ? '♥' : n.kind === 'mention' ? '@' : '↩'}</span>
+          <span className="v2-notification-dot" style={{ backgroundColor: n.actorColor }} aria-hidden="true" />
           <div className="notification-main">
-            <p>
-              <Identity code={n.actorCode} color={n.actorColor} linked={false} />
-              {' '}
-              {n.kind === 'like' ? 'أعجب بمنشورك' : n.kind === 'mention' ? (n.commentId ? 'أشار إليك في تعليق' : 'أشار إليك في منشور') : 'رد على منشورك'}
+            <p><strong>{n.actorCode}</strong>{' '}
+              {n.kind === 'like' ? 'liked your post' : n.kind === 'mention' ? 'mentioned you' : 'replied to your post'}
             </p>
-            <time>{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(n.createdAt))}</time>
+            <time>{new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-Math.max(1, Math.round((Date.now()-new Date(n.createdAt).getTime())/60000)), 'minute')}</time>
           </div>
         </Link>)
       : <div className="empty-state"><p>لا توجد إشعارات.</p></div>}
-  </>
+    <p className="v2-notifications-note">No badges for noise. Only meaningful activity appears here.</p>
+  </section>
 }
 
 function BookmarksScreen() {
-  return <>
-    <header className="page-header">
-      <div className="page-title-row"><Bookmark size={20} /><h1 className="page-title">المحفوظات</h1></div>
-      <p className="page-description">منشورات محفوظة لك فقط.</p>
+  return <section className="v2-bookmarks">
+    <header className="v2-bookmarks-head">
+      <h1>Bookmarks</h1>
+      <p>Private. Only you can see what you save.</p>
     </header>
     <Timeline endpoint="/api/bookmarks" empty="لا توجد منشورات محفوظة." />
-  </>
+  </section>
 }
 
 function PrivacyScreen() {
