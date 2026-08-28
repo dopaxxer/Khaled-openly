@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { CommentThread } from './CommentThread'
 import { Composer } from './Composer'
+import { MessageThread, MessagesInbox } from './DirectMessages'
 import { Identity } from './Identity'
 import { MentionField } from './MentionField'
 import { MusicDiscovery } from './MusicDiscovery'
@@ -91,11 +92,13 @@ export function ScreenRouter({ slug }) {
   if (key === 'me') return <MeScreen />
   if (key === 'settings') return <SettingsScreen />
   if (key === 'notifications') return <NotificationsScreen />
+  if (key === 'messages') return <MessagesInbox />
   if (key === 'bookmarks') return <BookmarksScreen />
   if (key === 'privacy') return <PrivacyScreen />
   if (key === 'music') return <MusicPreferences />
   if (key === 'discover/music') return <MusicDiscovery />
   if (key === 'admin/reports') return <AdminReportsScreen />
+  if (slug[0] === 'messages' && slug[1]) return <MessageThread conversationId={slug[1]} />
   if (slug[0] === 'u' && slug[1]) return <UserScreen code={slug[1]} />
   if (slug[0] === 'post' && slug[1]) return <PostScreen id={slug[1]} />
   if (slug[0] === 'report' && slug[1] === 'post' && slug[2]) return <ReportScreen targetType="post" id={slug[2]} />
@@ -638,6 +641,7 @@ function MeScreen() {
         <Link href={`/u/${user.publicCode}`} className="secondary-button">صفحة كتاباتي</Link>
         <Link href="/settings" className="secondary-button"><Settings size={15} />الإعدادات</Link>
         <Link href="/bookmarks" className="secondary-button"><Bookmark size={15} />المحفوظات</Link>
+        <Link href="/messages" className="secondary-button">الرسائل الخاصة</Link>
         <Link href="/interests" className="secondary-button"><Sparkles size={15} />اهتماماتي</Link>
         <Link href="/discover" className="secondary-button"><Compass size={15} />اكتشف</Link>
         <Link href="/music" className="secondary-button"><Music size={15} />ذوقي الموسيقي</Link>
@@ -805,6 +809,7 @@ function SettingsScreen() {
 }
 
 function UserScreen({ code }) {
+  const router = useRouter()
   const [user, setUser] = useState(undefined)
   const [posts, setPosts] = useState([])
   const [music, setMusic] = useState(null)
@@ -826,6 +831,30 @@ function UserScreen({ code }) {
       setInterests(i.ok ? (await i.json()).profile : null)
     })()
   }, [code])
+
+  async function startMessage() {
+    if (busy) return
+    setBusy('message')
+    setError('')
+    try {
+      const response = await fetch('/api/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicCode: user.publicCode })
+      })
+      if (response.status === 401) {
+        location.href = '/login'
+        return
+      }
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'تعذر بدء المحادثة')
+      router.push(`/messages/${data.conversation.conversationId}`)
+    } catch (messageError) {
+      setError(messageError.message || 'تعذر بدء المحادثة')
+    } finally {
+      setBusy('')
+    }
+  }
 
   async function relation(kind, enabled) {
     if (busy) return
@@ -862,6 +891,7 @@ function UserScreen({ code }) {
       <p className="profile-meta">انضم في {new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(user.createdAt))}</p>
       {!user.isSelf && <div className="row wrap mt20">
         <button className="primary-button" disabled={busy === 'follow'} onClick={() => relation('follow', !user.viewerIsFollowing)}>{user.viewerIsFollowing ? 'إلغاء المتابعة' : 'متابعة'}</button>
+        <button className="secondary-button" disabled={!!busy || user.viewerHasBlocked} onClick={startMessage}>{busy === 'message' ? 'جارِ فتح المحادثة…' : 'رسالة خاصة'}</button>
         <button className="secondary-button" disabled={busy === 'mute'} onClick={() => relation('mute', !user.viewerHasMuted)}>{user.viewerHasMuted ? 'إلغاء الكتم' : 'كتم'}</button>
         <button className="danger-button" disabled={busy === 'block'} onClick={() => relation('block', !user.viewerHasBlocked)}>{user.viewerHasBlocked ? 'إلغاء الحظر' : 'حظر'}</button>
       </div>}
