@@ -821,16 +821,30 @@ struct PostDetailView: View {
             if let detail {
                 ScrollView {
                     LazyVStack(spacing: 0) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Post")
+                                .font(.system(size: 28, weight: .bold))
+                                .tracking(-0.6)
+                                .foregroundColor(OpenlyTheme.ink)
+                            Text("Conversation")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(OpenlyTheme.muted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 18)
+                        .padding(.bottom, 8)
+
                         PostCard(post: detail.post)
 
                         HStack {
-                            Text("التعليقات")
-                                .font(.system(size: 20, weight: .bold))
+                            Text("Replies")
+                                .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(OpenlyTheme.ink)
                             Spacer()
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 20)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 18)
                         .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
 
                         if detail.comments.isEmpty {
@@ -842,10 +856,16 @@ struct PostDetailView: View {
                             ForEach(detail.comments) { comment in
                                 VStack(alignment: .leading, spacing: 10) {
                                     HStack {
-                                        IdentityBadge(
-                                            code: comment.authorCode ?? "OPEN",
-                                            color: comment.authorColor
-                                        )
+                                        HStack(spacing: 8) {
+                                            Circle()
+                                                .fill(Color(hex: comment.authorColor) ?? OpenlyTheme.accent)
+                                                .frame(width: 10, height: 10)
+                                            Text(comment.authorCode ?? "OPEN")
+                                                .font(.system(size: 12, weight: .bold))
+                                                .tracking(0.4)
+                                                .foregroundColor(OpenlyTheme.ink)
+                                                .environment(\.layoutDirection, .leftToRight)
+                                        }
                                         Spacer()
                                         Text(OpenlyDate.relative(comment.createdAt))
                                             .font(.system(size: 12, weight: .medium))
@@ -857,8 +877,8 @@ struct PostDetailView: View {
                                         font: .system(size: 17)
                                     )
                                 }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 20)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 18)
                                 .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
                             }
                         }
@@ -874,7 +894,7 @@ struct PostDetailView: View {
             }
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle("المحادثة")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -895,7 +915,7 @@ struct PostDetailView: View {
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
                         OpenlyFieldContainer {
-                            TextField("اكتب تعليقًا… @ للإشارة", text: $commentText, axis: .vertical)
+                            TextField("Reply…", text: $commentText, axis: .vertical)
                                 .foregroundColor(OpenlyTheme.ink)
                                 .lineLimit(1...4)
                                 .onChange(of: commentText) { value in
@@ -917,14 +937,14 @@ struct PostDetailView: View {
                         if isSending {
                             ProgressView().tint(OpenlyTheme.accentForeground)
                         } else {
-                            Image(systemName: "paperplane.fill")
-                                .font(.system(size: 17))
+                            Text("Reply")
+                                .font(.system(size: 13, weight: .bold))
                         }
                     }
                     .foregroundColor(OpenlyTheme.accentForeground)
-                    .frame(width: 50, height: 50)
-                    .background(OpenlyTheme.accent)
-                    .clipShape(Circle())
+                    .frame(width: 74, height: 46)
+                    .background(OpenlyTheme.ink)
+                    .clipShape(Capsule())
                     .disabled(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
                 }
                 .padding(.horizontal, 12)
