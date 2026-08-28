@@ -891,7 +891,7 @@ function UserScreen({ code }) {
       <p className="profile-meta">انضم في {new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(user.createdAt))}</p>
       {!user.isSelf && <div className="row wrap mt20">
         <button className="primary-button" disabled={busy === 'follow'} onClick={() => relation('follow', !user.viewerIsFollowing)}>{user.viewerIsFollowing ? 'إلغاء المتابعة' : 'متابعة'}</button>
-        <button className="secondary-button" disabled={!!busy || user.viewerHasBlocked} onClick={startMessage}>{busy === 'message' ? 'جارِ فتح المحادثة…' : 'رسالة خاصة'}</button>
+        <button className="secondary-button" disabled={!!busy || user.viewerHasBlocked || user.viewerHasMuted} onClick={startMessage}>{busy === 'message' ? 'جارِ فتح المحادثة…' : 'رسالة خاصة'}</button>
         <button className="secondary-button" disabled={busy === 'mute'} onClick={() => relation('mute', !user.viewerHasMuted)}>{user.viewerHasMuted ? 'إلغاء الكتم' : 'كتم'}</button>
         <button className="danger-button" disabled={busy === 'block'} onClick={() => relation('block', !user.viewerHasBlocked)}>{user.viewerHasBlocked ? 'إلغاء الحظر' : 'حظر'}</button>
       </div>}
