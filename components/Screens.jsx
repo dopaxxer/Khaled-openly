@@ -761,12 +761,12 @@ function SettingsScreen() {
   if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
   if (user === null) return <div className="empty-state"><div><p>سجّل الدخول لتعديل هويتك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div></div>
 
-  return <>
-    <header className="page-header">
+  return <section className="v2-settings-screen">
+    <header className="page-header v2-settings-head">
       <div className="page-title-row"><Settings size={20} /><h1 className="page-title">الإعدادات</h1></div>
       <p className="page-description">عدّل هويتك العامة من دون إضافة اسم حقيقي أو صورة شخصية.</p>
     </header>
-    <div className="screen-pad stack">
+    <div className="screen-pad stack v2-settings-body">
       <form className="panel auth-form" onSubmit={submit}>
         <div className="row wrap" style={{ alignItems: 'center', gap: 16 }}>
           <Identity code={publicCode || user.publicCode} color={identityColor} large />
@@ -850,7 +850,7 @@ function SettingsScreen() {
         <ThemeControl />
       </div>
     </div>
-  </>
+  </section>
 }
 
 function UserScreen({ code }) {
