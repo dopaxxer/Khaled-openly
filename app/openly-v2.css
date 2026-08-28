@@ -828,3 +828,249 @@ body {
     font-size: 12px;
   }
 }
+
+
+@media (max-width: 899px) {
+  .v2-explore {
+    padding-block-start: 8px;
+  }
+
+  .v2-explore-head {
+    padding: 22px 24px 14px;
+  }
+
+  .v2-explore-head h1,
+  .v2-post-detail-head h1,
+  .v2-notifications-head h1,
+  .v2-composer-page-head h1 {
+    margin: 0;
+    color: var(--foreground);
+    font-size: 28px;
+    font-weight: 760;
+    line-height: 1.15;
+    letter-spacing: -.03em;
+  }
+
+  .v2-explore-head p,
+  .v2-notifications-head p,
+  .v2-composer-page-head p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .v2-explore-search {
+    display: flex;
+    align-items: center;
+    min-block-size: 48px;
+    margin-block-start: 18px;
+    padding-inline: 16px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .v2-explore-filters {
+    padding: 0 24px 16px;
+    overflow-x: auto;
+  }
+
+  .v2-explore-filters .row.wrap {
+    flex-wrap: nowrap;
+  }
+
+  .v2-explore-filters .primary-button,
+  .v2-explore-filters .secondary-button {
+    min-block-size: 34px;
+    padding-block: 6px;
+    padding-inline: 12px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .v2-explore-section-title {
+    padding: 18px 24px 10px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .v2-explore-people,
+  .v2-cultural-threads {
+    border-block-start: 1px solid var(--line);
+  }
+
+  .v2-taste-person {
+    display: grid;
+    grid-template-columns: 12px 1fr auto;
+    gap: 12px;
+    align-items: start;
+    padding: 18px 24px;
+    border-block-end: 1px solid var(--line);
+  }
+
+  .v2-taste-dot,
+  .v2-notification-dot {
+    inline-size: 12px;
+    block-size: 12px;
+    margin-block-start: 3px;
+    border-radius: 50%;
+  }
+
+  .v2-taste-copy {
+    display: grid;
+    min-inline-size: 0;
+    gap: 5px;
+  }
+
+  .v2-taste-copy strong {
+    font-size: 13px;
+    font-weight: 760;
+    direction: ltr;
+    justify-self: start;
+  }
+
+  .v2-taste-copy span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .v2-taste-score {
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .v2-cultural-thread {
+    display: block;
+    padding: 18px 24px;
+    border-block-end: 1px solid var(--line);
+    font-size: 16px;
+    line-height: 1.45;
+  }
+
+  .v2-post-detail {
+    padding-block-start: 4px;
+  }
+
+  .v2-post-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 20px 24px 8px;
+  }
+
+  .v2-back-link {
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    direction: ltr;
+  }
+
+  .v2-post-detail > .v2-post-card {
+    border-block-start: 0;
+  }
+
+  .v2-comment-form {
+    margin: 0;
+    padding: 18px 24px;
+    border-block-start: 1px solid var(--line);
+    border-block-end: 1px solid var(--line);
+  }
+
+  .v2-comment-form textarea,
+  .v2-comment-form .form-control {
+    min-block-size: 84px;
+    border-radius: 18px;
+  }
+
+  .v2-replies-title {
+    padding: 18px 24px 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .v2-notifications {
+    padding-block-start: 8px;
+  }
+
+  .v2-notifications-head {
+    padding: 22px 24px 14px;
+  }
+
+  .v2-notification {
+    display: grid;
+    grid-template-columns: 12px 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 18px 24px;
+    border-block-start: 0;
+    border-block-end: 1px solid var(--line);
+    background: transparent;
+  }
+
+  .v2-notification.unread {
+    background: color-mix(in srgb, var(--accent) 4%, transparent);
+  }
+
+  .v2-notification .notification-main p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .v2-notification .notification-main time {
+    display: block;
+    margin-block-start: 5px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .v2-notifications-note {
+    margin: 22px 24px 120px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.55;
+  }
+
+  .v2-composer-page-head {
+    display: grid;
+    gap: 12px;
+    padding: 20px 24px 12px;
+  }
+
+  .v2-composer-page-head + .composer.panel {
+    margin-inline: 24px;
+    border-radius: 22px;
+    overflow: hidden;
+  }
+
+  .v2-composer-page-head + .composer.panel .composer-toolbar {
+    border-block-end-color: var(--line);
+  }
+
+  .v2-composer-page-head + .composer.panel .composer-row {
+    min-block-size: 180px;
+    align-items: flex-start;
+  }
+
+  .v2-composer-page-head + .composer.panel textarea {
+    min-block-size: 150px;
+    font-size: 19px;
+    line-height: 1.7;
+  }
+
+  .v2-composer-page-head + .composer.panel .composer-foot {
+    padding-block: 14px;
+  }
+
+  .v2-composer-page-head + .composer.panel .primary-button {
+    min-inline-size: 108px;
+    justify-content: center;
+  }
+}
