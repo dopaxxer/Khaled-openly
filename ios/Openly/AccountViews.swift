@@ -1283,7 +1283,7 @@ struct UserProfileView: View {
                             .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(OpenlyTheme.line, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
-                    .disabled(user.viewerHasBlocked == true)
+                    .disabled(user.viewerHasBlocked == true || user.viewerHasMuted == true)
                     .accessibilityLabel("رسالة خاصة")
 
                     Menu {
