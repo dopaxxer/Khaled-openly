@@ -16,16 +16,28 @@ struct SearchView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                AppHeader()
-
                 ScrollView {
                     VStack(spacing: 0) {
-                        ScreenHeader("بحث", subtitle: "ابحث عن كلمات عامة أو كود هوية.")
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text("Search")
+                                .font(.system(size: 28, weight: .bold))
+                                .tracking(-0.6)
+                                .foregroundColor(OpenlyTheme.ink)
+                            Text("People, posts and cultural context")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(OpenlyTheme.muted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 22)
+                        .padding(.bottom, 16)
 
-                        HStack(spacing: 14) {
+                        HStack(spacing: 10) {
                             OpenlyFieldContainer {
                                 HStack(spacing: 10) {
-                                    TextField("إبحث...", text: $query)
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundColor(OpenlyTheme.muted)
+                                    TextField("Search people or posts…", text: $query)
                                         .foregroundColor(OpenlyTheme.ink)
                                         .textInputAutocapitalization(.never)
                                         .autocorrectionDisabled()
@@ -51,19 +63,19 @@ struct SearchView: View {
                                 if isLoading {
                                     ProgressView().tint(OpenlyTheme.accentForeground)
                                 } else {
-                                    Text("بحث")
-                                        .font(.system(size: 17, weight: .bold))
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 16, weight: .bold))
                                 }
                             }
                             .foregroundColor(OpenlyTheme.accentForeground)
-                            .frame(width: 92, height: 56)
-                            .background(OpenlyTheme.accentSoft)
-                            .clipShape(Capsule())
+                            .frame(width: 54, height: 54)
+                            .background(OpenlyTheme.ink)
+                            .clipShape(Circle())
                             .buttonStyle(.plain)
                             .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 26)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 22)
 
                         if isLoading {
                             ProgressView("جارِ البحث")
@@ -1480,7 +1492,22 @@ struct BookmarksView: View {
     @State private var isLoading = true
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("Bookmarks")
+                    .font(.system(size: 28, weight: .bold))
+                    .tracking(-0.6)
+                    .foregroundColor(OpenlyTheme.ink)
+                Text("Private. Only you can see what you save.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(OpenlyTheme.muted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 22)
+            .padding(.bottom, 14)
+
+            Group {
             if isLoading {
                 ProgressView().tint(OpenlyTheme.accent)
             } else if posts.isEmpty {
@@ -1492,9 +1519,10 @@ struct BookmarksView: View {
                     }
                 }
             }
+            }
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle("المحفوظات")
+        .navigationTitle("")
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
