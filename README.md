@@ -1,6 +1,6 @@
 # Openly
 
-تطبيق اجتماعي نصّي يتكوّن من واجهة Next.js 16 وتطبيق SwiftUI أصلي، ويستخدم Supabase للمصادقة والبيانات. الاستضافة الإنتاجية للموقع وواجهة API هي Netlify على `https://openly.ink`، ويستخدم تطبيق iOS العنوان نفسه مباشرة.
+تطبيق اجتماعي نصّي يتكوّن من واجهة Next.js 16 وتطبيق SwiftUI أصلي، ويستخدم Supabase للمصادقة والبيانات. الاستضافة الإنتاجية للموقع وواجهة API هي Cloudflare Workers، عبر محوّل `@opennextjs/cloudflare`.
 
 ## التشغيل والتحقق
 
@@ -9,8 +9,8 @@
 ```bash
 npm ci
 npm test
-npm run build
-npm start
+npm run build      # يبني Next.js ثم يحوّله إلى Worker في .open-next
+npm run cf:preview # تشغيل الـWorker محليًا عبر wrangler
 ```
 
 لا توجد مفاتيح سرية مطلوبة في المتصفح أو تطبيق iOS. استخدم فقط مفتاح Supabase القابل للنشر، ولا تضف `service_role` أو أي مفتاح سري إلى متغير يبدأ بـ`NEXT_PUBLIC_`.
@@ -37,10 +37,53 @@ npm start
 
 ## النشر
 
-- Netlify: الاستضافة الإنتاجية؛ الإعدادات موجودة في `netlify.toml` مع Node.js 24 ومتغيرات البيئة نفسها.
-- Vercel: يبقى متاحًا للمعاينات فقط عند الحاجة، وليس مصدر الدومين الإنتاجي.
+- Cloudflare Workers: الاستضافة الإنتاجية. الـWorker اسمه `openly`، وإعداده في `wrangler.jsonc`
+  و`open-next.config.ts`. لا يُنشر بناء Next.js مباشرة: محوّل `@opennextjs/cloudflare` يحوّله إلى
+  `.open-next/worker.js` وهو ما تنشره Cloudflare فعليًا.
+
+  `npm run build` يُنتج الـWorker، لا بناء Next.js مجرّدًا. هذا مقصود: كل منصّة تشغّل `npm run build`
+  افتراضيًا، وCloudflare منها، فلو أنتج `.next/` فقط فشل النشر بـ
+  `The entry-point file at ".open-next/worker.js" was not found` — وهو الخطأ الذي أبقى الإنتاج
+  بلا نشر فعليًا.
+
+  التركيب دقيق ولا يُعبث به: المحوّل نفسه ينفّذ سكربت البناء ليُنتج مُخرَج Next.js (انظر
+  `buildNextjsApp` في `@opennextjs/aws`، وافتراضه `npm run build`). لذلك يوجّهه
+  `buildCommand: 'npm run build:next'` في `open-next.config.ts` إلى `build:next`. بدون هذا التوجيه
+  يستدعي `build` نفسه بلا نهاية.
+
+  إعدادات Workers Builds في لوحة Cloudflare — القيم الافتراضية تكفي:
+
+  | الإعداد | القيمة |
+  | --- | --- |
+  | Build command | `npm run build` |
+  | Deploy command | `npx wrangler deploy` للإنتاج، و`npx wrangler versions upload` للمعاينات |
+  | Node version | 24 |
+
+  متغيّرات المشروع نوعان، والخلط بينهما لا يُنتج خطأ بل تطبيقًا لا يعمل:
+
+  - **Build variables** في اللوحة. كل ما يبدأ بـ`NEXT_PUBLIC_` يدمجه Next.js داخل الحزمة وقت
+    البناء، فضبطه كمتغيّر تشغيل لا يصل إليه الكود إطلاقًا. القيم الإنتاجية المعتمدة:
+
+    | المتغيّر | القيمة |
+    | --- | --- |
+    | `NEXT_PUBLIC_SITE_URL` | `https://openly.ink` |
+    | `NEXT_PUBLIC_SUPABASE_URL` | `https://egwhybfcnlzijomgeebj.supabase.co` |
+    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_pZN6kVnQGZK3QwNdVmG7Ww_vqYqvO_X` |
+
+    معرّف المشروع `egwhybfcnlzijomgeebj` ليس تفصيلًا: نشرٌ يشير إلى مشروع Supabase آخر يسجّل
+    الناس ويخزّن منشوراتهم في قاعدة لا يملكها أحد هنا، وتبدو معه كل الحسابات القائمة محذوفة
+    وكل كلمة مرور صحيحة مرفوضة. لهذا يرفض `lib/supabaseEnv.js` تقديم الخدمة بلا هذه القيم.
+  - **Runtime variables**: `AUTH_EMAIL_MODE` وحده، وهو مثبَّت في `wrangler.jsonc` فلا يحتاج
+    ضبطًا في اللوحة.
+
+  `compatibility_date` في `wrangler.jsonc` يجب أن يبقى حديثًا. تاريخ قديم هو سبب رفض الـruntime
+  لخيار `cache` في `fetch` وظهور أخطاء 502 من كتالوج Apple.
+
+  ملاحظة معروفة: في Next.js 16 يعمل `proxy.js` على Node.js runtime إجباريًا — التوثيق ينص على أن
+  تعيين `runtime` في ملف Proxy يرمي خطأ — ودعم OpenNext لهذا المسار على Cloudflare موصوف بأنه
+  تجريبي. البناء ينجح، لكن التحذير متوقَّع ولا يُعالَج من داخل المستودع.
 - Supabase: طبّق الملفات المرتبة داخل `supabase/migrations`. جميع الجداول المكشوفة تستخدم RLS، وتُقيّد الكتابة أيضًا على مستوى الأعمدة.
-- GitHub: مسار `Web quality and security` يشغّل الاختبارات والبناء و`npm audit`، ومسارا Swift يبنيان التطبيق الأصلي وIPA غير موقّع مع ملف SHA-256.
+- GitHub: مسار `Web quality and security` يشغّل الاختبارات، ثم يبني الـWorker نفسه الذي تنشره Cloudflare ويتحقق من إنتاج `.open-next/worker.js`، ثم `npm audit`. ومسارا Swift يبنيان التطبيق الأصلي وIPA غير موقّع مع ملف SHA-256.
 
 الـIPA الناتج غير موقّع عمدًا. يجب توقيعه بشهادة وملف provisioning صالحين قبل التثبيت أو النشر في App Store.
 
@@ -50,7 +93,7 @@ npm start
 
 1. نجاح اختبارات Node وبناء Next.js.
 2. نجاح بناء Swift Debug وRelease ورفع IPA.
-3. خلو سجلات Netlify من أخطاء 5xx، واجتياز فحص Supabase Security Advisor.
+3. نجاح بناء Cloudflare Workers ونشره، وخلو سجلات الـWorker من أخطاء 5xx، واجتياز فحص Supabase Security Advisor.
 4. اختبار التسجيل، تأكيد البريد، استعادة كلمة المرور، النشر، التعليق، الحذف، الحظر والإبلاغ بحساب اختبار.
 5. توقيع IPA والتحقق من بصمته بعد التنزيل.
 

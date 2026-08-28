@@ -14,7 +14,13 @@ on:
       - 'package-lock.json'
       - 'next.config.mjs'
       - 'proxy.js'
-      - 'netlify.toml'
+      - 'wrangler.jsonc'
+      - 'open-next.config.ts'
+      # The web suite asserts against the native client's origin, so an
+      # iOS-only change can turn it red. Run it here rather than discovering
+      # the break on the next unrelated web pull request.
+      - 'ios/project.yml'
+      - 'ios/Openly/APIClient.swift'
       - '.github/workflows/ui-redesign-check.yml'
   pull_request:
     paths:
@@ -26,7 +32,13 @@ on:
       - 'package-lock.json'
       - 'next.config.mjs'
       - 'proxy.js'
-      - 'netlify.toml'
+      - 'wrangler.jsonc'
+      - 'open-next.config.ts'
+      # The web suite asserts against the native client's origin, so an
+      # iOS-only change can turn it red. Run it here rather than discovering
+      # the break on the next unrelated web pull request.
+      - 'ios/project.yml'
+      - 'ios/Openly/APIClient.swift'
       - '.github/workflows/ui-redesign-check.yml'
 
 permissions:
@@ -56,50 +68,26 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      - name: Build production bundle
+      # Builds the Next.js bundle and adapts it into .open-next/worker.js -- the
+      # exact artifact Cloudflare deploys. Running it here is the point: the
+      # Workers build lives in the Cloudflare dashboard, so without this step a
+      # change that breaks the production Worker passes every check on the pull
+      # request and only fails after merge, where nobody is watching.
+      #
+      # The NEXT_PUBLIC_* values are placeholders. They exist because Next.js
+      # inlines them at build time, so the build needs them present; the real
+      # values are set as build variables on the Cloudflare project.
+      - name: Build the Cloudflare Worker
+        env:
+          NEXT_PUBLIC_SITE_URL: https://openly.ink
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          AUTH_EMAIL_MODE: otp
         run: npm run build
+
+      - name: Confirm the Worker entrypoint was produced
+        run: test -f .open-next/worker.js && test -d .open-next/assets
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Live auth preview smoke
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 42
-        env:
-          PREVIEW_ORIGIN: https://deploy-preview-42--inspiring-swan-ab4737.netlify.app
-          AUTH_SMOKE_EMAIL: auth-smoke-${{ github.run_id }}@openly.ink
-        run: |
-          set -euo pipefail
-
-          login_status="$(curl --silent --show-error --location -o /tmp/login.html -w '%{http_code}' "$PREVIEW_ORIGIN/login")"
-          echo "login_status=$login_status"
-          test "$login_status" = "200"
-          grep -q "Continue with Apple" /tmp/login.html
-          grep -q "Continue with Google" /tmp/login.html
-          grep -q "المتابعة برقم الهاتف" /tmp/login.html
-
-          otp_status="$(curl --silent --show-error             -o /tmp/otp.json -w '%{http_code}'             -H 'content-type: application/json'             --data "{\"method\":\"email\",\"email\":\"$AUTH_SMOKE_EMAIL\"}"             "$PREVIEW_ORIGIN/api/auth/otp/request")"
-          echo "email_otp_status=$otp_status"
-          cat /tmp/otp.json
-          test "$otp_status" = "200"
-          grep -q '"ok":true' /tmp/otp.json
-          grep -q '"method":"email"' /tmp/otp.json
-          ! grep -q "$AUTH_SMOKE_EMAIL" /tmp/otp.json
-
-          verify_status="$(curl --silent --show-error             -o /tmp/verify.json -w '%{http_code}'             -H 'content-type: application/json'             --data "{\"method\":\"email\",\"email\":\"$AUTH_SMOKE_EMAIL\",\"token\":\"000000\"}"             "$PREVIEW_ORIGIN/api/auth/otp/verify")"
-          echo "wrong_otp_status=$verify_status"
-          test "$verify_status" = "400"
-          grep -q '"error":' /tmp/verify.json
-
-          phone_status="$(curl --silent --show-error             -o /tmp/phone.json -w '%{http_code}'             -H 'content-type: application/json'             --data '{"method":"phone","phone":"49123"}'             "$PREVIEW_ORIGIN/api/auth/otp/request")"
-          echo "invalid_phone_status=$phone_status"
-          test "$phone_status" = "400"
-
-          for provider in google apple; do
-            headers="$(curl --silent --show-error --dump-header - --output /dev/null               "$PREVIEW_ORIGIN/api/auth/oauth/$provider?next=/")"
-            status="$(awk 'NR==1 {print $2}' <<<"$headers")"
-            echo "$provider"_oauth_start_status="$status"
-            case "$status" in
-              301|302|303|307|308) ;;
-              *) exit 1 ;;
-            esac
-          done

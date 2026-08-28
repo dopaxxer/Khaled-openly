@@ -9,6 +9,7 @@ const composer = read('components/Composer.jsx')
 const attachment = read('components/TrackAttachment.jsx')
 const preview = read('components/TrackPreview.jsx')
 const musicPreferences = read('components/MusicPreferences.jsx')
+const interests = read('components/InterestDiscovery.jsx')
 const publicProfile = read('components/PublicMusicProfile.jsx')
 
 // Comments carry Arabic prose that never reaches the DOM, so they would
@@ -105,4 +106,29 @@ test('the iOS attachment picker keys exist in both languages', () => {
     assert.ok(arabic.includes(`"${key}"`), `missing Arabic string for ${key}`)
     assert.ok(english.includes(`"${key}"`), `missing English string for ${key}`)
   }
+})
+
+
+// The interests screens are the newest surface and were shipped entirely in
+// Arabic, so the language switch left them untranslated. They render nothing
+// but interest UI, which puts all of their copy in scope.
+test('every Arabic string in the interests screens has an English entry', () => {
+  const strings = arabicCopy(interests)
+  assert.ok(strings.length > 0, 'the scanner found no Arabic copy to check')
+
+  const missing = strings.filter(value => !hasEntry(value))
+  assert.deepEqual(missing, [], `untranslated interface copy: ${missing.join(' | ')}`)
+})
+
+
+// A repeated key is silently dropped by the object literal and only surfaces as
+// a bundler warning, so the dictionary is checked here instead.
+test('the English dictionary declares each phrase once', () => {
+  const block = bridge.slice(bridge.indexOf('const EN = {'), bridge.indexOf('\n}'))
+  const keys = [...block.matchAll(/^ {2}'((?:[^'\\]|\\.)*)':/gm)].map(match => match[1])
+  const seen = new Set()
+  const duplicates = keys.filter(key => seen.size === seen.add(key).size)
+
+  assert.ok(keys.length > 100, `the scanner found only ${keys.length} keys`)
+  assert.deepEqual(duplicates, [], `duplicated dictionary keys: ${duplicates.join(' | ')}`)
 })
