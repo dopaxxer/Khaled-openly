@@ -26,7 +26,7 @@ struct SettingsView: View {
     @EnvironmentObject private var session: AppSession
     @AppStorage("openly.appearance") private var appearanceRaw = OpenlyAppearance.system.rawValue
     @AppStorage("openly.language") private var languageRaw = OpenlyLanguage.arabic.rawValue
-    @AppStorage("openly.colorTheme") private var colorThemeRaw = OpenlyColorTheme.ultramarine.rawValue
+    @AppStorage("openly.colorTheme") private var colorThemeRaw = OpenlyColorTheme.crimson.rawValue
 
     @State private var publicCode = ""
     @State private var identityColor = "#5C7AEA"
