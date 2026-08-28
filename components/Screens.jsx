@@ -1064,13 +1064,13 @@ function NotificationsScreen() {
 }
 
 function BookmarksScreen() {
-  return <>
-    <header className="page-header">
-      <div className="page-title-row"><Bookmark size={20} /><h1 className="page-title">المحفوظات</h1></div>
-      <p className="page-description">منشورات محفوظة لك فقط.</p>
+  return <section className="v2-bookmarks">
+    <header className="v2-bookmarks-head">
+      <h1>Bookmarks</h1>
+      <p>Private. Only you can see what you save.</p>
     </header>
     <Timeline endpoint="/api/bookmarks" empty="لا توجد منشورات محفوظة." />
-  </>
+  </section>
 }
 
 function PrivacyScreen() {
