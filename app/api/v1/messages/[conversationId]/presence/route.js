@@ -48,7 +48,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   const id = await idFrom(params)
   if (!id) return reply({ error: 'معرّف المحادثة غير صالح', code: 'invalid_conversation' }, 400)
-  const auth = await authContext(request, 'messageWrite')
+  const auth = await authContext(request, 'messagePresence')
   if (auth.response) return auth.response
   const parsed = await readJson(request, 1024)
   if (parsed.error) return reply({ error: parsed.error, code: 'invalid_request' }, parsed.status)
