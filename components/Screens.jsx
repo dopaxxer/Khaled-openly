@@ -578,7 +578,7 @@ function SearchScreen() {
         onChange={e => setQ(e.target.value)}
         maxLength={120}
         placeholder="Search people or posts…"
-        aria-label="ابحث"
+        aria-label="Search"
       />
       {q && <button type="button" className="v2-search-clear" onClick={() => { setQ(''); setPosts([]); setUsers([]); setDone(false) }}>×</button>}
     </form>
