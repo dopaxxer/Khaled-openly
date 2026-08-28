@@ -6,7 +6,8 @@ import {
   mapDirectConversation,
   mapDirectMessage,
   normalizeDirectMessageBody,
-  parseMessageBefore,
+  directMessageCursor,
+  parseDirectMessageCursor,
   validDirectMessageNonce
 } from '../lib/directMessages.js'
 
@@ -21,10 +22,15 @@ test('direct message request idempotency requires a UUID nonce', () => {
   assert.equal(validDirectMessageNonce('retry-1'), false)
 })
 
-test('direct message cursor parsing rejects invalid timestamps', () => {
-  assert.equal(parseMessageBefore('not-a-date'), undefined)
-  assert.equal(parseMessageBefore(''), null)
-  assert.equal(parseMessageBefore('2026-08-28T12:00:00Z'), '2026-08-28T12:00:00.000Z')
+test('direct message cursors preserve timestamp and row id', () => {
+  const id = '123e4567-e89b-42d3-a456-426614174000'
+  assert.equal(parseDirectMessageCursor('not-a-date'), undefined)
+  assert.equal(parseDirectMessageCursor(''), null)
+  assert.deepEqual(parseDirectMessageCursor(`2026-08-28T12:00:00Z|${id}`), {
+    createdAt: '2026-08-28T12:00:00.000Z',
+    id
+  })
+  assert.equal(directMessageCursor({ created_at: '2026-08-28T12:00:00Z', id }), `2026-08-28T12:00:00Z|${id}`)
 })
 
 test('direct message mappers keep private database names out of clients', () => {
@@ -65,7 +71,7 @@ test('message endpoints use RPCs rather than direct private-table access', () =>
 })
 
 test('message migration enforces privacy, block checks and idempotency', () => {
-  const migration = readFileSync(new URL('../supabase/migrations/20260828141500_private_direct_messages.sql', import.meta.url), 'utf8')
+  const migration = readFileSync(new URL('../supabase/migrations/20260828142241_private_direct_messages.sql', import.meta.url), 'utf8')
   assert.match(migration, /alter table private\.direct_messages enable row level security/i)
   assert.match(migration, /revoke all on table private\.direct_messages from public, anon, authenticated/i)
   assert.match(migration, /direct_messages_idempotency/)
