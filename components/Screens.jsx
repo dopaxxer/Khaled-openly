@@ -250,13 +250,13 @@ function AuthScreen() {
   }
 
   if (step === 'email-link') {
-    return <div className="auth-wrap">
-      <div className="auth-head">
+    return <div className="auth-wrap v2-auth">
+      <div className="auth-head v2-auth-head">
         <div className="auth-icon"><CircleCheck size={21} /></div>
         <h1 className="auth-title">تحقق من بريدك</h1>
         <p className="auth-sub">أرسلنا رابط تسجيل دخول إلى {maskedTarget}. افتح الرسالة واضغط الرابط لإكمال الدخول.</p>
       </div>
-      <div className="panel auth-form">
+      <div className="panel auth-form v2-auth-card">
         {error && <p className="status-message error" role="alert">{error}</p>}
         {notice && <p className="status-message" style={{ color: 'var(--success)' }}>{notice}</p>}
         <button
@@ -284,17 +284,17 @@ function AuthScreen() {
   }
 
   if (step === 'otp') {
-    return <div className="auth-wrap">
-      <div className="auth-head">
+    return <div className="auth-wrap v2-auth">
+      <div className="auth-head v2-auth-head">
         <div className="auth-icon"><CircleCheck size={21} /></div>
         <h1 className="auth-title">أدخل رمز التحقق</h1>
         <p className="auth-sub">أرسلنا رمزًا من 6 أرقام إلى {maskedTarget}.</p>
       </div>
-      <form className="panel auth-form" onSubmit={verify}>
+      <form className="panel auth-form v2-auth-card v2-otp-card" onSubmit={verify}>
         <label className="label">
           رمز التحقق
           <input
-            className="form-control"
+            className="form-control v2-otp-input"
             value={code}
             onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
             inputMode="numeric"
@@ -336,14 +336,14 @@ function AuthScreen() {
     </div>
   }
 
-  return <div className="auth-wrap">
-    <div className="auth-head">
+  return <div className="auth-wrap v2-auth">
+    <div className="auth-head v2-auth-head">
       <div className="auth-icon"><LogIn size={21} /></div>
-      <h1 className="auth-title">Openly</h1>
-      <p className="auth-sub">دخول بسيط وآمن. لا تحتاج إلى كلمة مرور.</p>
+      <h1 className="auth-title">Welcome to openly</h1>
+      <p className="auth-sub">A public space for thoughts, taste and conversation.</p>
     </div>
 
-    <div className="panel auth-form">
+    <div className="panel auth-form v2-auth-card">
       {capabilities.apple && <a className="secondary-button full" href="/api/auth/oauth/apple?next=/">
         <span aria-hidden="true"></span> Continue with Apple
       </a>}
@@ -454,8 +454,8 @@ function ForgotPasswordScreen() {
     </div>
   }
 
-  return <div className="auth-wrap">
-    <div className="auth-head">
+  return <div className="auth-wrap v2-auth">
+    <div className="auth-head v2-auth-head">
       <div className="auth-icon"><KeyRound size={21} /></div>
       <h1 className="auth-title">استعادة كلمة المرور</h1>
       <p className="auth-sub">أدخل البريد المرتبط بحسابك وسنرسل لك رابط الاستعادة.</p>
@@ -513,8 +513,8 @@ function UpdatePasswordScreen() {
     }
   }
 
-  return <div className="auth-wrap">
-    <div className="auth-head">
+  return <div className="auth-wrap v2-auth">
+    <div className="auth-head v2-auth-head">
       <div className="auth-icon"><KeyRound size={21} /></div>
       <h1 className="auth-title">كلمة مرور جديدة</h1>
       <p className="auth-sub">اختر كلمة مرور جديدة لا تقل عن {PASSWORD_MIN_LENGTH} حرفًا وتضم حرفًا ورقمًا.</p>
@@ -565,29 +565,61 @@ function SearchScreen() {
     }
   }
 
-  return <>
-    <header className="page-header">
-      <div className="page-title-row"><Search size={20} /><h1 className="page-title">بحث</h1></div>
-      <p className="page-description">ابحث عن كلمات عامة أو كود هوية.</p>
+  return <section className="v2-search">
+    <header className="v2-search-head">
+      <h1>Search</h1>
+      <p>People, posts and cultural context</p>
     </header>
-    <form className="search-box row" onSubmit={run}>
-      <input className="form-control" value={q} onChange={e => setQ(e.target.value)} maxLength={120} placeholder="ابحث…" />
-      <button className="primary-button" disabled={busy || !q.trim()}>{busy ? '…' : 'بحث'}</button>
+
+    <form className="v2-search-box" onSubmit={run}>
+      <Search size={17} aria-hidden="true" />
+      <input
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        maxLength={120}
+        placeholder="Search people or posts…"
+        aria-label="ابحث"
+      />
+      {q && <button type="button" className="v2-search-clear" onClick={() => { setQ(''); setPosts([]); setUsers([]); setDone(false) }}>×</button>}
     </form>
-    {error && <p className="status-message error mt16">{error}</p>}
-    {users.length > 0 && <>
-      <div className="section-title">الهويات</div>
-      {users.map(u => <div className="list-row" key={u.publicCode}>
-        <Identity code={u.publicCode} color={u.identityColor} />
-        <Link className="small muted" href={`/u/${u.publicCode}`}>عرض</Link>
-      </div>)}
-    </>}
-    {posts.length > 0 && <>
-      <div className="section-title">المنشورات</div>
+
+    <div className="v2-search-tabs" aria-hidden="true">
+      <span className="active">People</span>
+      <span>Posts</span>
+      <span>Music</span>
+      <span>Books</span>
+      <span>Films</span>
+    </div>
+
+    {error && <p className="status-message error v2-search-status">{error}</p>}
+    {busy && <div className="screen-pad"><div className="skeleton" /></div>}
+
+    {!busy && users.length > 0 && <section>
+      <div className="v2-search-section-title">People</div>
+      {users.map(u => <Link className="v2-search-person" key={u.publicCode} href={`/u/${u.publicCode}`}>
+        <span className="v2-search-person-dot" style={{ backgroundColor: u.identityColor }} aria-hidden="true" />
+        <span className="v2-search-person-copy">
+          <strong>{u.publicCode}</strong>
+          <span>Open profile</span>
+        </span>
+        <span className="v2-search-arrow">›</span>
+      </Link>)}
+    </section>}
+
+    {!busy && posts.length > 0 && <section>
+      <div className="v2-search-section-title">Posts</div>
       {posts.map(p => <PostCard key={p.id} post={p} />)}
-    </>}
-    {done && !users.length && !posts.length && <div className="empty-state"><p>لا توجد نتائج.</p></div>}
-  </>
+    </section>}
+
+    {!busy && !done && <section className="v2-search-recents">
+      <div className="v2-search-section-title">Try searching</div>
+      <button type="button" onClick={() => setQ('K7M2')}>K7M2</button>
+      <button type="button" onClick={() => setQ('music')}>music</button>
+      <button type="button" onClick={() => setQ('film')}>film</button>
+    </section>}
+
+    {!busy && done && !users.length && !posts.length && <div className="empty-state"><p>لا توجد نتائج.</p></div>}
+  </section>
 }
 
 function MeScreen() {
