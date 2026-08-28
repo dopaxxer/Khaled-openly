@@ -288,7 +288,7 @@ final class ModelDecodingTests: XCTestCase {
             "senderColor": "#3F7CAC",
             "isMine": false
           }],
-          "nextBefore": null,
+          "nextCursor": null,
           "hasMore": false
         }
         """)
