@@ -24,9 +24,12 @@ export async function GET() {
       ok: configured,
       supabase: { projectRef, configured, hasUrl, hasKey },
       siteUrl,
-      commit: process.env.VERCEL_GIT_COMMIT_SHA || null,
-      branch: process.env.VERCEL_GIT_COMMIT_REF || null,
-      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || null
+      // Cloudflare Workers Builds names, replacing the Vercel ones this used to
+      // read. Both are build-time values, so they are only reported if the
+      // project forwards them; unset simply reads as null, as before.
+      commit: process.env.WORKERS_CI_COMMIT_SHA || null,
+      branch: process.env.WORKERS_CI_BRANCH || null,
+      environment: process.env.NODE_ENV || null
     },
     {
       status: configured ? 200 : 503,

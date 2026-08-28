@@ -61,9 +61,18 @@ npm run cf:preview # تشغيل الـWorker محليًا عبر wrangler
 
   متغيّرات المشروع نوعان، والخلط بينهما لا يُنتج خطأ بل تطبيقًا لا يعمل:
 
-  - **Build variables** في اللوحة: `NEXT_PUBLIC_SITE_URL` و`NEXT_PUBLIC_SUPABASE_URL`
-    و`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. كل ما يبدأ بـ`NEXT_PUBLIC_` يدمجه Next.js داخل
-    الحزمة وقت البناء، فضبطه كمتغيّر تشغيل لا يصل إليه الكود إطلاقًا.
+  - **Build variables** في اللوحة. كل ما يبدأ بـ`NEXT_PUBLIC_` يدمجه Next.js داخل الحزمة وقت
+    البناء، فضبطه كمتغيّر تشغيل لا يصل إليه الكود إطلاقًا. القيم الإنتاجية المعتمدة:
+
+    | المتغيّر | القيمة |
+    | --- | --- |
+    | `NEXT_PUBLIC_SITE_URL` | `https://openly.ink` |
+    | `NEXT_PUBLIC_SUPABASE_URL` | `https://egwhybfcnlzijomgeebj.supabase.co` |
+    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_pZN6kVnQGZK3QwNdVmG7Ww_vqYqvO_X` |
+
+    معرّف المشروع `egwhybfcnlzijomgeebj` ليس تفصيلًا: نشرٌ يشير إلى مشروع Supabase آخر يسجّل
+    الناس ويخزّن منشوراتهم في قاعدة لا يملكها أحد هنا، وتبدو معه كل الحسابات القائمة محذوفة
+    وكل كلمة مرور صحيحة مرفوضة. لهذا يرفض `lib/supabaseEnv.js` تقديم الخدمة بلا هذه القيم.
   - **Runtime variables**: `AUTH_EMAIL_MODE` وحده، وهو مثبَّت في `wrangler.jsonc` فلا يحتاج
     ضبطًا في اللوحة.
 

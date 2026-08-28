@@ -76,3 +76,16 @@ test('no Supabase project is hardcoded as a fallback', () => {
   const env = readFileSync(new URL('../lib/supabaseEnv.js', import.meta.url), 'utf8')
   assert.match(env, /throw new Error/, 'missing configuration must throw')
 })
+
+
+// vercel.json used to pin the canonical Supabase project, and a test asserted
+// it. The file is gone with Vercel, but the invariant it protected is not: a
+// deployment pointed at a different project signs people up and stores their
+// posts in a database nobody here controls, while every existing account looks
+// deleted. The README is where that value lives now.
+test('the canonical Supabase project stays documented', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
+
+  assert.match(readme, /https:\/\/egwhybfcnlzijomgeebj\.supabase\.co/)
+  assert.match(readme, /NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/)
+})
