@@ -81,11 +81,11 @@ export function ThemeControl() {
 
   return <>
     <LanguageControl />
-    <section aria-labelledby="theme-heading">
+    <section className="v2-theme-control" aria-labelledby="theme-heading">
       <h2 className="page-title" id="theme-heading" style={{ fontSize: 16 }}>المظهر</h2>
       <p className="small muted mt8">كيف يظهر التطبيق على هذا الجهاز.</p>
 
-      <div className="row wrap mt16" role="radiogroup" aria-label="وضع الإضاءة" style={{ gap: 8 }}>
+      <div className="v2-theme-modes" role="radiogroup" aria-label="وضع الإضاءة">
         {OPTIONS.map(option => {
           const active = preference === option.value
           return <button
@@ -94,7 +94,7 @@ export function ThemeControl() {
             role="radio"
             aria-checked={active}
             onClick={() => chooseMode(option.value)}
-            className={active ? 'primary-button' : 'secondary-button'}
+            className={`v2-theme-mode${active ? ' active' : ''}`}
           >
             {option.label}
           </button>
@@ -102,7 +102,7 @@ export function ThemeControl() {
       </div>
 
       <p className="small muted mt20">لون التمييز</p>
-      <div className="row wrap mt8" role="radiogroup" aria-label="لون التمييز" style={{ gap: 10 }}>
+      <div className="v2-theme-swatches" role="radiogroup" aria-label="لون التمييز">
         {COLOR_THEMES.map(theme => {
           const active = color === theme.value
           return <button
