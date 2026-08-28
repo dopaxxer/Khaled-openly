@@ -62,12 +62,16 @@ test('message endpoints use RPCs rather than direct private-table access', () =>
     '../app/api/v1/messages/route.js',
     '../app/api/v1/messages/[conversationId]/route.js',
     '../app/api/v1/messages/[conversationId]/read/route.js',
+    '../app/api/v1/messages/[conversationId]/presence/route.js',
     '../app/api/v1/messages/unread/route.js'
   ]
   const source = files.map(path => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n')
   assert.doesNotMatch(source, /\.from\(['"](?:direct_messages|direct_conversations)['"]\)/)
   assert.match(source, /send_direct_message/)
   assert.match(source, /get_direct_messages_page/)
+  assert.match(source, /get_direct_messages_after/)
+  assert.match(source, /get_direct_message_presence/)
+  assert.match(source, /touch_direct_message_presence/)
   assert.match(source, /get_unread_direct_message_count/)
 })
 
@@ -92,4 +96,12 @@ test('message migration enforces privacy, block checks and idempotency', () => {
     'utf8'
   )
   assert.match(cursorMigration, /get_direct_messages_page/)
+
+  const presenceMigration = readFileSync(
+    new URL('../supabase/migrations/20260828151521_direct_message_presence_and_incremental_fetch.sql', import.meta.url),
+    'utf8'
+  )
+  assert.match(presenceMigration, /direct_message_presence_explicit_deny/)
+  assert.match(presenceMigration, /touch_direct_message_presence/)
+  assert.match(presenceMigration, /get_direct_messages_after/)
 })
