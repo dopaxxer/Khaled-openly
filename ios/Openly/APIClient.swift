@@ -704,12 +704,12 @@ final class APIClient {
 
     func directMessages(
         conversationID: String,
-        before: String? = nil,
+        cursor: String? = nil,
         limit: Int = 100
     ) async throws -> DirectThreadResponse {
         var query = [URLQueryItem(name: "limit", value: String(limit))]
-        if let before, !before.isEmpty {
-            query.append(URLQueryItem(name: "before", value: before))
+        if let cursor, !cursor.isEmpty {
+            query.append(URLQueryItem(name: "cursor", value: cursor))
         }
         return try await request("v1/messages/\(conversationID)", query: query)
     }
