@@ -93,7 +93,7 @@ export function MessagesInbox() {
 export function MessageThread({ conversationId }) {
   const [conversation, setConversation] = useState(undefined)
   const [messages, setMessages] = useState([])
-  const [olderBefore, setOlderBefore] = useState(null)
+  const [olderCursor, setOlderCursor] = useState(null)
   const [hasMore, setHasMore] = useState(false)
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
@@ -121,7 +121,7 @@ export function MessageThread({ conversationId }) {
       setConversation(data.conversation)
       setMessages(current => mergeMessages(current, data.items || []))
       if (!silent) {
-        setOlderBefore(data.nextBefore || null)
+        setOlderCursor(data.nextCursor || null)
         setHasMore(!!data.hasMore)
       }
       await markRead()
@@ -151,14 +151,14 @@ export function MessageThread({ conversationId }) {
   }, [loading, loadingOlder])
 
   async function loadOlder() {
-    if (!olderBefore || loadingOlder) return
+    if (!olderCursor || loadingOlder) return
     setLoadingOlder(true)
     try {
-      const response = await fetch(`/api/v1/messages/${conversationId}?limit=100&before=${encodeURIComponent(olderBefore)}`, { cache: 'no-store' })
+      const response = await fetch(`/api/v1/messages/${conversationId}?limit=100&cursor=${encodeURIComponent(olderCursor)}`, { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'تعذر تحميل الرسائل')
       setMessages(current => mergeMessages(current, data.items || []))
-      setOlderBefore(data.nextBefore || null)
+      setOlderCursor(data.nextBefore || null)
       setHasMore(!!data.hasMore)
     } catch (loadError) {
       setError(loadError.message || 'تعذر تحميل الرسائل')
