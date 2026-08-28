@@ -264,29 +264,32 @@ struct InterestPreferencesView: View {
                 if isOnboarding {
                     HStack {
                         VStack(alignment: .leading, spacing: 5) {
-                            Text("ابدأ بما يهمك")
-                                .font(.system(size: 24, weight: .bold))
+                            Text("Tell us what you like")
+                                .font(.system(size: 28, weight: .bold))
+                                .tracking(-0.6)
                                 .foregroundColor(OpenlyTheme.ink)
-                            Text("هذه الخطوة تجعل الاكتشاف مفيدًا من أول مرة، ويمكنك تغيير اختياراتك لاحقًا.")
-                                .font(.system(size: 14, weight: .medium))
+                            Text("Choose a few signals. You can change them later.")
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(OpenlyTheme.muted)
+                                .environment(\.layoutDirection, .leftToRight)
                         }
                         Spacer(minLength: 16)
                         Button {
                             onComplete?()
                         } label: {
-                            Text("تخطي الآن")
-                                .font(.system(size: 13, weight: .semibold))
+                            Text("Skip")
+                                .font(.system(size: 12, weight: .semibold))
                         }
                         .buttonStyle(.plain)
                         .foregroundColor(OpenlyTheme.accent)
                     }
                 }
 
-                Text("اختر الكتب والأفلام ومواضيع الحديث التي تهمك. تستخدم هذه الاختيارات لإيجاد أرضية مشتركة، وتبقى الموسيقى ضمن ملفها الحالي.")
-                    .font(.system(size: 15, weight: .medium))
+                Text("Books, films and topics help Openly find common ground without ranking people by popularity.")
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(OpenlyTheme.muted)
                     .lineSpacing(4)
+                    .environment(\.layoutDirection, .leftToRight)
 
                 kindPicker
 
@@ -434,8 +437,8 @@ struct InterestPreferencesView: View {
                 .buttonStyle(OpenlyPrimaryButtonStyle())
                 .disabled(busyID != nil || selected.count > maxInterestsPerProfile)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 28)
         }
         .refreshable { await load() }
     }
@@ -454,7 +457,7 @@ struct InterestPreferencesView: View {
                         .foregroundColor(kind == value ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
                         .padding(.horizontal, 12)
                         .frame(height: 40)
-                        .background(kind == value ? OpenlyTheme.accent : OpenlyTheme.surfaceSoft)
+                        .background(kind == value ? OpenlyTheme.ink : OpenlyTheme.surface)
                         .clipShape(Capsule())
                         .overlay(
                             Capsule().stroke(kind == value ? Color.clear : OpenlyTheme.lineStrong, lineWidth: 1)
