@@ -14,6 +14,7 @@
   --accent: #7a2035;
   --accent-strong: #8d2941;
   --accent-foreground: #fffaf4;
+  --font-openly: "SF Pro Text", "SF Arabic", var(--font-arabic), "Segoe UI", sans-serif;
 
   --text-meta: 12px;
   --text-ui: 14px;
@@ -27,6 +28,37 @@
   --content-width: 680px;
   --sidebar-width: 252px;
   --motion: 180ms cubic-bezier(.2,.75,.2,1);
+}
+
+/* Figma V2 dark is warm charcoal, not the cool blue leftover in ios-polish. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #141210;
+  --surface: #1c1a17;
+  --surface-soft: #241f1b;
+  --surface-hover: #2a241f;
+  --foreground: #f3eee6;
+  --muted: #b7aea4;
+  --subtle: #8a8178;
+  --line: #2e2a26;
+  --line-strong: #3d3832;
+  --accent-foreground: #1c1a17;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #141210;
+    --surface: #1c1a17;
+    --surface-soft: #241f1b;
+    --surface-hover: #2a241f;
+    --foreground: #f3eee6;
+    --muted: #b7aea4;
+    --subtle: #8a8178;
+    --line: #2e2a26;
+    --line-strong: #3d3832;
+    --accent-foreground: #1c1a17;
+  }
 }
 
 body {
@@ -1584,11 +1616,11 @@ body {
 /* -------------------------------------------------------------------------- */
 
 html {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Arabic", var(--font-arabic), "Noto Sans Arabic", "Segoe UI", sans-serif;
+  font-family: var(--font-openly);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Arabic", var(--font-arabic), "Noto Sans Arabic", "Segoe UI", sans-serif;
+  font-family: var(--font-openly);
   font-feature-settings: "kern" 1, "liga" 1;
 }
 
@@ -1698,8 +1730,7 @@ body::before {
   letter-spacing: 0;
 }
 
-:root[dir="ltr"] html,
-:root[dir="ltr"] body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-arabic), "Segoe UI", sans-serif;
+:root[dir="ltr"] {
+  --font-openly: "SF Pro Text", "SF Pro Display", var(--font-arabic), "Segoe UI", sans-serif;
 }
 

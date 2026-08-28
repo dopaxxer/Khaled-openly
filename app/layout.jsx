@@ -6,15 +6,17 @@ import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { LanguageBridge } from '@/components/LanguageBridge'
 import { CANONICAL_ORIGIN } from '@/lib/publicOrigin'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
-import { Noto_Sans_Arabic } from 'next/font/google'
+import { Vazirmatn } from 'next/font/google'
 import { headers } from 'next/headers'
 
-// Figma V2 / native iOS use SF Pro Text + SF Arabic. Do not attach next/font's
-// className to <body> — that would override the system stack on Apple devices
-// (the IBM Plex experiment did exactly that). The webfont is a fallback only.
-const arabicFallback = Noto_Sans_Arabic({
+// Figma V2 frames and native iOS use SF Pro Text + SF Arabic (Boutros).
+// Named SF faces must sit in front of -apple-system: on Linux/Android the
+// system UI font already has Arabic glyphs (usually Noto), so a webfont
+// listed after -apple-system never loads. Apple still hits local SF first.
+// Vazirmatn is the variable webfont fallback — same humanist Arabic sans as
+// SF Arabic, with real weights for 450/650 so the UI does not faux-bold.
+const arabicFallback = Vazirmatn({
   subsets: ['arabic', 'latin'],
-  weight: ['400', '500', '600', '700'],
   display: 'swap',
   variable: '--font-arabic',
   adjustFontFallback: false
@@ -54,7 +56,7 @@ export const viewport = {
   initialScale: 1,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#f7f4ee' },
-    { media: '(prefers-color-scheme: dark)', color: '#111113' }
+    { media: '(prefers-color-scheme: dark)', color: '#141210' }
   ]
 }
 

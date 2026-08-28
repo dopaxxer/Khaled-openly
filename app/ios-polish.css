@@ -30,15 +30,15 @@ button,
 input,
 textarea,
 select {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Arabic", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-openly);
   font-kerning: normal;
-  font-feature-settings: "kern" 1;
+  font-feature-settings: "kern" 1, "liga" 1;
 }
 
 body {
-  font-weight: 450;
-  letter-spacing: -0.005em;
-  line-height: 1.78;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.8;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -59,19 +59,19 @@ body {
 .profile-bio,
 .profile-meta,
 .status-message {
-  font-weight: 450;
+  font-weight: 400;
 }
 
 .post-body {
   font-size: 17px;
-  font-weight: 460;
-  line-height: 1.84;
-  letter-spacing: -0.006em;
+  font-weight: 400;
+  line-height: 1.9;
+  letter-spacing: 0;
 }
 
 .comment-body {
-  font-weight: 450;
-  line-height: 1.82;
+  font-weight: 400;
+  line-height: 1.85;
 }
 
 .nav-link,
