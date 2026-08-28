@@ -184,7 +184,7 @@ struct DirectMessageThreadView: View {
 
     @State private var conversation: DirectConversation
     @State private var messages: [DirectMessage] = []
-    @State private var olderBefore: String?
+    @State private var olderCursor: String?
     @State private var hasMore = false
     @State private var draft = ""
     @State private var isLoading = true
@@ -335,7 +335,7 @@ struct DirectMessageThreadView: View {
             conversation = response.conversation
             messages = merge(messages, response.items)
             if !silent {
-                olderBefore = response.nextBefore
+                olderCursor = response.nextCursor
                 hasMore = response.hasMore
             }
             _ = try? await session.api.markDirectConversationRead(
@@ -348,18 +348,18 @@ struct DirectMessageThreadView: View {
 
     @MainActor
     private func loadOlder() async {
-        guard let olderBefore, !isLoadingOlder else { return }
+        guard let olderCursor, !isLoadingOlder else { return }
         isLoadingOlder = true
         defer { isLoadingOlder = false }
 
         do {
             let response = try await session.api.directMessages(
                 conversationID: conversation.conversationId,
-                before: olderBefore,
+                cursor: olderCursor,
                 limit: 100
             )
             messages = merge(messages, response.items)
-            self.olderBefore = response.nextBefore
+            self.olderCursor = response.nextCursor
             hasMore = response.hasMore
         } catch {
             errorMessage = error.localizedDescription
