@@ -39,10 +39,19 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                ScreenHeader(
-                    "الإعدادات",
-                    subtitle: "عدّل هويتك العامة من دون إضافة اسم حقيقي أو صورة شخصية."
-                )
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Settings")
+                        .font(.system(size: 28, weight: .bold))
+                        .tracking(-0.6)
+                        .foregroundColor(OpenlyTheme.ink)
+                    Text("Identity, appearance and privacy")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(OpenlyTheme.muted)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 22)
+                .padding(.bottom, 8)
+                .environment(\.layoutDirection, .leftToRight)
 
                 if session.user == nil {
                     EmptyState(
@@ -235,7 +244,7 @@ struct SettingsView: View {
         }
         .padding(20)
         .websiteSettingsPanel
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 24)
     }
 
     private var securityPanel: some View {
@@ -297,7 +306,7 @@ struct SettingsView: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(OpenlyTheme.muted)
 
-                HStack(spacing: 9) {
+                VStack(spacing: 10) {
                     appearanceButton(.system)
                     appearanceButton(.light)
                     appearanceButton(.dark)
@@ -385,16 +394,53 @@ struct SettingsView: View {
                 appearanceRaw = appearance.rawValue
             }
         } label: {
-            Text(appearance.title)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(active ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(active ? OpenlyTheme.accent : OpenlyTheme.background)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule().stroke(active ? OpenlyTheme.accentStrong : OpenlyTheme.lineStrong, lineWidth: 1.2)
-                )
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: appearance.icon)
+                        .font(.system(size: 16, weight: .semibold))
+                    Spacer()
+                    if active {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(OpenlyTheme.accent)
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                Text(appearance.title)
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .foregroundColor(
+                appearance == .dark
+                    ? Color.white
+                    : OpenlyTheme.ink
+            )
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+            .background(
+                Group {
+                    switch appearance {
+                    case .system:
+                        LinearGradient(
+                            colors: [
+                                Color(red: 247/255, green: 244/255, blue: 238/255),
+                                Color(red: 23/255, green: 21/255, blue: 19/255)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    case .light:
+                        Color(red: 1, green: 253/255, blue: 248/255)
+                    case .dark:
+                        Color(red: 23/255, green: 23/255, blue: 25/255)
+                    }
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(active ? OpenlyTheme.accent : OpenlyTheme.line, lineWidth: active ? 2 : 1)
+            )
         }
         .buttonStyle(.plain)
     }
