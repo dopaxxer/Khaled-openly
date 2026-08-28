@@ -707,3 +707,124 @@ body {
     font-size: 12px;
   }
 }
+
+
+@media (max-width: 899px) {
+  .v2-self-profile {
+    padding-block-start: 6px;
+  }
+
+  .v2-profile-hero {
+    padding-block: 28px 28px;
+  }
+
+  .v2-profile-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .v2-profile-code-label {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.2;
+    direction: ltr;
+  }
+
+  .v2-profile-settings {
+    display: inline-grid;
+    min-inline-size: 76px;
+    block-size: 34px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    background: var(--foreground);
+    color: var(--surface);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .v2-profile-stats {
+    margin: 18px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+    direction: ltr;
+    text-align: start;
+  }
+
+  .v2-profile-stats strong {
+    color: var(--foreground);
+    font-weight: 700;
+  }
+
+  .v2-profile-taste {
+    padding: 18px 24px 24px;
+    border-block-start: 1px solid var(--line);
+    border-block-end: 1px solid var(--line);
+  }
+
+  .v2-profile-kicker {
+    display: block;
+    margin-block-end: 14px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .v2-profile-taste-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+    color: var(--foreground);
+    font-size: 15px;
+    font-weight: 680;
+  }
+
+  .v2-profile-taste p {
+    max-inline-size: 32ch;
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .v2-profile-posts-title {
+    padding: 20px 24px 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .v2-profile-controls {
+    margin: 18px 24px 130px;
+    border-block-start: 1px solid var(--line);
+    padding-block-start: 14px;
+  }
+
+  .v2-profile-controls summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .v2-profile-controls[open] summary {
+    margin-block-end: 14px;
+  }
+
+  .v2-profile-controls .row.wrap {
+    gap: 8px;
+  }
+
+  .v2-profile-controls .secondary-button,
+  .v2-profile-controls .danger-button {
+    min-block-size: 36px;
+    padding-block: 7px;
+    padding-inline: 11px;
+    font-size: 12px;
+  }
+}
