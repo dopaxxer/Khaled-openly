@@ -89,3 +89,41 @@ test('the canonical Supabase project stays documented', () => {
   assert.match(readme, /https:\/\/egwhybfcnlzijomgeebj\.supabase\.co/)
   assert.match(readme, /NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/)
 })
+
+// Documentation is not configuration. NEXT_PUBLIC_* are inlined at build time,
+// so a build that cannot see them ships a bundle with an empty Supabase URL --
+// and because lib/supabaseEnv.js refuses to guess, every single request then
+// answers Internal Server Error. That is exactly what the first successful
+// Cloudflare deploy did. The values have to be committed, not just written down.
+test('the production build pins the canonical Supabase project', () => {
+  const env = readFileSync(new URL('../.env.production', import.meta.url), 'utf8')
+
+  assert.match(env, /^NEXT_PUBLIC_SITE_URL=https:\/\/openly\.ink$/m)
+  assert.match(env, /^NEXT_PUBLIC_SUPABASE_URL=https:\/\/egwhybfcnlzijomgeebj\.supabase\.co$/m)
+  assert.match(env, /^NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_[A-Za-z0-9_-]+$/m)
+
+  // Only publishable values belong in a committed file: the service_role key
+  // bypasses every row-level security policy in the database. Checked against
+  // the assignments alone, since the comments name what must never be here.
+  const assignments = env
+    .split('\n')
+    .filter(line => line.trim() && !line.trim().startsWith('#'))
+
+  assert.ok(assignments.length >= 3, `expected the three build variables, found ${assignments.length}`)
+  for (const line of assignments) {
+    assert.match(line, /^NEXT_PUBLIC_[A-Z_]+=/, `not a public build variable: ${line}`)
+    assert.doesNotMatch(line, /service_role/i, `service_role key committed: ${line}`)
+  }
+})
+
+// The proxy runs on every route. If it throws when configuration is missing,
+// /api/health -- the one endpoint that can name what is missing -- dies with it,
+// and the whole site is a blank error with no way in.
+test('a misconfigured deployment can still report why', () => {
+  const source = readFileSync(new URL('../proxy.js', import.meta.url), 'utf8')
+  const body = source.slice(source.indexOf('export async function proxy'))
+
+  assert.match(body, /try\s*\{/, 'the session refresh must not take the request down with it')
+  assert.match(body, /catch/)
+  assert.match(body, /proxy\.session_refresh_skipped/, 'the skipped refresh must be recorded')
+})

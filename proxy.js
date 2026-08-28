@@ -63,22 +63,37 @@ export async function proxy(request) {
   const nextResponse = () => NextResponse.next({ request: { headers: requestHeaders } })
   let response = nextResponse()
 
-  const supabase = createServerClient(supabaseUrl(), supabaseKey(), {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll()
-      },
-      setAll(cookiesToSet) {
-        for (const { name, value } of cookiesToSet) request.cookies.set(name, value)
-        response = nextResponse()
-        for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options)
+  // A deployment that cannot name its own database still must not authenticate
+  // anyone, and it does not: supabaseUrl() throws, no client is built, and no
+  // session is refreshed. But throwing out of the proxy answered every single
+  // route with a blank Internal Server Error -- including /api/health, which
+  // exists to report this exact misconfiguration and could never be reached to
+  // do it. So the failure is recorded and the request continues: the routes
+  // fail on their own terms, and the one endpoint that can explain why answers.
+  try {
+    const supabase = createServerClient(supabaseUrl(), supabaseKey(), {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          for (const { name, value } of cookiesToSet) request.cookies.set(name, value)
+          response = nextResponse()
+          for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options)
+        }
       }
-    }
-  })
+    })
 
-  // Validate and refresh immediately after client creation. getClaims verifies
-  // the JWT signature instead of trusting cookie contents.
-  await supabase.auth.getClaims()
+    // Validate and refresh immediately after client creation. getClaims verifies
+    // the JWT signature instead of trusting cookie contents.
+    await supabase.auth.getClaims()
+  } catch (error) {
+    console.error('[openly]', JSON.stringify({
+      level: 'error',
+      event: 'proxy.session_refresh_skipped',
+      message: String(error?.message || error).slice(0, 300)
+    }))
+  }
 
   return secure(response, request, csp)
 }
