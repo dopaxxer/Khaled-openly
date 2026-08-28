@@ -622,36 +622,51 @@ function MeScreen() {
   if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
   if (user === null) return <div className="empty-state"><div><p>سجّل الدخول لرؤية حسابك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div></div>
 
-  return <>
-    <header className="page-header">
-      <h1 className="page-title">حسابي</h1>
-      <p className="page-description">هويتك الخاصة وإعدادات علاقاتك العامة.</p>
-    </header>
-    <section className="profile-hero">
-      <Identity code={user.publicCode} color={user.identityColor} large />
+  return <section className="v2-self-profile">
+    <section className="profile-hero v2-profile-hero">
+      <div className="v2-profile-top">
+        <div>
+          <Identity code={user.publicCode} color={user.identityColor} large />
+          <p className="v2-profile-code-label">public code</p>
+        </div>
+        <Link href="/settings" className="v2-profile-settings">الإعدادات</Link>
+      </div>
+
       {user.status && <p className="profile-status">{user.status}</p>}
       {user.bio && <p className="profile-bio" data-user-content="">{user.bio}</p>}
-      <div className="stat-grid">
-        <div className="panel stat"><span className="small muted">الأشخاص المهتمون بما تكتب</span><strong>{count ?? '—'}</strong></div>
-        <div className="panel stat"><span className="small muted">خاص بك فقط</span><p className="small mt12">لا نعرض عدد متابَعاتك للآخرين.</p></div>
+
+      <p className="v2-profile-stats">
+        <strong>{count ?? '—'}</strong> followers
+        <span aria-hidden="true"> · </span>
+        <strong>{following.length}</strong> following
+      </p>
+    </section>
+
+    <section className="v2-profile-taste">
+      <span className="v2-profile-kicker">Taste</span>
+      <div className="v2-profile-taste-links">
+        <Link href="/music">ذوقي الموسيقي</Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/interests">اهتماماتي</Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/bookmarks">المحفوظات</Link>
       </div>
-      <div className="row wrap mt20">
-        <Link href={`/u/${user.publicCode}`} className="secondary-button">صفحة كتاباتي</Link>
-        <Link href="/settings" className="secondary-button"><Settings size={15} />الإعدادات</Link>
-        <Link href="/bookmarks" className="secondary-button"><Bookmark size={15} />المحفوظات</Link>
+      <p>Music, books and films are part of the profile — not separate badges.</p>
+    </section>
+
+    <div className="v2-profile-posts-title">Posts</div>
+    <Timeline endpoint={`/api/posts?author=${encodeURIComponent(user.publicCode)}`} empty="لا توجد منشورات." />
+
+    <details className="v2-profile-controls">
+      <summary>الإعدادات</summary>
+      <div className="row wrap">
         <Link href="/messages" className="secondary-button">الرسائل الخاصة</Link>
-        <Link href="/interests" className="secondary-button"><Sparkles size={15} />اهتماماتي</Link>
         <Link href="/discover" className="secondary-button"><Compass size={15} />اكتشف</Link>
-        <Link href="/music" className="secondary-button"><Music size={15} />ذوقي الموسيقي</Link>
         <Link href="/privacy" className="secondary-button">الخصوصية</Link>
         <button onClick={logout} className="danger-button">تسجيل الخروج</button>
       </div>
-    </section>
-    <div className="section-title">الأكواد التي أتابعها</div>
-    {following.length
-      ? following.map(x => <div key={x.publicCode} className="list-row"><Identity code={x.publicCode} color={x.identityColor} /><Link href={`/u/${x.publicCode}`} className="small muted">عرض</Link></div>)
-      : <div className="empty-state"><p>لم تتابع أي كود بعد.</p></div>}
-  </>
+    </details>
+  </section>
 }
 
 function SettingsScreen() {
