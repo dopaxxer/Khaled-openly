@@ -36,16 +36,10 @@ struct OTPRequestResponse: Decodable {
 }
 
 enum OpenlyAPIConfiguration {
-    // The canonical production origin, matching CANONICAL_ORIGIN in
-    // lib/publicOrigin.js and NEXT_PUBLIC_SITE_URL. It is written here exactly
-    // once: project.yml puts the real value in Info.plist, and both fallbacks
-    // below derive from this constant, so a future domain cut-over changes one
-    // build setting plus this one line -- never a URL buried in a method.
-    static let canonicalOrigin = "https://openly.ink"
-
-    static let fallbackBaseURL = URL(string: "\(canonicalOrigin)/api/")!
-
-    static let fallbackSiteURL = URL(string: "\(canonicalOrigin)/")!
+    // Keep the native app on the Cloudflare deployment while the apex domain
+    // is being moved. project.yml writes this value into Info.plist, so a
+    // future domain cut-over changes one build setting instead of Swift code.
+    static let fallbackBaseURL = URL(string: "https://openly.nootjetzt.workers.dev/api/")!
 
     static func baseURL(from rawValue: String?) -> URL {
         guard let rawValue else { return fallbackBaseURL }
@@ -80,7 +74,7 @@ enum OpenlyAPIConfiguration {
         components?.path = "/"
         components?.query = nil
         components?.fragment = nil
-        return components?.url ?? fallbackSiteURL
+        return components?.url ?? URL(string: "https://openly.nootjetzt.workers.dev/")!
     }
 }
 
@@ -457,7 +451,7 @@ final class APIClient {
 
     func searchMusicCatalog(query: String) async throws -> [MusicCatalogTrack] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
+        guard trimmed.count >= 2 else { return [] }
         let response: MusicCatalogResponse = try await request(
             "v1/music/catalog",
             query: [URLQueryItem(name: "q", value: trimmed)]
