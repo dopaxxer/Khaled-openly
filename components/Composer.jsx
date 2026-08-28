@@ -173,7 +173,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   if (inline && !open) {
     return <button type="button" className="composer-prompt panel v2-composer-prompt" onClick={() => setOpen(true)}>
       <span className="v2-composer-prompt-copy">ماذا تريد أن تقول؟</span>
-      <span className="v2-composer-prompt-tools" aria-hidden="true">+ music&nbsp;&nbsp;&nbsp;+ book&nbsp;&nbsp;&nbsp;+ film</span>
+      <span className="v2-composer-prompt-tools" aria-hidden="true">+ music</span>
       <span className="v2-composer-prompt-post">Post</span>
     </button>
   }
