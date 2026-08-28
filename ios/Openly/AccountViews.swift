@@ -284,6 +284,11 @@ struct AccountView: View {
                             }
                             .buttonStyle(.plain)
 
+                            NavigationLink(destination: DirectMessagesView()) {
+                                AccountMenuRow(icon: "message", title: "الرسائل")
+                            }
+                            .buttonStyle(.plain)
+
                             NavigationLink(destination: UserPostsView(code: user.publicCode)) {
                                 AccountMenuRow(icon: "text.bubble", title: "كتاباتي")
                             }
@@ -1267,6 +1272,17 @@ struct UserProfileView: View {
                     }
                     .buttonStyle(OpenlySecondaryButtonStyle())
                     .disabled(relationBusy)
+
+                    if user.viewerHasBlocked != true && user.viewerHasMuted != true {
+                        NavigationLink(destination: StartDirectMessageView(code: user.publicCode)) {
+                            Label("رسالة", systemImage: "message")
+                                .font(.system(size: 14, weight: .semibold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                        }
+                        .buttonStyle(OpenlySecondaryButtonStyle())
+                        .disabled(relationBusy)
+                    }
 
                     Menu {
                         Button(user.viewerHasMuted == true ? "إلغاء الكتم" : "كتم") {
