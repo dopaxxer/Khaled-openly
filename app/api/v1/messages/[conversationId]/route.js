@@ -59,18 +59,28 @@ export async function GET(request, { params }) {
   const url = new URL(request.url)
   const limit = boundedInt(url.searchParams.get('limit'), 50, 1, 100)
   const cursor = parseDirectMessageCursor(url.searchParams.get('cursor'))
-  if (cursor === undefined) {
+  const after = parseDirectMessageCursor(url.searchParams.get('after'))
+  if (cursor === undefined || after === undefined || (cursor && after)) {
     return reply({ error: 'مؤشر الرسائل غير صالح', code: 'invalid_cursor' }, 400)
   }
 
+  const messageRequest = after
+    ? auth.supabase.rpc('get_direct_messages_after', {
+        p_conversation_id: id,
+        p_after: after.createdAt,
+        p_after_id: after.id,
+        p_limit: limit
+      })
+    : auth.supabase.rpc('get_direct_messages_page', {
+        p_conversation_id: id,
+        p_before: cursor?.createdAt || null,
+        p_before_id: cursor?.id || null,
+        p_limit: limit + 1
+      })
+
   const [metaResult, messagesResult] = await Promise.all([
     auth.supabase.rpc('get_direct_conversation', { p_conversation_id: id }),
-    auth.supabase.rpc('get_direct_messages_page', {
-      p_conversation_id: id,
-      p_before: cursor?.createdAt || null,
-      p_before_id: cursor?.id || null,
-      p_limit: limit + 1
-    })
+    messageRequest
   ])
 
   if (metaResult.error || messagesResult.error || !metaResult.data) {
@@ -78,6 +88,15 @@ export async function GET(request, { params }) {
   }
 
   const rows = messagesResult.data || []
+  if (after) {
+    return reply({
+      conversation: metaResult.data,
+      items: rows.map(mapDirectMessage),
+      nextCursor: null,
+      hasMore: false
+    })
+  }
+
   const hasMore = rows.length > limit
   const page = rows.slice(0, limit)
   const oldest = page.length ? page[page.length - 1] : null
