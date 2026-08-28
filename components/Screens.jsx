@@ -629,7 +629,7 @@ function MeScreen() {
     <section className="profile-hero">
       <Identity code={user.publicCode} color={user.identityColor} large />
       {user.status && <p className="profile-status">{user.status}</p>}
-      {user.bio && <p className="profile-bio">{user.bio}</p>}
+      {user.bio && <p className="profile-bio" data-user-content="">{user.bio}</p>}
       <div className="stat-grid">
         <div className="panel stat"><span className="small muted">الأشخاص المهتمون بما تكتب</span><strong>{count ?? '—'}</strong></div>
         <div className="panel stat"><span className="small muted">خاص بك فقط</span><p className="small mt12">لا نعرض عدد متابَعاتك للآخرين.</p></div>
@@ -858,7 +858,7 @@ function UserScreen({ code }) {
     <section className="profile-hero">
       <Identity code={user.publicCode} color={user.identityColor} large />
       {user.status && <p className="profile-status">{user.status}</p>}
-      {user.bio && <p className="profile-bio">{user.bio}</p>}
+      {user.bio && <p className="profile-bio" data-user-content="">{user.bio}</p>}
       <p className="profile-meta">انضم في {new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(new Date(user.createdAt))}</p>
       {!user.isSelf && <div className="row wrap mt20">
         <button className="primary-button" disabled={busy === 'follow'} onClick={() => relation('follow', !user.viewerIsFollowing)}>{user.viewerIsFollowing ? 'إلغاء المتابعة' : 'متابعة'}</button>

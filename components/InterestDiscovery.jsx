@@ -61,8 +61,8 @@ function KindTabs({ value, onChange, includeAll = false }) {
 
 function SelectedChip({ item, onRemove }) {
   return <button type="button" className="chip selected" onClick={onRemove} title="إزالة">
-    <span>{item.label}</span>
-    {item.subtitle && <span className="tiny subtle">· {item.subtitle}</span>}
+    <span data-user-content="">{item.label}</span>
+    {item.subtitle && <span className="tiny subtle" data-user-content="">· {item.subtitle}</span>}
   </button>
 }
 
@@ -308,10 +308,14 @@ export function InterestPreferences({ onboarding = false }) {
                       {item.kind === 'book' ? <BookOpen size={18} /> : item.kind === 'movie' ? <Film size={18} /> : <MessageCircle size={18} />}
                     </span>}
                 <span className="interest-result-copy">
-                  <strong>{item.label}</strong>
-                  <span className="small muted">
-                    {[item.subtitle, item.releaseYear].filter(Boolean).join(' · ') || (item.kind === 'topic' ? 'موضوع' : 'من الكتالوج')}
-                  </span>
+                  <strong data-user-content="">{item.label}</strong>
+                  {[item.subtitle, item.releaseYear].filter(Boolean).length
+                    ? <span className="small muted" data-user-content="">
+                        {[item.subtitle, item.releaseYear].filter(Boolean).join(' · ')}
+                      </span>
+                    : <span className="small muted">
+                        {item.kind === 'topic' ? 'موضوع' : 'من الكتالوج'}
+                      </span>}
                 </span>
                 <span className="tiny subtle">
                   {isBusy ? '…' : isSelected ? 'مضاف' : item.popularity > 0 ? `${item.popularity} اختيار` : 'إضافة'}
@@ -456,7 +460,7 @@ export function InterestDiscovery() {
             {item.kind === 'topic' && <MessageCircle size={13} />}
             {item.kind === 'book' && <BookOpen size={13} />}
             {item.kind === 'movie' && <Film size={13} />}
-            {item.label}
+            <span data-user-content="">{item.label}</span>
           </span>)}
         </div>}
 
@@ -499,7 +503,8 @@ export function PublicInterestProfile({ profile }) {
           <div className="small muted" style={{ marginBottom: 8 }}>{KIND_META[kind].label}</div>
           <div className="chip-grid">
             {items.map(item => <span className="chip static" key={item.id}>
-              {item.label}{item.subtitle ? <span className="tiny subtle">· {item.subtitle}</span> : null}
+              <span data-user-content="">{item.label}</span>
+              {item.subtitle ? <span className="tiny subtle" data-user-content="">· {item.subtitle}</span> : null}
             </span>)}
           </div>
         </div>
