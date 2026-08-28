@@ -443,6 +443,9 @@ const EN = {
   'تعذر بدء المحادثة': 'Could not start the conversation',
   'جارِ فتح المحادثة…': 'Opening conversation…',
   'رسالة خاصة': 'Private message',
+  'متصل الآن': 'Online now',
+  'يكتب…': 'Typing…',
+  'غير متصل': 'Offline',
 
   // Shell and small labels.
   'open — الرئيسية': 'Openly — Home',
