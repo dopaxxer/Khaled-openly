@@ -21,6 +21,19 @@
 
   "observability": {
     "enabled": true
+  },
+
+  // Runtime variables. Only variables without the NEXT_PUBLIC_ prefix belong
+  // here: Next.js inlines NEXT_PUBLIC_* into the bundle at build time, so
+  // NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_SUPABASE_URL and
+  // NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY have to be set as *build* variables on
+  // the Cloudflare project -- setting them here would do nothing at all.
+  //
+  // AUTH_EMAIL_MODE is read at request time (app/api/auth/otp/request and
+  // lib/authCapabilities), carries no secret, and matches the value pinned in
+  // vercel.json, so it lives in the repository instead of the dashboard.
+  "vars": {
+    "AUTH_EMAIL_MODE": "otp"
   }
 
   // No R2 incremental cache, no images binding and no self-reference service:
