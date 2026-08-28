@@ -929,17 +929,13 @@ function PostScreen({ id }) {
 
   async function load() {
     const r = await fetch(`/api/posts/${id}`, { cache: 'no-store' })
-    if (!r.ok) {
-      setPost(null)
-      return
-    }
+    if (!r.ok) { setPost(null); return }
     const d = await r.json()
     setPost(d.post)
     setComments(d.comments || [])
   }
 
   useEffect(() => { load() }, [id])
-
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : { user: null })
@@ -950,42 +946,43 @@ function PostScreen({ id }) {
   async function comment(e) {
     e.preventDefault()
     if (!body.trim()) return
-    setBusy(true)
-    setCommentError('')
+    setBusy(true); setCommentError('')
     try {
       const r = await fetch(`/api/posts/${id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body })
       })
-      if (r.status === 401) {
-        location.href = '/login'
-        return
-      }
+      if (r.status === 401) { location.href = '/login'; return }
       const data = await r.json()
       if (!r.ok) throw new Error(data.error || 'تعذر إضافة التعليق')
       setBody('')
       await load()
     } catch (e) {
       setCommentError(e.message || 'تعذر إضافة التعليق')
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
 
   if (post === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
   if (!post) return <NotFound />
 
-  return <>
+  return <section className="v2-post-detail">
+    <header className="v2-post-detail-head">
+      <Link href="/" className="v2-back-link">‹ Back</Link>
+      <h1>Post</h1>
+    </header>
     <PostCard post={post} viewerCode={viewerCode} onChanged={load} />
-    <form className="comment-form" onSubmit={comment}>
-      <MentionField maxLength={COMMENT_MAX_LENGTH} value={body} onChange={setBody} placeholder="اكتب تعليقًا… استخدم @ للإشارة" aria-label="نص التعليق" />
-      <div className="row between"><span className="tiny subtle" dir="ltr">{body.length} / {COMMENT_MAX_LENGTH}</span><button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'تعليق'}</button></div>
+    <form className="comment-form v2-comment-form" onSubmit={comment}>
+      <MentionField maxLength={COMMENT_MAX_LENGTH} value={body} onChange={setBody} placeholder="Reply…" aria-label="نص التعليق" />
+      <div className="row between">
+        <span className="tiny subtle" dir="ltr">{body.length} / {COMMENT_MAX_LENGTH}</span>
+        <button className="primary-button" disabled={busy || !body.trim()}>{busy ? 'جارِ الإرسال…' : 'Reply'}</button>
+      </div>
       {commentError && <p className="status-message error">{commentError}</p>}
     </form>
-    <div className="section-title">التعليقات</div>
+    <div className="v2-replies-title">Replies</div>
     <CommentThread comments={comments} postId={id} viewerCode={viewerCode} onChanged={load} />
-  </>
+  </section>
 }
 
 function NotificationsScreen() {
@@ -993,10 +990,7 @@ function NotificationsScreen() {
 
   async function load() {
     const r = await fetch('/api/notifications', { cache: 'no-store' })
-    if (r.status === 401) {
-      setItems(null)
-      return
-    }
+    if (r.status === 401) { setItems(null); return }
     const d = await r.json()
     setItems(d.items || [])
     if ((d.items || []).some(x => !x.readAt)) {
@@ -1013,29 +1007,28 @@ function NotificationsScreen() {
   if (items === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
   if (items === null) return <div className="empty-state"><Link href="/login" className="primary-button">تسجيل الدخول</Link></div>
 
-  return <>
-    <header className="page-header">
-      <div className="page-title-row"><Bell size={20} /><h1 className="page-title">الإشعارات</h1></div>
-      <p className="page-description">التفاعلات والردود المرتبطة بك.</p>
+  return <section className="v2-notifications">
+    <header className="v2-notifications-head">
+      <h1>Notifications</h1>
+      <p>Only things that need your attention</p>
     </header>
     {items.length
       ? items.map(n => <Link
           href={n.commentId ? `/post/${n.postId}#comment-${n.commentId}` : `/post/${n.postId}`}
-          className={`notification${n.readAt ? '' : ' unread'}`}
+          className={`notification v2-notification${n.readAt ? '' : ' unread'}`}
           key={n.id}
         >
-          <span className="notification-icon">{n.kind === 'like' ? '♥' : n.kind === 'mention' ? '@' : '↩'}</span>
+          <span className="v2-notification-dot" style={{ backgroundColor: n.actorColor }} aria-hidden="true" />
           <div className="notification-main">
-            <p>
-              <Identity code={n.actorCode} color={n.actorColor} linked={false} />
-              {' '}
-              {n.kind === 'like' ? 'أعجب بمنشورك' : n.kind === 'mention' ? (n.commentId ? 'أشار إليك في تعليق' : 'أشار إليك في منشور') : 'رد على منشورك'}
+            <p><strong>{n.actorCode}</strong>{' '}
+              {n.kind === 'like' ? 'liked your post' : n.kind === 'mention' ? 'mentioned you' : 'replied to your post'}
             </p>
-            <time>{new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(n.createdAt))}</time>
+            <time>{new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-Math.max(1, Math.round((Date.now()-new Date(n.createdAt).getTime())/60000)), 'minute')}</time>
           </div>
         </Link>)
       : <div className="empty-state"><p>لا توجد إشعارات.</p></div>}
-  </>
+    <p className="v2-notifications-note">No badges for noise. Only meaningful activity appears here.</p>
+  </section>
 }
 
 function BookmarksScreen() {
