@@ -1,6 +1,6 @@
 # Openly
 
-تطبيق اجتماعي نصّي يتكوّن من واجهة Next.js 16 وتطبيق SwiftUI أصلي، ويستخدم Supabase للمصادقة والبيانات. الاستضافة الإنتاجية للموقع وواجهة API هي Netlify على `https://openly.ink`، ويستخدم تطبيق iOS العنوان نفسه مباشرة.
+تطبيق اجتماعي نصّي يتكوّن من واجهة Next.js 16 وتطبيق SwiftUI أصلي، ويستخدم Supabase للمصادقة والبيانات. الاستضافة الإنتاجية للموقع وواجهة API هي Cloudflare Workers، عبر محوّل `@opennextjs/cloudflare`.
 
 ## التشغيل والتحقق
 
@@ -9,8 +9,9 @@
 ```bash
 npm ci
 npm test
-npm run build
-npm start
+npm run build      # بناء Next.js
+npm run cf:build   # تحويله إلى Worker في .open-next
+npm run cf:preview # تشغيل الـWorker محليًا عبر wrangler
 ```
 
 لا توجد مفاتيح سرية مطلوبة في المتصفح أو تطبيق iOS. استخدم فقط مفتاح Supabase القابل للنشر، ولا تضف `service_role` أو أي مفتاح سري إلى متغير يبدأ بـ`NEXT_PUBLIC_`.
@@ -37,10 +38,34 @@ npm start
 
 ## النشر
 
-- Netlify: الاستضافة الإنتاجية؛ الإعدادات موجودة في `netlify.toml` مع Node.js 24 ومتغيرات البيئة نفسها.
-- Vercel: يبقى متاحًا للمعاينات فقط عند الحاجة، وليس مصدر الدومين الإنتاجي.
+- Cloudflare Workers: الاستضافة الإنتاجية. الـWorker اسمه `openly`، وإعداده في `wrangler.jsonc`
+  و`open-next.config.ts`. لا يُنشر بناء Next.js مباشرة: محوّل `@opennextjs/cloudflare` يحوّله إلى
+  `.open-next/worker.js` وهو ما تنشره Cloudflare فعليًا.
+
+  إعدادات Workers Builds في لوحة Cloudflare — يجب أن تطابق هذه القيم وإلا فشل البناء:
+
+  | الإعداد | القيمة |
+  | --- | --- |
+  | Build command | `npm ci && npm run cf:build` |
+  | Deploy command | `npx opennextjs-cloudflare deploy` |
+  | Node version | 24 |
+
+  متغيرات البناء (Build variables) المطلوبة في اللوحة. لاحظ أن `NEXT_PUBLIC_*` تُدمج داخل الحزمة
+  وقت البناء لا وقت التشغيل، فوجودها في وقت البناء شرط، ولا يكفي ضبطها كمتغيرات تشغيل:
+
+  - `NEXT_PUBLIC_SITE_URL`
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+  - `AUTH_EMAIL_MODE`
+
+  `compatibility_date` في `wrangler.jsonc` يجب أن يبقى حديثًا. تاريخ قديم هو سبب رفض الـruntime
+  لخيار `cache` في `fetch` وظهور أخطاء 502 من كتالوج Apple.
+
+  ملاحظة معروفة: في Next.js 16 يعمل `proxy.js` على Node.js runtime إجباريًا — التوثيق ينص على أن
+  تعيين `runtime` في ملف Proxy يرمي خطأ — ودعم OpenNext لهذا المسار على Cloudflare موصوف بأنه
+  تجريبي. البناء ينجح، لكن التحذير متوقَّع ولا يُعالَج من داخل المستودع.
 - Supabase: طبّق الملفات المرتبة داخل `supabase/migrations`. جميع الجداول المكشوفة تستخدم RLS، وتُقيّد الكتابة أيضًا على مستوى الأعمدة.
-- GitHub: مسار `Web quality and security` يشغّل الاختبارات والبناء و`npm audit`، ومسارا Swift يبنيان التطبيق الأصلي وIPA غير موقّع مع ملف SHA-256.
+- GitHub: مسار `Web quality and security` يشغّل الاختبارات، ثم يبني الـWorker نفسه الذي تنشره Cloudflare ويتحقق من إنتاج `.open-next/worker.js`، ثم `npm audit`. ومسارا Swift يبنيان التطبيق الأصلي وIPA غير موقّع مع ملف SHA-256.
 
 الـIPA الناتج غير موقّع عمدًا. يجب توقيعه بشهادة وملف provisioning صالحين قبل التثبيت أو النشر في App Store.
 
@@ -50,7 +75,7 @@ npm start
 
 1. نجاح اختبارات Node وبناء Next.js.
 2. نجاح بناء Swift Debug وRelease ورفع IPA.
-3. خلو سجلات Netlify من أخطاء 5xx، واجتياز فحص Supabase Security Advisor.
+3. نجاح بناء Cloudflare Workers ونشره، وخلو سجلات الـWorker من أخطاء 5xx، واجتياز فحص Supabase Security Advisor.
 4. اختبار التسجيل، تأكيد البريد، استعادة كلمة المرور، النشر، التعليق، الحذف، الحظر والإبلاغ بحساب اختبار.
 5. توقيع IPA والتحقق من بصمته بعد التنزيل.
 

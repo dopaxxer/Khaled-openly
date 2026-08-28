@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // The Worker this repository deploys to. The name must keep matching the
+  // existing production Worker, otherwise a deploy creates a second one and
+  // the live domain keeps serving the old build.
+  "name": "openly",
+  "main": ".open-next/worker.js",
+
+  // Kept at or below the workerd release the pinned wrangler ships, so the
+  // build does not warn about a date the runtime does not know yet. Raising it
+  // is safe and deliberate; leaving it far in the past is what made `fetch`
+  // reject the `cache` option and produced the Apple catalog 502s.
+  "compatibility_date": "2026-08-26",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+
+  // No R2 incremental cache, no images binding and no self-reference service:
+  // every route in this app is `force-dynamic`, there is no ISR, no `use cache`
+  // and no next/image. Declaring bindings for resources that do not exist would
+  // only make the deploy fail.
+}

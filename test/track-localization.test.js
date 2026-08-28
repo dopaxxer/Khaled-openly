@@ -119,3 +119,16 @@ test('every Arabic string in the interests screens has an English entry', () => 
   const missing = strings.filter(value => !hasEntry(value))
   assert.deepEqual(missing, [], `untranslated interface copy: ${missing.join(' | ')}`)
 })
+
+
+// A repeated key is silently dropped by the object literal and only surfaces as
+// a bundler warning, so the dictionary is checked here instead.
+test('the English dictionary declares each phrase once', () => {
+  const block = bridge.slice(bridge.indexOf('const EN = {'), bridge.indexOf('\n}'))
+  const keys = [...block.matchAll(/^ {2}'((?:[^'\\]|\\.)*)':/gm)].map(match => match[1])
+  const seen = new Set()
+  const duplicates = keys.filter(key => seen.size === seen.add(key).size)
+
+  assert.ok(keys.length > 100, `the scanner found only ${keys.length} keys`)
+  assert.deepEqual(duplicates, [], `duplicated dictionary keys: ${duplicates.join(' | ')}`)
+})

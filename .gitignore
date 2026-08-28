@@ -1,7 +1,8 @@
 node_modules
 .next
+.open-next
+.wrangler
 .vercel
-.netlify
 .env
 .env.*
 !.env.example

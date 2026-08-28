@@ -68,7 +68,6 @@ const EN = {
   'التخطي الآن': 'Skip for now',
   'نشر': 'Publish',
   'جارِ النشر…': 'Publishing…',
-  'الإشعارات': 'Notifications',
   'أضف أغنية': 'Add a song',
   'ابحث باسم الأغنية أو الفنان': 'Search by song or artist',
   'البحث في كتالوج الأغاني': 'Search the song catalog',
