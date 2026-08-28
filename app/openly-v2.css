@@ -282,3 +282,73 @@ body {
 @media (prefers-reduced-motion: reduce) {
   :root { --motion: 0ms linear; }
 }
+
+
+/* Profile and home hierarchy from the V2 Figma pass. */
+.profile-status {
+  margin-block: 18px 0;
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.profile-bio {
+  max-inline-size: 46ch;
+  margin-block: 10px 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.85;
+}
+
+.stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+  margin-block-start: 24px;
+}
+
+.stat-grid .panel.stat {
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.profile-hero .row.wrap {
+  gap: 8px 12px;
+  padding-block-start: 6px;
+}
+
+.profile-hero .row.wrap .secondary-button,
+.profile-hero .row.wrap .danger-button {
+  min-block-size: 38px;
+  padding-block: 7px;
+  padding-inline: 12px;
+  border-color: var(--line);
+  background: transparent;
+  font-size: 12px;
+}
+
+.profile-hero .row.wrap .secondary-button:hover {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.profile-hero .row.wrap .danger-button {
+  color: var(--danger);
+}
+
+.list-row {
+  border-color: var(--line);
+  background: transparent;
+}
+
+@media (max-width: 899px) {
+  .page-header + .composer.panel,
+  .page-header + .composer-prompt {
+    margin-block-start: 4px;
+  }
+
+  .profile-hero {
+    padding-block-start: 26px;
+  }
+}
