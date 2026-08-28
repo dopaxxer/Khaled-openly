@@ -39,11 +39,11 @@ function applyMode(preference) {
 
 function applyColor(value) {
   const root = document.documentElement
-  if (value === 'ultramarine') root.removeAttribute('data-color-theme')
+  if (value === 'crimson') root.removeAttribute('data-color-theme')
   else root.setAttribute('data-color-theme', value)
 
   try {
-    if (value === 'ultramarine') localStorage.removeItem(COLOR_THEME_STORAGE_KEY)
+    if (value === 'crimson') localStorage.removeItem(COLOR_THEME_STORAGE_KEY)
     else localStorage.setItem(COLOR_THEME_STORAGE_KEY, value)
   } catch {
     // Same as the mode preference above — applies for this visit only.
@@ -56,7 +56,7 @@ export function ThemeControl() {
   // be a hydration mismatch. The page is already correct by then: the boot
   // script in app/layout.jsx stamped both attributes before paint.
   const [preference, setPreference] = useState('system')
-  const [color, setColor] = useState('ultramarine')
+  const [color, setColor] = useState('crimson')
 
   useEffect(() => {
     try {
