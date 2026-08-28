@@ -186,7 +186,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
         <p>Write first. Add context only if it helps.</p>
       </div>
     </header>}
-    <div className={`composer panel${inline ? ' v2-composer-expanded' : ''}`}>
+    <div className={`composer panel${inline ? ' v2-composer-expanded openly-composer-enter' : ''}`}>
       <div className="composer-toolbar" role="toolbar" aria-label="تنسيق النص">
         <button type="button" className="toolbar-button" aria-label="عريض" title="عريض" onClick={() => format('bold')}><Bold size={16}/></button>
         <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => format('italic')}><Italic size={16}/></button>

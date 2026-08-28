@@ -1734,3 +1734,257 @@ body::before {
   --font-openly: "SF Pro Text", "SF Pro Display", var(--font-arabic), "Segoe UI", sans-serif;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Motion — quiet, confirmation-led, never decorative                         */
+/* -------------------------------------------------------------------------- */
+
+.route-stage {
+  animation: openly-route-enter 340ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes openly-route-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.mobile-header,
+.mobile-nav,
+.desktop-sidebar {
+  transition:
+    transform 280ms cubic-bezier(.22, 1, .36, 1),
+    block-size 280ms cubic-bezier(.22, 1, .36, 1),
+    padding 280ms cubic-bezier(.22, 1, .36, 1),
+    background-color var(--motion),
+    border-color var(--motion),
+    box-shadow var(--motion);
+}
+
+@media (max-width: 899px) {
+  html.openly-compact .mobile-header {
+    block-size: 58px;
+    padding-block: 10px 8px;
+  }
+
+  html.openly-compact .mobile-brand-context {
+    opacity: 0;
+    max-block-size: 0;
+    overflow: hidden;
+  }
+
+  .mobile-brand-context {
+    max-block-size: 24px;
+    transition: opacity 220ms ease, max-block-size 280ms cubic-bezier(.22, 1, .36, 1);
+  }
+
+  .mobile-nav {
+    position: relative;
+  }
+
+  .mobile-nav::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset-block: 5px;
+    inset-inline-start: calc((100% * var(--nav-i, 0) / 4) + 5px);
+    inline-size: calc((100% / 4) - 10px);
+    border-radius: 23px;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
+    transition: inset-inline-start 280ms cubic-bezier(.22, 1, .36, 1);
+    pointer-events: none;
+  }
+
+  .mobile-link {
+    position: relative;
+    z-index: 1;
+    transition: color 200ms ease, background-color 200ms ease, transform 180ms ease;
+  }
+
+  .mobile-link.active {
+    background: transparent;
+  }
+
+  .mobile-link:active {
+    transform: scale(.96);
+  }
+}
+
+.nav-link {
+  transition: color var(--motion), background-color var(--motion), transform 180ms ease;
+}
+
+.nav-link:active {
+  transform: scale(.98);
+}
+
+.identity-chip,
+.icon-button,
+.chip,
+.primary-button,
+.secondary-button,
+.danger-button {
+  transition:
+    color var(--motion),
+    background-color var(--motion),
+    border-color var(--motion),
+    box-shadow var(--motion),
+    transform 180ms cubic-bezier(.22, 1, .36, 1),
+    opacity var(--motion);
+}
+
+.icon-button:active,
+.identity-chip:active,
+.chip:active {
+  transform: scale(.96);
+}
+
+.primary-button:active,
+.secondary-button:active,
+.danger-button:active {
+  transform: scale(.98);
+}
+
+@media (hover: hover) {
+  .post-card {
+    transition: background-color 220ms ease, transform 220ms ease;
+  }
+
+  .post-card:hover {
+    transform: translateY(-1px);
+  }
+
+  .composer-prompt:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
+  }
+
+  .nav-link:hover {
+    transform: translateX(-2px);
+  }
+
+  :root[dir="ltr"] .nav-link:hover {
+    transform: translateX(2px);
+  }
+}
+
+.composer-prompt {
+  transition: border-color var(--motion), background-color var(--motion), transform 220ms cubic-bezier(.22, 1, .36, 1), box-shadow var(--motion);
+}
+
+.openly-composer-enter {
+  animation: openly-composer-open 340ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes openly-composer-open {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.action-button.like.active {
+  color: var(--accent);
+}
+
+.action-button.like.active svg {
+  animation: openly-like-pop 420ms cubic-bezier(.2, 1.6, .3, 1);
+  transform-origin: center;
+}
+
+.action-button.bookmark.active svg {
+  animation: openly-like-pop 360ms cubic-bezier(.2, 1.4, .3, 1);
+  transform-origin: center;
+}
+
+@keyframes openly-like-pop {
+  0% { transform: scale(1); }
+  38% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+
+.nav-badge,
+.icon-badge {
+  animation: openly-badge-in 280ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes openly-badge-in {
+  from { opacity: 0; transform: scale(.6); }
+  to { opacity: 1; transform: none; }
+}
+
+.skeleton-line,
+.skeleton,
+.sidebar-user-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-soft) 18%,
+    color-mix(in srgb, var(--surface) 70%, var(--line)) 42%,
+    var(--surface-soft) 68%
+  );
+  background-size: 220% 100%;
+  animation: openly-shimmer 1.35s ease infinite;
+}
+
+@keyframes openly-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+.feed-sentinel {
+  block-size: 1px;
+  pointer-events: none;
+}
+
+.feed-footer .secondary-button[disabled] {
+  opacity: .72;
+}
+
+.message-bubble {
+  animation: openly-enter 280ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.notification,
+.list-row,
+.match-card,
+.result-row {
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.chip.selected {
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.chip:active {
+  transform: scale(.97);
+}
+
+.form-control {
+  transition: border-color var(--motion), background-color var(--motion), box-shadow var(--motion);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-stage,
+  .openly-composer-enter,
+  .v2-home-timeline .post-card,
+  .action-button.like.active svg,
+  .action-button.bookmark.active svg,
+  .nav-badge,
+  .icon-badge,
+  .message-bubble,
+  .skeleton-line,
+  .skeleton,
+  .sidebar-user-skeleton {
+    animation: none !important;
+  }
+
+  .mobile-nav::before,
+  .mobile-header,
+  .post-card,
+  .nav-link,
+  .composer-prompt {
+    transition: none !important;
+  }
+
+  html.openly-compact .mobile-header {
+    block-size: auto;
+  }
+}
+

@@ -29,6 +29,7 @@ export function Timeline({
   const [error, setError] = useState('')
   const [viewerCode, setViewerCode] = useState(null)
   const loadGeneration = useRef(0)
+  const sentinelRef = useRef(null)
 
   async function load(next = null, signal = undefined) {
     const generation = ++loadGeneration.current
@@ -79,6 +80,17 @@ export function Timeline({
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    if (!cursor || loading || moreLoading) return
+    const node = sentinelRef.current
+    if (!node) return
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting) load(cursor)
+    }, { rootMargin: '640px 0px' })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [cursor, loading, moreLoading, posts.length])
+
   if (loading) return <FeedSkeleton />
   if (error && !posts.length) return <div className="empty-state"><div><p>{error}</p><button className="secondary-button mt16" onClick={() => load()}><RotateCcw size={16} aria-hidden="true"/>المحاولة مجددًا</button></div></div>
   if (!posts.length) return <div className="empty-state"><div><p>{empty}</p></div></div>
@@ -87,7 +99,10 @@ export function Timeline({
     {posts.map(post => <PostCard key={post.id} post={post} initialEngagement={engagement[post.id] || null} viewerCode={viewerCode} onChanged={() => load()}/>)}
     <div className="feed-footer">
       {cursor
-        ? <button className="secondary-button" disabled={moreLoading} onClick={() => load(cursor)}>{moreLoading ? 'جارِ التحميل…' : 'عرض المزيد'}</button>
+        ? <>
+            <div ref={sentinelRef} className="feed-sentinel" aria-hidden="true" />
+            <button className="secondary-button" disabled={moreLoading} onClick={() => load(cursor)}>{moreLoading ? 'جارِ التحميل…' : 'عرض المزيد'}</button>
+          </>
         : <span className="tiny subtle">هذه كل المنشورات المتاحة.</span>}
       {error && <p className="tiny danger-text">{error}</p>}
     </div>
