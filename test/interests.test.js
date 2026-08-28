@@ -43,7 +43,15 @@ test('the interest graph is additive and direct table access stays closed', asyn
 })
 
 test('new signups enter interest onboarding before the first post', async () => {
-  const screens = await readFile(new URL('../components/Screens.jsx', import.meta.url), 'utf8')
+  // The router code-splits its screens, so the onboarding hop, the route that
+  // serves it and the profile panel now sit in three different modules.
+  const dir = new URL('../components/', import.meta.url)
+  const sources = await Promise.all(
+    ['Screens.jsx', 'screens/AuthScreens.jsx', 'screens/UserScreen.jsx']
+      .map(name => readFile(new URL(name, dir), 'utf8'))
+  )
+  const screens = sources.join('\n')
+
   assert.match(screens, /\/onboarding\/interests/)
   assert.match(screens, /<InterestPreferences onboarding \/>/)
   assert.match(screens, /<PublicInterestProfile profile=\{interests\} \/>/)
