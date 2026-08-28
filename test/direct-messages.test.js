@@ -67,6 +67,7 @@ test('message endpoints use RPCs rather than direct private-table access', () =>
   const source = files.map(path => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n')
   assert.doesNotMatch(source, /\.from\(['"](?:direct_messages|direct_conversations)['"]\)/)
   assert.match(source, /send_direct_message/)
+  assert.match(source, /get_direct_messages_page/)
   assert.match(source, /get_unread_direct_message_count/)
 })
 
@@ -77,4 +78,18 @@ test('message migration enforces privacy, block checks and idempotency', () => {
   assert.match(migration, /direct_messages_idempotency/)
   assert.match(migration, /public\.blocks/)
   assert.match(migration, /message\.sender_id <> viewer/)
+
+  const hardening = readFileSync(
+    new URL('../supabase/migrations/20260828142554_harden_private_direct_messages.sql', import.meta.url),
+    'utf8'
+  )
+  assert.match(hardening, /public\.mutes/)
+  assert.match(hardening, /direct_messages_explicit_deny/)
+  assert.match(hardening, /direct_message_broadcast_receive/)
+
+  const cursorMigration = readFileSync(
+    new URL('../supabase/migrations/20260828142640_direct_message_cursor_pagination.sql', import.meta.url),
+    'utf8'
+  )
+  assert.match(cursorMigration, /get_direct_messages_page/)
 })
