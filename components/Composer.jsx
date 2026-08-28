@@ -178,9 +178,12 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   }
 
   return <section>
-    {!inline && <header className="page-header">
-      <h1 className="page-title">{firstPost ? 'منشورك الأول' : 'منشور جديد'}</h1>
-      <p className="page-description">سيظهر كلامك للجميع بهويتك الملوّنة. لا توجد مسودات خاصة هنا.</p>
+    {!inline && <header className="v2-composer-page-head">
+      <Link href="/" className="v2-back-link">‹ Back</Link>
+      <div>
+        <h1>{firstPost ? 'First post' : 'New post'}</h1>
+        <p>Write first. Add context only if it helps.</p>
+      </div>
     </header>}
     <div className={`composer panel${inline ? ' v2-composer-expanded' : ''}`}>
       <div className="composer-toolbar" role="toolbar" aria-label="تنسيق النص">
