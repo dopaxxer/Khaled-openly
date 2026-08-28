@@ -425,116 +425,97 @@ struct RootView: View {
 }
 
 struct MainTabView: View {
-    @EnvironmentObject private var session: AppSession
     @State private var selection = 0
-    @State private var unreadCount = 0
-    @State private var lastUnreadRefresh: Date?
 
     var body: some View {
         TabView(selection: $selection) {
             FeedView()
-                .tabItem { Label("الرئيسية", systemImage: selection == 0 ? "house.fill" : "house") }
+                .tabItem { Label("Home", systemImage: selection == 0 ? "house.fill" : "house") }
                 .tag(0)
 
-            SearchView()
-                .tabItem { Label("بحث", systemImage: "magnifyingglass") }
+            InterestDiscoveryView()
+                .tabItem { Label("Explore", systemImage: selection == 1 ? "safari.fill" : "safari") }
                 .tag(1)
 
-            // Writing lives in the composer card at the top of the feed. A tab
-            // carrying the same square.and.pencil was a second door to the same
-            // room; notifications had no door at all, buried inside the account
-            // screen.
-            NavigationView { NotificationsView() }
-                .navigationViewStyle(.stack)
-                .tabItem { Label("الإشعارات", systemImage: selection == 2 ? "bell.fill" : "bell") }
-                .badge(unreadCount)
+            NativeWriteView()
+                .tabItem { Label("Write", systemImage: selection == 2 ? "square.and.pencil.circle.fill" : "square.and.pencil") }
                 .tag(2)
 
-            InterestDiscoveryView()
-                .tabItem { Label("اكتشف", systemImage: selection == 3 ? "safari.fill" : "safari") }
-                .tag(3)
-
             AccountView()
-                .tabItem { Label("حسابي", systemImage: "person.crop.circle") }
-                .tag(4)
+                .tabItem { Label("You", systemImage: selection == 3 ? "person.crop.circle.fill" : "person.crop.circle") }
+                .tag(3)
         }
         .tint(OpenlyTheme.accent)
-        .toolbarBackground(OpenlyTheme.background, for: .tabBar)
+        .toolbarBackground(OpenlyTheme.surface, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
-        .task(id: session.user?.publicCode) { await refreshUnread(force: true) }
-        .onChange(of: selection) { value in
-            // Entering notifications deserves a fresh badge; ordinary tab
-            // changes should not create a network request every single tap.
-            Task { await refreshUnread(force: value == 2) }
-        }
-    }
-
-    /// A badge is the only reason a notifications tab beats a buried screen, so
-    /// it is refreshed whenever the signed-in identity or the visible tab
-    /// changes. A failure leaves the previous count alone rather than clearing
-    /// the badge on a dropped request.
-    @MainActor
-    private func refreshUnread(force: Bool = false) async {
-        guard session.user != nil else {
-            unreadCount = 0
-            lastUnreadRefresh = nil
-            return
-        }
-
-        if !force,
-           let lastUnreadRefresh,
-           Date().timeIntervalSince(lastUnreadRefresh) < 30 {
-            return
-        }
-
-        lastUnreadRefresh = Date()
-        if let count = try? await session.api.unreadNotificationCount() {
-            unreadCount = count
-        }
     }
 }
 
 struct AppHeader: View {
     @EnvironmentObject private var session: AppSession
+    @State private var unreadCount = 0
 
     var body: some View {
-        HStack(spacing: 12) {
-            BrandLockup(markSize: 34)
-            Spacer()
-
-            NavigationLink(destination: SettingsView()) {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 21, weight: .regular))
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                BrandLockup(markSize: 34)
+                Text("Public space · chronological")
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(OpenlyTheme.muted)
-                    .frame(width: 44, height: 44)
+                    .environment(\.layoutDirection, .leftToRight)
+            }
+
+            Spacer(minLength: 12)
+
+            NavigationLink(destination: NotificationsView()) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: unreadCount > 0 ? "bell.fill" : "bell")
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundColor(OpenlyTheme.ink)
+                        .frame(width: 38, height: 38)
+
+                    if unreadCount > 0 {
+                        Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(minWidth: 16, minHeight: 16)
+                            .background(OpenlyTheme.accent)
+                            .clipShape(Capsule())
+                            .offset(x: 3, y: -1)
+                    }
+                }
             }
             .buttonStyle(.plain)
 
-            if session.user != nil {
-                Button {
-                    Task { await session.logout() }
-                } label: {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.system(size: 22, weight: .regular))
-                        .foregroundColor(OpenlyTheme.muted)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-            } else {
-                NavigationLink(destination: LoginView()) {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.system(size: 22, weight: .regular))
-                        .foregroundColor(OpenlyTheme.muted)
-                        .frame(width: 44, height: 44)
+            if let user = session.user {
+                NavigationLink(destination: AccountView()) {
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
+                            .frame(width: 9, height: 9)
+                        Text(user.publicCode)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(OpenlyTheme.ink)
+                            .environment(\.layoutDirection, .leftToRight)
+                    }
+                    .padding(.horizontal, 11)
+                    .frame(height: 34)
+                    .background(OpenlyTheme.surface)
+                    .overlay(Capsule().stroke(OpenlyTheme.line, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 20)
-        .frame(height: 74)
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
+        .padding(.bottom, 12)
         .background(OpenlyTheme.background)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(OpenlyTheme.line).frame(height: 1)
+        .task(id: session.user?.publicCode) {
+            if session.user != nil, let count = try? await session.api.unreadNotificationCount() {
+                unreadCount = count
+            } else {
+                unreadCount = 0
+            }
         }
     }
 }
@@ -543,16 +524,12 @@ struct BrandLockup: View {
     var markSize: CGFloat = 32
 
     var body: some View {
-        HStack(spacing: 10) {
-            BrandMark(size: markSize)
-            Text("Openly")
-                .font(.system(size: markSize <= 34 ? 20 : 24, weight: .bold))
-                .tracking(-0.4)
-                .foregroundColor(OpenlyTheme.ink)
-        }
-        .environment(\.layoutDirection, .leftToRight)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Openly")
+        Text("openly")
+            .font(.system(size: markSize <= 34 ? 27 : 30, weight: .bold))
+            .tracking(-0.8)
+            .foregroundColor(OpenlyTheme.ink)
+            .environment(\.layoutDirection, .leftToRight)
+            .accessibilityLabel("Openly")
     }
 }
 
