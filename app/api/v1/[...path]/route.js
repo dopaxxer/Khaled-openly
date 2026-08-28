@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic'
 
 // Version 1 of the shared contract. The unversioned routes under /api are
 // untouched so existing clients keep working; both the website and the iOS app
-// use these endpoints for mentions and music.
+// use these endpoints for mentions, private messages and music.
 //
 // Every response carries private, no-store. None of these payloads are the
 // same for two viewers — discovery, preferences and even mention autocomplete
@@ -76,6 +76,63 @@ function boundedInt(value, fallback, min, max) {
   const parsed = Number.parseInt(String(value ?? ''), 10)
   if (!Number.isFinite(parsed)) return fallback
   return Math.max(min, Math.min(parsed, max))
+}
+
+function directConversation(row) {
+  if (!row) return null
+  if (row.conversationId) return row
+  return {
+    conversationId: row.conversation_id,
+    publicCode: row.public_code,
+    identityColor: row.identity_color,
+    lastMessageBody: row.last_message_body,
+    lastMessageAt: row.last_message_at,
+    lastMessageIsMine: !!row.last_message_is_mine,
+    unreadCount: Number(row.unread_count || 0),
+    canMessage: !!row.can_message
+  }
+}
+
+function directMessage(row) {
+  if (!row) return null
+  if (row.createdAt) return row
+  return {
+    id: row.id,
+    body: row.body,
+    createdAt: row.created_at,
+    readAt: row.read_at,
+    senderCode: row.sender_code,
+    senderColor: row.sender_color,
+    isMine: !!row.is_mine
+  }
+}
+
+function parseMessageCursor(raw) {
+  const value = String(raw || '')
+  const separator = value.lastIndexOf('|')
+  if (separator <= 0) return null
+  const createdAt = value.slice(0, separator)
+  const id = value.slice(separator + 1)
+  if (!isUuid(id) || Number.isNaN(Date.parse(createdAt))) return null
+  return { createdAt, id }
+}
+
+function directMessageFailure(error, fallbackCode = 'messages_failed', fallbackMessage = 'تعذر تحميل الرسائل') {
+  const message = String(error?.message || '')
+  if (/Unauthorized/i.test(message)) return unauthorized()
+  if (/Messaging unavailable/i.test(message)) {
+    return fail(403, 'messaging_unavailable', 'لا يمكن إرسال رسائل إلى هذه الهوية الآن')
+  }
+  if (/Conversation unavailable/i.test(message)) {
+    return fail(404, 'conversation_not_found', 'المحادثة غير موجودة')
+  }
+  if (/Messaging target unavailable/i.test(message)) {
+    return fail(404, 'user_not_found', 'الهوية غير موجودة أو غير متاحة للمراسلة')
+  }
+  if (/Invalid message body|Invalid client nonce/i.test(message)) {
+    return fail(400, 'invalid_message', 'الرسالة غير صالحة')
+  }
+  return fail(500, fallbackCode, fallbackMessage)
 }
 
 function mentionList(rows) {
@@ -138,6 +195,75 @@ export async function GET(request, { params }) {
   const route = path.join('/')
   const url = new URL(request.url)
   const supabase = await createSupabaseServerClient()
+
+  if (route === 'messages') {
+    const user = await requireUser(supabase)
+    if (!user) return unauthorized()
+    const limited = guard(request, 'messageRead', user.id)
+    if (limited) return limited
+
+    const limit = boundedInt(url.searchParams.get('limit'), 30, 1, 50)
+    const offset = boundedInt(url.searchParams.get('offset'), 0, 0, 500)
+    const { data, error } = await supabase.rpc('get_direct_conversations', {
+      p_limit: limit,
+      p_offset: offset
+    })
+    if (error) return directMessageFailure(error, 'conversations_failed', 'تعذر تحميل المحادثات')
+    const rows = data || []
+    return ok({
+      items: rows.map(directConversation),
+      total: rows.length ? Number(rows[0].total_conversations || 0) : 0,
+      limit,
+      offset
+    })
+  }
+
+  if (route === 'messages/unread-count') {
+    const user = await requireUser(supabase)
+    if (!user) return unauthorized()
+    const limited = guard(request, 'messageRead', user.id)
+    if (limited) return limited
+    const { data, error } = await supabase.rpc('get_unread_direct_message_count')
+    if (error) return directMessageFailure(error, 'message_count_failed', 'تعذر تحميل عدد الرسائل')
+    return ok({ unreadCount: Number(data || 0) })
+  }
+
+  if (path[0] === 'messages' && path[1] && path.length === 2) {
+    const user = await requireUser(supabase)
+    if (!user) return unauthorized()
+    const limited = guard(request, 'messageRead', user.id)
+    if (limited) return limited
+    const conversationId = String(path[1])
+    if (!isUuid(conversationId)) return fail(400, 'invalid_request', 'معرّف المحادثة غير صالح')
+
+    const limit = boundedInt(url.searchParams.get('limit'), 30, 1, 50)
+    const rawCursor = url.searchParams.get('cursor')
+    const cursor = rawCursor ? parseMessageCursor(rawCursor) : null
+    if (rawCursor && !cursor) return fail(400, 'invalid_cursor', 'مؤشر الرسائل غير صالح')
+
+    const [conversationResult, messageResult] = await Promise.all([
+      supabase.rpc('get_direct_conversation', { p_conversation_id: conversationId }),
+      supabase.rpc('get_direct_messages_page', {
+        p_conversation_id: conversationId,
+        p_before: cursor?.createdAt || null,
+        p_before_id: cursor?.id || null,
+        p_limit: limit + 1
+      })
+    ])
+    if (conversationResult.error) return directMessageFailure(conversationResult.error)
+    if (!conversationResult.data) return fail(404, 'conversation_not_found', 'المحادثة غير موجودة')
+    if (messageResult.error) return directMessageFailure(messageResult.error)
+
+    const rows = messageResult.data || []
+    const hasMore = rows.length > limit
+    const page = rows.slice(0, limit)
+    const oldest = page[page.length - 1]
+    return ok({
+      conversation: directConversation(conversationResult.data),
+      items: page.map(directMessage).reverse(),
+      nextCursor: hasMore && oldest ? `${oldest.created_at}|${oldest.id}` : null
+    })
+  }
 
   if (route === 'mentions/suggest') {
     const user = await requireUser(supabase)
@@ -300,6 +426,59 @@ export async function POST(request, { params }) {
   const parsed = await readJson(request)
   if (parsed.error) return fail(parsed.status, 'invalid_request', parsed.error)
   const body = parsed.data
+
+  if (route === 'messages/start') {
+    const user = await requireUser(supabase)
+    if (!user) return unauthorized()
+    const limited = guard(request, 'messageStart', user.id)
+    if (limited) return limited
+    const publicCode = String(body.publicCode || '').trim().toUpperCase()
+    if (!PUBLIC_CODE_PATTERN.test(publicCode)) {
+      return fail(400, 'invalid_request', 'كود الهوية غير صالح')
+    }
+    const { data, error } = await supabase.rpc('start_direct_conversation', {
+      p_public_code: publicCode
+    })
+    if (error) return directMessageFailure(error, 'conversation_start_failed', 'تعذر بدء المحادثة')
+    return ok({ conversation: directConversation(data) })
+  }
+
+  if (path[0] === 'messages' && path[1] && path.length === 2) {
+    const user = await requireUser(supabase)
+    if (!user) return unauthorized()
+    const limited = guard(request, 'messageWrite', user.id)
+    if (limited) return limited
+    const conversationId = String(path[1])
+    if (!isUuid(conversationId)) return fail(400, 'invalid_request', 'معرّف المحادثة غير صالح')
+    const text = String(body.body || '').trim()
+    if (!text || text.length > 2000) {
+      return fail(400, 'invalid_message', 'يجب أن تكون الرسالة بين 1 و2000 حرف')
+    }
+    const clientNonce = body.clientNonce == null ? crypto.randomUUID() : String(body.clientNonce)
+    if (!isUuid(clientNonce)) return fail(400, 'invalid_request', 'معرّف الإرسال غير صالح')
+
+    const { data, error } = await supabase.rpc('send_direct_message', {
+      p_conversation_id: conversationId,
+      p_body: text,
+      p_client_nonce: clientNonce
+    })
+    if (error) return directMessageFailure(error, 'message_send_failed', 'تعذر إرسال الرسالة')
+    return ok({ message: directMessage(data) })
+  }
+
+  if (path[0] === 'messages' && path[1] && path[2] === 'read' && path.length === 3) {
+    const user = await requireUser(supabase)
+    if (!user) return unauthorized()
+    const limited = guard(request, 'messageWrite', user.id)
+    if (limited) return limited
+    const conversationId = String(path[1])
+    if (!isUuid(conversationId)) return fail(400, 'invalid_request', 'معرّف المحادثة غير صالح')
+    const { data, error } = await supabase.rpc('mark_direct_conversation_read', {
+      p_conversation_id: conversationId
+    })
+    if (error) return directMessageFailure(error, 'message_read_failed', 'تعذر تحديث حالة القراءة')
+    return ok({ ok: true, changed: Number(data || 0) })
+  }
 
   if (route === 'mentions/resolve') {
     const user = await requireUser(supabase)
