@@ -1,5 +1,6 @@
 'use client'
 import { ArrowLeft, Bold, Italic, List, Music2, Search, Send, X } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from './Avatar'
