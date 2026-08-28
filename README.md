@@ -9,8 +9,7 @@
 ```bash
 npm ci
 npm test
-npm run build      # بناء Next.js
-npm run cf:build   # تحويله إلى Worker في .open-next
+npm run build      # يبني Next.js ثم يحوّله إلى Worker في .open-next
 npm run cf:preview # تشغيل الـWorker محليًا عبر wrangler
 ```
 
@@ -42,26 +41,31 @@ npm run cf:preview # تشغيل الـWorker محليًا عبر wrangler
   و`open-next.config.ts`. لا يُنشر بناء Next.js مباشرة: محوّل `@opennextjs/cloudflare` يحوّله إلى
   `.open-next/worker.js` وهو ما تنشره Cloudflare فعليًا.
 
-  **أمر البناء في اللوحة يجب أن يكون `npm run cf:build`، ولا يمكن الاستغناء عن ذلك بتعديل المستودع.**
-  المحوّل ينفّذ `npm run build` داخليًا ليُنتج بناء Next.js (انظر `buildNextjsApp` في
-  `@opennextjs/aws`)، فلو جعلتَ `build` يشير إلى المحوّل صار يستدعي نفسه بلا نهاية. لذلك يبقى
-  `build` هو `next build` دائمًا، ويبقى إنتاج الـWorker على `cf:build` وحده.
+  `npm run build` يُنتج الـWorker، لا بناء Next.js مجرّدًا. هذا مقصود: كل منصّة تشغّل `npm run build`
+  افتراضيًا، وCloudflare منها، فلو أنتج `.next/` فقط فشل النشر بـ
+  `The entry-point file at ".open-next/worker.js" was not found` — وهو الخطأ الذي أبقى الإنتاج
+  بلا نشر فعليًا.
 
-  إعدادات Workers Builds في لوحة Cloudflare — أمر البناء هنا هو الفارق بين نشر يعمل ونشر فاشل:
+  التركيب دقيق ولا يُعبث به: المحوّل نفسه ينفّذ سكربت البناء ليُنتج مُخرَج Next.js (انظر
+  `buildNextjsApp` في `@opennextjs/aws`، وافتراضه `npm run build`). لذلك يوجّهه
+  `buildCommand: 'npm run build:next'` في `open-next.config.ts` إلى `build:next`. بدون هذا التوجيه
+  يستدعي `build` نفسه بلا نهاية.
+
+  إعدادات Workers Builds في لوحة Cloudflare — القيم الافتراضية تكفي:
 
   | الإعداد | القيمة |
   | --- | --- |
-  | Build command | `npm ci && npm run cf:build` |
-  | Deploy command | `npx opennextjs-cloudflare deploy` |
+  | Build command | `npm run build` |
+  | Deploy command | `npx wrangler deploy` للإنتاج، و`npx wrangler versions upload` للمعاينات |
   | Node version | 24 |
 
-  متغيرات البناء (Build variables) المطلوبة في اللوحة. لاحظ أن `NEXT_PUBLIC_*` تُدمج داخل الحزمة
-  وقت البناء لا وقت التشغيل، فوجودها في وقت البناء شرط، ولا يكفي ضبطها كمتغيرات تشغيل:
+  متغيّرات المشروع نوعان، والخلط بينهما لا يُنتج خطأ بل تطبيقًا لا يعمل:
 
-  - `NEXT_PUBLIC_SITE_URL`
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-  - `AUTH_EMAIL_MODE`
+  - **Build variables** في اللوحة: `NEXT_PUBLIC_SITE_URL` و`NEXT_PUBLIC_SUPABASE_URL`
+    و`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. كل ما يبدأ بـ`NEXT_PUBLIC_` يدمجه Next.js داخل
+    الحزمة وقت البناء، فضبطه كمتغيّر تشغيل لا يصل إليه الكود إطلاقًا.
+  - **Runtime variables**: `AUTH_EMAIL_MODE` وحده، وهو مثبَّت في `wrangler.jsonc` فلا يحتاج
+    ضبطًا في اللوحة.
 
   `compatibility_date` في `wrangler.jsonc` يجب أن يبقى حديثًا. تاريخ قديم هو سبب رفض الـruntime
   لخيار `cache` في `fetch` وظهور أخطاء 502 من كتالوج Apple.

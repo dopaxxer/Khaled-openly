@@ -83,7 +83,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
           AUTH_EMAIL_MODE: otp
-        run: npm run cf:build
+        run: npm run build
 
       - name: Confirm the Worker entrypoint was produced
         run: test -f .open-next/worker.js && test -d .open-next/assets
