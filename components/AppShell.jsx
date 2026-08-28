@@ -12,7 +12,7 @@ const nav = [
 ]
 
 function Brand() {
-  return <Link href="/" className="brand" aria-label="Openly — الرئيسية" dir="ltr">
+  return <Link href="/" className="brand" aria-label="open — الرئيسية" dir="ltr">
     <span className="brand-mark" aria-hidden="true">O</span>
     <span>openly</span>
   </Link>
@@ -92,7 +92,7 @@ export function AppShell({ children }) {
           : user === null
             ? <Link href="/login" className="nav-link"><LogIn size={20} aria-hidden="true"/><span>تسجيل الدخول</span></Link>
             : <span className="sidebar-user-skeleton" aria-label="جارِ تحميل الحساب"/>}
-        <p>مساحة عامة هادئة للأفكار والذوق والمحادثة.</p>
+        <p>كلمات عامة، بلا خوارزمية.</p>
       </div>
     </aside>
 
