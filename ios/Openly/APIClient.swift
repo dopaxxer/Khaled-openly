@@ -705,11 +705,15 @@ final class APIClient {
     func directMessages(
         conversationID: String,
         cursor: String? = nil,
-        limit: Int = 100
+        afterCursor: String? = nil,
+        limit: Int = 60
     ) async throws -> DirectThreadResponse {
         var query = [URLQueryItem(name: "limit", value: String(limit))]
         if let cursor, !cursor.isEmpty {
             query.append(URLQueryItem(name: "cursor", value: cursor))
+        }
+        if let afterCursor, !afterCursor.isEmpty {
+            query.append(URLQueryItem(name: "after", value: afterCursor))
         }
         return try await request("v1/messages/\(conversationID)", query: query)
     }
@@ -741,6 +745,18 @@ final class APIClient {
     func unreadDirectMessageCount() async throws -> Int {
         let response: DirectUnreadResponse = try await request("v1/messages/unread")
         return response.unreadCount
+    }
+
+    func directMessagePresence(conversationID: String) async throws -> DirectPresenceResponse {
+        try await request("v1/messages/\(conversationID)/presence")
+    }
+
+    func touchDirectMessagePresence(conversationID: String, typing: Bool) async throws {
+        let _: ActionResponse = try await request(
+            "v1/messages/\(conversationID)/presence",
+            method: "POST",
+            body: ["typing": typing]
+        )
     }
 
     func report(postID: String, reason: String, description: String) async throws {
