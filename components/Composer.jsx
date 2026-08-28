@@ -170,10 +170,10 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   }
 
   if (inline && !open) {
-    return <button type="button" className="composer-prompt panel" onClick={() => setOpen(true)}>
-      {viewer && <Avatar code={viewer.publicCode} color={viewer.identityColor} size={38}/>}
-      <span className="composer-prompt-text">ماذا تريد أن تقول؟</span>
-      <Send size={16} aria-hidden="true"/>
+    return <button type="button" className="composer-prompt panel v2-composer-prompt" onClick={() => setOpen(true)}>
+      <span className="v2-composer-prompt-copy">ماذا تريد أن تقول؟</span>
+      <span className="v2-composer-prompt-tools" aria-hidden="true">+ music&nbsp;&nbsp;&nbsp;+ book&nbsp;&nbsp;&nbsp;+ film</span>
+      <span className="v2-composer-prompt-post">Post</span>
     </button>
   }
 
@@ -182,7 +182,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
       <h1 className="page-title">{firstPost ? 'منشورك الأول' : 'منشور جديد'}</h1>
       <p className="page-description">سيظهر كلامك للجميع بهويتك الملوّنة. لا توجد مسودات خاصة هنا.</p>
     </header>}
-    <div className="composer panel">
+    <div className={`composer panel${inline ? ' v2-composer-expanded' : ''}`}>
       <div className="composer-toolbar" role="toolbar" aria-label="تنسيق النص">
         <button type="button" className="toolbar-button" aria-label="عريض" title="عريض" onClick={() => format('bold')}><Bold size={16}/></button>
         <button type="button" className="toolbar-button" aria-label="مائل" title="مائل" onClick={() => format('italic')}><Italic size={16}/></button>
