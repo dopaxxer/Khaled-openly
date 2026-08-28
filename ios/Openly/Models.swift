@@ -357,7 +357,7 @@ struct DirectConversationResponse: Codable {
 struct DirectThreadResponse: Codable {
     let conversation: DirectConversation
     let items: [DirectMessage]
-    let nextBefore: String?
+    let nextCursor: String?
     let hasMore: Bool
 }
 
