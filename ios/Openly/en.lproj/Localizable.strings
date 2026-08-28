@@ -322,3 +322,6 @@
 "اكتب رسالة خاصة…" = "Write a private message…";
 "لا يمكن إرسال رسائل جديدة في هذه المحادثة." = "New messages cannot be sent in this conversation.";
 "رسالة" = "Message";
+"متصل الآن" = "Online now";
+"يكتب…" = "Typing…";
+"غير متصل" = "Offline";
