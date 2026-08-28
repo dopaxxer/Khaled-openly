@@ -22,7 +22,7 @@ struct OpenlyApp: App {
                 .environmentObject(session)
                 .environment(\.locale, selectedLanguage.locale)
                 .environment(\.layoutDirection, selectedLanguage.layoutDirection)
-                .tint((OpenlyColorTheme(rawValue: colorThemeRaw) ?? .ultramarine).accent)
+                .tint((OpenlyColorTheme(rawValue: colorThemeRaw) ?? .crimson).accent)
                 .preferredColorScheme(selectedAppearance.colorScheme)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
@@ -352,26 +352,28 @@ private func adaptiveColor(light: (Int, Int, Int), dark: (Int, Int, Int)) -> Col
 }
 
 enum OpenlyTheme {
-    static let background = adaptiveColor(light: (250, 250, 248), dark: (8, 10, 21))
-    static let surface = adaptiveColor(light: (255, 255, 255), dark: (8, 10, 21))
-    static let surfaceSoft = adaptiveColor(light: (244, 244, 241), dark: (13, 16, 32))
-    static let elevated = adaptiveColor(light: (248, 248, 246), dark: (17, 20, 39))
-    static let line = adaptiveColor(light: (232, 232, 227), dark: (27, 31, 54))
-    static let lineStrong = adaptiveColor(light: (208, 211, 221), dark: (48, 55, 87))
-    static let ink = adaptiveColor(light: (22, 23, 26), dark: (244, 245, 250))
-    static let muted = adaptiveColor(light: (92, 95, 106), dark: (156, 164, 189))
-    static let subtle = adaptiveColor(light: (132, 136, 151), dark: (111, 120, 152))
+    // Openly V2: warm paper, dark ink, quiet surfaces. These values mirror
+    // the web/Figma direction while keeping the existing dynamic theme system.
+    static let background = adaptiveColor(light: (247, 244, 238), dark: (17, 17, 19))
+    static let surface = adaptiveColor(light: (255, 253, 248), dark: (25, 25, 28))
+    static let surfaceSoft = adaptiveColor(light: (244, 239, 231), dark: (31, 31, 34))
+    static let elevated = adaptiveColor(light: (252, 249, 243), dark: (34, 34, 38))
+    static let line = adaptiveColor(light: (233, 225, 216), dark: (44, 44, 49))
+    static let lineStrong = adaptiveColor(light: (217, 206, 194), dark: (63, 63, 69))
+    static let ink = adaptiveColor(light: (23, 21, 19), dark: (232, 230, 226))
+    static let muted = adaptiveColor(light: (107, 98, 91), dark: (154, 152, 148))
+    static let subtle = adaptiveColor(light: (149, 138, 130), dark: (112, 110, 106))
 
     private static var selectedColorTheme: OpenlyColorTheme {
         let raw = UserDefaults.standard.string(forKey: "openly.colorTheme")
-        return OpenlyColorTheme(rawValue: raw ?? "") ?? .ultramarine
+        return OpenlyColorTheme(rawValue: raw ?? "") ?? .crimson
     }
 
     static var accent: Color { selectedColorTheme.accent }
     static var accentStrong: Color { selectedColorTheme.accentStrong }
     static var accentSoft: Color { selectedColorTheme.accentSoft }
-    static let accentForeground = adaptiveColor(light: (255, 255, 255), dark: (7, 10, 20))
-    static let danger = adaptiveColor(light: (190, 45, 45), dark: (248, 113, 113))
+    static let accentForeground = adaptiveColor(light: (255, 250, 244), dark: (25, 25, 28))
+    static let danger = adaptiveColor(light: (180, 35, 24), dark: (248, 113, 113))
     static var card: Color { surfaceSoft }
 }
 
