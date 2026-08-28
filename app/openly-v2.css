@@ -1470,3 +1470,111 @@ body {
     display: none;
   }
 }
+
+
+:root[data-color-theme="ultramarine"] {
+  --accent: #16277a;
+  --accent-strong: #16277a;
+}
+:root[data-theme="dark"][data-color-theme="ultramarine"] {
+  --accent: #8ea0ff;
+  --accent-strong: #a6b3ff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-color-theme="ultramarine"] {
+    --accent: #8ea0ff;
+    --accent-strong: #a6b3ff;
+  }
+}
+
+@media (max-width: 899px) {
+  .v2-settings-head {
+    padding: 22px 24px 14px;
+  }
+
+  .v2-settings-head .page-title {
+    font-size: 28px;
+    font-weight: 760;
+    letter-spacing: -.03em;
+  }
+
+  .v2-settings-body {
+    gap: 16px !important;
+    padding-block-end: 120px;
+  }
+
+  .v2-settings-body > .panel {
+    padding: 16px !important;
+    border-radius: 20px;
+    background: var(--surface);
+  }
+
+  .v2-theme-control {
+    display: grid;
+    gap: 16px;
+  }
+
+  .v2-theme-control > .page-title {
+    font-size: 16px !important;
+    font-weight: 720;
+  }
+
+  .v2-theme-modes {
+    display: grid;
+    gap: 10px;
+    margin-block-start: 4px;
+  }
+
+  .v2-theme-mode {
+    display: flex;
+    min-block-size: 84px;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--surface);
+    color: var(--foreground);
+    font-size: 15px;
+    font-weight: 700;
+    text-align: start;
+  }
+
+  .v2-theme-mode:nth-child(1) {
+    background: linear-gradient(135deg, #f7f4ee 0 55%, #171513 55% 100%);
+    color: #171513;
+  }
+
+  .v2-theme-mode:nth-child(2) {
+    background: #fffdf8;
+    color: #171513;
+  }
+
+  .v2-theme-mode:nth-child(3) {
+    background: #171719;
+    color: #f3f0ea;
+  }
+
+  .v2-theme-mode.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .v2-theme-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block-start: 6px;
+  }
+
+  .v2-theme-swatches .swatch {
+    inline-size: 38px;
+    block-size: 38px;
+    border-radius: 50%;
+  }
+
+  .v2-theme-swatches .swatch.active {
+    outline: 2px solid var(--foreground);
+    outline-offset: 3px;
+  }
+}
