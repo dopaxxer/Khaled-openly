@@ -1074,3 +1074,277 @@ body {
     justify-content: center;
   }
 }
+
+
+@media (max-width: 899px) {
+  .v2-search {
+    padding-block-start: 8px;
+  }
+
+  .v2-search-head {
+    padding: 22px 24px 14px;
+  }
+
+  .v2-search-head h1,
+  .v2-auth-head .auth-title {
+    margin: 0;
+    color: var(--foreground);
+    font-size: 28px;
+    font-weight: 760;
+    line-height: 1.15;
+    letter-spacing: -.03em;
+  }
+
+  .v2-search-head p,
+  .v2-auth-head .auth-sub {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .v2-search-box {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    min-block-size: 50px;
+    margin: 0 24px;
+    padding-inline: 16px;
+    border: 1px solid var(--line);
+    border-radius: 25px;
+    background: var(--surface);
+    color: var(--muted);
+  }
+
+  .v2-search-box input {
+    inline-size: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--foreground);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .v2-search-clear {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+  }
+
+  .v2-search-tabs {
+    display: flex;
+    gap: 22px;
+    margin: 16px 24px 0;
+    padding-block-end: 12px;
+    overflow-x: auto;
+    border-block-end: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .v2-search-tabs .active {
+    color: var(--accent);
+    font-weight: 720;
+  }
+
+  .v2-search-section-title {
+    padding: 18px 24px 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .v2-search-person {
+    display: grid;
+    grid-template-columns: 12px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 24px;
+    border-block-end: 1px solid var(--line);
+  }
+
+  .v2-search-person-dot {
+    inline-size: 12px;
+    block-size: 12px;
+    border-radius: 50%;
+  }
+
+  .v2-search-person-copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .v2-search-person-copy strong {
+    font-size: 13px;
+    direction: ltr;
+    justify-self: start;
+  }
+
+  .v2-search-person-copy span {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .v2-search-arrow {
+    color: var(--muted);
+    font-size: 22px;
+  }
+
+  .v2-search-recents {
+    padding-block-end: 120px;
+  }
+
+  .v2-search-recents button {
+    display: block;
+    inline-size: 100%;
+    padding: 14px 24px;
+    border: 0;
+    border-block-end: 1px solid var(--line);
+    background: transparent;
+    color: var(--foreground);
+    text-align: start;
+    font-size: 14px;
+  }
+
+  .v2-search-status {
+    margin: 16px 24px 0;
+  }
+
+  .v2-auth {
+    min-block-size: calc(100vh - 94px);
+    padding: 38px 24px 120px;
+  }
+
+  .v2-auth-head {
+    max-inline-size: 342px;
+    margin: 0 auto 30px;
+    text-align: start;
+  }
+
+  .v2-auth-head .auth-icon {
+    display: none;
+  }
+
+  .v2-auth-card {
+    max-inline-size: 342px;
+    margin: 0 auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .v2-auth-card .stack,
+  .v2-auth-card {
+    gap: 18px;
+  }
+
+  .v2-auth-card .label {
+    gap: 8px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .v2-auth-card .form-control {
+    min-block-size: 52px;
+    border-radius: 18px;
+    background: var(--surface);
+    font-size: 15px;
+  }
+
+  .v2-auth-card .primary-button.full,
+  .v2-auth-card .secondary-button.full {
+    min-block-size: 50px;
+    border-radius: 25px;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .v2-auth-card .secondary-button.full {
+    background: var(--surface);
+  }
+
+  .v2-otp-card {
+    display: grid;
+    gap: 18px;
+  }
+
+  .v2-otp-input {
+    block-size: 58px;
+    letter-spacing: .48em !important;
+    text-indent: .48em;
+    font-size: 22px !important;
+    font-weight: 700;
+    background:
+      linear-gradient(90deg,
+        transparent 0,
+        transparent calc(16.666% - 1px),
+        var(--line) calc(16.666% - 1px),
+        var(--line) 16.666%,
+        transparent 16.666%,
+        transparent calc(33.333% - 1px),
+        var(--line) calc(33.333% - 1px),
+        var(--line) 33.333%,
+        transparent 33.333%,
+        transparent calc(50% - 1px),
+        var(--line) calc(50% - 1px),
+        var(--line) 50%,
+        transparent 50%,
+        transparent calc(66.666% - 1px),
+        var(--line) calc(66.666% - 1px),
+        var(--line) 66.666%,
+        transparent 66.666%,
+        transparent calc(83.333% - 1px),
+        var(--line) calc(83.333% - 1px),
+        var(--line) 83.333%,
+        transparent 83.333%
+      ),
+      var(--surface);
+  }
+
+  /* Existing functional music picker, visually aligned to Figma page 10. */
+  .composer-track-search {
+    padding: 14px;
+    border: 0;
+    border-radius: 18px;
+    background: var(--surface);
+  }
+
+  .composer-track-search .track-search-field .form-control {
+    min-block-size: 48px;
+    border-radius: 24px;
+  }
+
+  .composer-track-results {
+    display: grid;
+    gap: 10px;
+  }
+
+  .composer-track-results .result-row {
+    min-block-size: 76px;
+    padding: 9px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+  }
+
+  .composer-track-results .track-artwork {
+    inline-size: 56px;
+    block-size: 56px;
+    border-radius: 12px;
+  }
+
+  .composer-track-result-main strong {
+    font-size: 14px;
+  }
+
+  .composer-track-result-main .tiny {
+    font-size: 11px;
+  }
+}
