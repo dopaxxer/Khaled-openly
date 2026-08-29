@@ -5,16 +5,21 @@ import { ChevronLeft, MessageCircle, Send } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Identity } from './Identity'
 
+// A thread re-renders on every poll, so this runs once per message every few
+// seconds. Constructing the formatter is the expensive part; the format never
+// changes, so it is built once for the module.
+const messageTimeFormat = new Intl.DateTimeFormat('ar', {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+})
+
 function formatMessageTime(value) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('ar', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
+  return messageTimeFormat.format(date)
 }
 
 function mergeMessages(current, incoming) {
@@ -28,6 +33,27 @@ function mergeMessages(current, incoming) {
 
 function messageCursor(message) {
   return message?.createdAt && message?.id ? `${message.createdAt}|${message.id}` : null
+}
+
+// The thread polls every 2.5 seconds and a quiet conversation answers with
+// nothing new every time. Handing React a fresh array or a fresh conversation
+// object regardless re-rendered every bubble on screen twenty-four times a
+// minute for no change at all, so each poll now keeps the state it already has
+// unless something in it actually moved.
+function sameMessages(current, merged) {
+  if (current === merged) return true
+  if (current.length !== merged.length) return false
+  return current.every((message, index) => message === merged[index])
+}
+
+function sameConversation(current, incoming) {
+  if (current === incoming) return true
+  if (!current || !incoming) return false
+  const keys = new Set([...Object.keys(current), ...Object.keys(incoming)])
+  for (const key of keys) {
+    if (current[key] !== incoming[key]) return false
+  }
+  return true
 }
 
 export function MessagesInbox() {
@@ -131,11 +157,11 @@ export function MessageThread({ conversationId }) {
       }
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'المحادثة غير متاحة')
-      setConversation(data.conversation)
+      setConversation(current => sameConversation(current, data.conversation) ? current : data.conversation)
       setMessages(current => {
         const merged = mergeMessages(current, data.items || [])
         latestCursor.current = messageCursor(merged[merged.length - 1])
-        return merged
+        return sameMessages(current, merged) ? current : merged
       })
       if (!silent) {
         setOlderCursor(data.nextCursor || null)
@@ -178,7 +204,12 @@ export function MessageThread({ conversationId }) {
     const response = await fetch(`/api/v1/messages/${conversationId}/presence`, { cache: 'no-store' }).catch(() => null)
     if (!response?.ok) return
     const data = await response.json().catch(() => null)
-    if (data) setPresence({ online: !!data.online, typing: !!data.typing })
+    if (!data) return
+    const online = !!data.online
+    const typing = !!data.typing
+    setPresence(current => current.online === online && current.typing === typing
+      ? current
+      : { online, typing })
   }, [conversationId])
 
   useEffect(() => {

@@ -3,6 +3,21 @@ import { readdirSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const componentsDir = new URL('../components/', import.meta.url)
+
+// Screens live in components/screens/ since the router started code-splitting
+// them, so the scan walks the tree instead of one flat directory -- copy that
+// moves into a subfolder must not fall out of the checks below.
+function componentFiles(dir = componentsDir, prefix = '') {
+  const found = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      found.push(...componentFiles(new URL(`${entry.name}/`, dir), `${prefix}${entry.name}/`))
+    } else if (entry.name.endsWith('.jsx')) {
+      found.push(`${prefix}${entry.name}`)
+    }
+  }
+  return found
+}
 const bridge = readFileSync(new URL('LanguageBridge.jsx', componentsDir), 'utf8')
 
 const stripComments = source =>
@@ -32,8 +47,7 @@ const hasEntry = value => bridge.includes(`'${value}':`)
 // interests and music screens shipped untranslated. This asserts the whole
 // surface instead of one component at a time.
 test('every component ships its Arabic copy with an English entry', () => {
-  const components = readdirSync(componentsDir)
-    .filter(name => name.endsWith('.jsx') && name !== 'LanguageBridge.jsx')
+  const components = componentFiles().filter(name => name !== 'LanguageBridge.jsx')
 
   assert.ok(components.length > 10, `only found ${components.length} components to scan`)
 
@@ -69,23 +83,31 @@ test('the dictionary declares each phrase exactly once', () => {
 test('text a person authored is exempt from the language bridge', () => {
   const shielded = /data-user-content|className="(?:post-body|comment-body)"/
 
-  const cases = [
-    ['Screens.jsx', /\{user\.bio &&[^\n]*\}/g],
-    ['InterestDiscovery.jsx', /\{item\.label\}|\{item\.subtitle\}/g]
+  const patterns = [
+    /\{user\.bio &&[^\n]*\}/g,
+    /\{item\.label\}|\{item\.subtitle\}/g
   ]
 
-  for (const [name, pattern] of cases) {
-    const source = readFileSync(new URL(name, componentsDir), 'utf8')
-    for (const line of source.split('\n')) {
-      if (!pattern.test(line)) continue
-      pattern.lastIndex = 0
-      assert.match(
-        line,
-        shielded,
-        `${name} renders authored text without a data-user-content shield: ${line.trim()}`
-      )
+  let checked = 0
+  for (const pattern of patterns) {
+    for (const name of componentFiles()) {
+      const source = readFileSync(new URL(name, componentsDir), 'utf8')
+      for (const line of source.split('\n')) {
+        pattern.lastIndex = 0
+        if (!pattern.test(line)) continue
+        checked += 1
+        assert.match(
+          line,
+          shielded,
+          `${name} renders authored text without a data-user-content shield: ${line.trim()}`
+        )
+      }
     }
   }
+
+  // A pattern that stops matching anything would make this test pass by
+  // scanning nothing, which is exactly how the shield would go missing.
+  assert.ok(checked >= patterns.length, `the shield scan matched only ${checked} lines`)
 
   // The skip list is what makes the shield work at all.
   const bridge = readFileSync(new URL('LanguageBridge.jsx', componentsDir), 'utf8')

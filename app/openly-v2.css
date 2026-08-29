@@ -454,7 +454,10 @@ body {
   .v2-composer-prompt {
     position: relative;
     display: grid;
-    inline-size: auto;
+    /* `auto` on a button is fit-content, not stretch, so the card collapsed
+       to the width of the words inside it and sat in the corner of an empty
+       band. It is meant to span the column between its margins. */
+    inline-size: calc(100% - 48px);
     block-size: 126px;
     margin: 0 24px 18px;
     padding: 17px 18px;
@@ -610,14 +613,26 @@ body {
   }
 
   .v2-post-card .action-button {
-    min-block-size: 28px;
-    gap: 0;
-    font-size: 11px;
-    font-weight: 650;
+    min-block-size: 32px;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 620;
   }
 
+  /* The icons used to be hidden here, which left the like button as a bare
+     number once a post had a like -- no heart, no word, just "1". Small,
+     quiet glyphs read faster than the words alone and give the row the
+     rhythm a phone app is expected to have. */
   .v2-post-card .action-button svg {
-    display: none;
+    inline-size: 16px;
+    block-size: 16px;
+    opacity: .72;
+  }
+
+  .v2-post-card .action-button.active svg,
+  .v2-post-card .action-button.like.active svg,
+  .v2-post-card .action-button.bookmark.active svg {
+    opacity: 1;
   }
 
   .v2-post-card .action-button.like {
@@ -655,15 +670,23 @@ body {
   }
 
   .mobile-link {
+    display: flex;
     min-block-size: 52px;
-    gap: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
     border-radius: 26px;
-    font-size: 12px;
+    font-size: 10.5px;
     font-weight: 560;
+    letter-spacing: 0;
   }
 
+  /* A tab bar of four words and one dot is not what a phone tab bar looks
+     like. The glyph carries the target; the label under it names it. */
   .mobile-link svg {
-    display: none;
+    inline-size: 21px;
+    block-size: 21px;
   }
 
   .mobile-link.active {
@@ -673,14 +696,10 @@ body {
     font-weight: 720;
   }
 
-  .mobile-link.active::after {
-    content: "";
-    position: absolute;
-    inset-block-end: 8px;
-    inline-size: 5px;
-    block-size: 5px;
-    border-radius: 50%;
-    background: var(--accent);
+  /* The dot stood in for the missing icon. The icon is back, so the active
+     tab is told apart by weight and colour instead of a second marker. */
+  .mobile-link.active {
+    color: var(--accent);
   }
 }
 
@@ -1624,20 +1643,23 @@ body {
   font-feature-settings: "kern" 1, "liga" 1;
 }
 
+/* A fixed, full-viewport layer in `multiply` means the compositor re-blends
+   the entire screen against everything scrolling under it, every frame, on a
+   phone GPU -- the most expensive pixel in the app, spent on a grain nobody
+   can name. It is now painted straight, without a blend mode, at an opacity
+   that reads the same on paper stock. */
 body::before {
   content: "";
   pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 0;
-  opacity: .045;
-  mix-blend-mode: multiply;
+  opacity: .03;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.09  0 0 0 0 0.07  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 
 :root[data-theme="dark"] body::before {
-  opacity: .08;
-  mix-blend-mode: overlay;
+  opacity: .05;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1747,39 +1769,51 @@ body::before {
   to { opacity: 1; transform: none; }
 }
 
+/* `block-size` and `padding` were in this list, and the header is sticky --
+   so collapsing it re-laid out the document on every frame of the animation,
+   during a scroll, behind a backdrop blur. Transform and opacity are the two
+   things a compositor can animate without touching layout, so the collapse
+   now rides on those and the rest of the page stays still. */
 .mobile-header,
 .mobile-nav,
 .desktop-sidebar {
   transition:
     transform 280ms cubic-bezier(.22, 1, .36, 1),
-    block-size 280ms cubic-bezier(.22, 1, .36, 1),
-    padding 280ms cubic-bezier(.22, 1, .36, 1),
     background-color var(--motion),
     border-color var(--motion),
     box-shadow var(--motion);
 }
 
 @media (max-width: 899px) {
-  html.openly-compact .mobile-header {
-    block-size: 58px;
-    padding-block: 10px 8px;
-  }
-
+  /* The header keeps its box and lets the strapline fade out inside it. The
+     old collapse animated the header's own block-size and padding -- on a
+     sticky element, which reflowed the entire page under it on every frame of
+     a scroll, behind a backdrop blur. Opacity and transform are the two
+     things a compositor can animate on its own, and the brand settling into
+     the freed space reads as the same gesture. */
   html.openly-compact .mobile-brand-context {
     opacity: 0;
-    max-block-size: 0;
-    overflow: hidden;
+    transform: translateY(-6px);
+  }
+
+  html.openly-compact .mobile-brand-stack {
+    transform: translateY(9px);
   }
 
   .mobile-brand-context {
-    max-block-size: 24px;
-    transition: opacity 220ms ease, max-block-size 280ms cubic-bezier(.22, 1, .36, 1);
+    transition: opacity 180ms ease, transform 280ms cubic-bezier(.22, 1, .36, 1);
   }
 
-  .mobile-nav {
-    position: relative;
+  .mobile-brand-stack {
+    transition: transform 280ms cubic-bezier(.22, 1, .36, 1);
   }
 
+  /* This used to say `position: relative`, to give the indicator below a box
+     to sit in. A fixed element is already a containing block for its absolute
+     children, so the override bought nothing and cost two things: the tab bar
+     stopped being pinned and rode up the page with the content, and its
+     `inset-inline: 24px` turned from an inset into a 24px nudge, hanging the
+     bar off the edge and giving every screen 24px of sideways scroll. */
   .mobile-nav::before {
     content: "";
     position: absolute;
@@ -1983,8 +2017,53 @@ body::before {
     transition: none !important;
   }
 
-  html.openly-compact .mobile-header {
-    block-size: auto;
+  html.openly-compact .mobile-brand-stack,
+  html.openly-compact .mobile-brand-context {
+    transform: none;
   }
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* The iPhone's own typeface                                                  */
+/* -------------------------------------------------------------------------- */
+
+/* Safari does not expose San Francisco under a family name: `"SF Pro Text"`
+   and `"SF Arabic"` match nothing on iOS, so the stack fell straight through
+   to the Vazirmatn webfont and an iPhone rendered the app in a font that is
+   not its own. `-apple-system` is the only name that reaches it, and on Apple
+   platforms it resolves per script by itself -- SF Pro for Latin, SF Arabic
+   for Arabic -- which is exactly the pairing the V2 frames were drawn in.
+
+   It cannot simply go first in the shared stack: on Android and Linux the
+   generic system font already carries Arabic glyphs, so anything resolving
+   before Vazirmatn would stop it from ever loading and leave those platforms
+   on Noto. `font: -apple-system-body` is a system-font keyword only Apple's
+   engine understands, so this override reaches Apple devices and nothing
+   else. Every other platform keeps the stack above, unchanged. */
+@supports (font: -apple-system-body) {
+  :root,
+  :root[dir="rtl"],
+  :root[dir="ltr"] {
+    --font-openly: -apple-system, "SF Pro Text", "SF Arabic", system-ui, sans-serif;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Rendering cost — a feed has to stay cheap as it grows                      */
+/* -------------------------------------------------------------------------- */
+
+/* Every page of posts stays in the document, so by the third page the browser
+   lays out and paints a hundred cards it cannot show. A card that is nowhere
+   near the viewport skips both until it is. `auto` in the intrinsic size makes
+   each card remember its real height once rendered, so the scrollbar and the
+   scroll position stay honest while it is skipped.
+
+   The card is also a self-contained box -- a like, an inline edit or a body
+   that reflows changes nothing outside it -- so its layout stops invalidating
+   the rest of the timeline. */
+.post-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
+  contain: layout style;
+}

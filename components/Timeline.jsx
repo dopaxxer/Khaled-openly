@@ -1,7 +1,8 @@
 'use client'
 import { RotateCcw } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { PostCard } from './PostCard'
+import { fetchViewer } from '@/lib/viewer'
 
 function FeedSkeleton() {
   return <div className="feed-skeleton" aria-label="جارِ تحميل المنشورات">
@@ -23,6 +24,9 @@ export function Timeline({
 }) {
   const [posts, setPosts] = useState([])
   const [engagement, setEngagement] = useState({})
+  // Cards hold off on their own engagement lookup while the batch below is in
+  // flight, so a page of thirty posts costs one request instead of thirty-one.
+  const [engagementPending, setEngagementPending] = useState(true)
   const [cursor, setCursor] = useState(null)
   const [loading, setLoading] = useState(true)
   const [moreLoading, setMoreLoading] = useState(false)
@@ -31,7 +35,7 @@ export function Timeline({
   const loadGeneration = useRef(0)
   const sentinelRef = useRef(null)
 
-  async function load(next = null, signal = undefined) {
+  const load = useCallback(async function load(next = null, signal = undefined) {
     const generation = ++loadGeneration.current
     next ? setMoreLoading(true) : setLoading(true)
     setError('')
@@ -43,19 +47,28 @@ export function Timeline({
       if (!res.ok) throw new Error(data.error || 'تعذر تحميل المنشورات')
       if (generation !== loadGeneration.current) return
       const incoming = data.items || []
-      setPosts(old => next ? [...old, ...incoming.filter(p => !old.some(x => x.id === p.id))] : incoming)
+      setPosts(old => {
+        if (!next) return incoming
+        const known = new Set(old.map(post => post.id))
+        return [...old, ...incoming.filter(post => !known.has(post.id))]
+      })
       setCursor(data.nextCursor || null)
       if (incoming.length) {
+        setEngagementPending(true)
         const er = await fetch(`/api/engagement?ids=${encodeURIComponent(incoming.map(p => p.id).join(','))}`, { cache: 'no-store', signal })
         if (generation !== loadGeneration.current) return
         if (er.ok) {
           const ed = await er.json()
           setEngagement(old => ({ ...old, ...Object.fromEntries((ed.items || []).map(x => [x.postId, x])) }))
         }
+        setEngagementPending(false)
+      } else {
+        setEngagementPending(false)
       }
     } catch (e) {
       if (e?.name === 'AbortError') return
       if (generation !== loadGeneration.current) return
+      setEngagementPending(false)
       setError(e.message || 'تعذر تحميل المنشورات')
     } finally {
       if (generation === loadGeneration.current) {
@@ -63,21 +76,20 @@ export function Timeline({
         setMoreLoading(false)
       }
     }
-  }
+  }, [endpoint])
 
   useEffect(() => {
     const controller = new AbortController()
     load(null, controller.signal)
     return () => controller.abort()
-  }, [endpoint, refreshToken])
+  }, [load, refreshToken])
 
   useEffect(() => {
-    const controller = new AbortController()
-    fetch('/api/auth/me', { cache: 'no-store', signal: controller.signal })
-      .then(r => r.ok ? r.json() : { user: null })
-      .then(d => setViewerCode(d.user?.publicCode || null))
+    let cancelled = false
+    fetchViewer()
+      .then(user => { if (!cancelled) setViewerCode(user?.publicCode || null) })
       .catch(() => {})
-    return () => controller.abort()
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
@@ -89,14 +101,22 @@ export function Timeline({
     }, { rootMargin: '640px 0px' })
     observer.observe(node)
     return () => observer.disconnect()
-  }, [cursor, loading, moreLoading, posts.length])
+  }, [load, cursor, loading, moreLoading])
 
   if (loading) return <FeedSkeleton />
   if (error && !posts.length) return <div className="empty-state"><div><p>{error}</p><button className="secondary-button mt16" onClick={() => load()}><RotateCcw size={16} aria-hidden="true"/>المحاولة مجددًا</button></div></div>
   if (!posts.length) return <div className="empty-state"><div><p>{empty}</p></div></div>
 
   return <div aria-live="polite">
-    {posts.map(post => <PostCard key={post.id} post={post} initialEngagement={engagement[post.id] || null} viewerCode={viewerCode} onChanged={() => load()}/>)}
+    {/* `load` is stable, so a card only re-renders when its own props move. */}
+    {posts.map(post => <PostCard
+      key={post.id}
+      post={post}
+      initialEngagement={engagement[post.id] || null}
+      engagementPending={engagementPending}
+      viewerCode={viewerCode}
+      onChanged={load}
+    />)}
     <div className="feed-footer">
       {cursor
         ? <>

@@ -2,15 +2,19 @@
 import Link from 'next/link'
 import { Bold, Bookmark, Flag, Heart, Italic, List, MessageCircle, Pencil, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
-import { Avatar } from './Avatar'
+import { memo, useEffect, useRef, useState } from 'react'
 import { MentionField } from './MentionField'
 import { TrackAttachment } from './TrackAttachment'
 import { renderRichText } from '@/lib/richText'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
 import { POST_MAX_LENGTH } from '@/lib/validation'
 
-export function PostCard({ post, initialEngagement = null, viewerCode = null, onChanged = null }) {
+// Building an Intl formatter is the expensive half of formatting a date, and
+// a feed renders one per card on every render. One shared instance is enough:
+// the format never varies.
+const timeFormat = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' })
+
+function PostCardView({ post, initialEngagement = null, viewerCode = null, onChanged = null, engagementPending = false }) {
   const router = useRouter()
   const [eng, setEng] = useState(initialEngagement || { likeCount: post.likeCount || 0, viewerHasLiked: false, viewerHasBookmarked: false })
   const [busy, setBusy] = useState('')
@@ -41,11 +45,17 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
       setEng(initialEngagement)
       return
     }
-    fetch(`/api/engagement?ids=${encodeURIComponent(post.id)}`, { cache: 'no-store' })
+    // A feed asks for the whole page's engagement in one request. Without this
+    // guard every card on screen would race it with a single-id request of its
+    // own -- thirty round trips to learn what one already answers.
+    if (engagementPending) return
+    const controller = new AbortController()
+    fetch(`/api/engagement?ids=${encodeURIComponent(post.id)}`, { cache: 'no-store', signal: controller.signal })
       .then(r => r.ok ? r.json() : null)
       .then(data => data?.items?.[0] && setEng(data.items[0]))
       .catch(() => {})
-  }, [post.id, initialEngagement])
+    return () => controller.abort()
+  }, [post.id, initialEngagement, engagementPending])
 
   useEffect(() => {
     setDisplayBody(post.body)
@@ -107,7 +117,7 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
 
   if (gone) return null
 
-  const time = new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.createdAt))
+  const time = timeFormat.format(new Date(post.createdAt))
   return <article className="post-card v2-post-card">
     <div className="v2-post-head">
       <Link href={`/u/${post.authorCode}`} className="v2-post-identity" aria-label={`صفحة ${post.authorCode}`}>
@@ -150,7 +160,7 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
 
       <div className="post-actions">
         <Link href={`/post/${post.id}`} className="action-button"><MessageCircle size={16} strokeWidth={1.7}/><span>{post.commentCount ? `${post.commentCount} تعليق` : 'تعليق'}</span></Link>
-        <button className={`action-button like${eng.viewerHasLiked ? ' active' : ''}`} onClick={() => toggle('like', !eng.viewerHasLiked)} disabled={busy === 'like'} aria-pressed={eng.viewerHasLiked}><Heart key={likeBurst} size={16} strokeWidth={1.7} fill={eng.viewerHasLiked ? 'currentColor' : 'none'}/><span>{eng.likeCount || 'إعجاب'}</span></button>
+        <button className={`action-button like${eng.viewerHasLiked ? ' active' : ''}`} onClick={() => toggle('like', !eng.viewerHasLiked)} disabled={busy === 'like'} aria-pressed={eng.viewerHasLiked}><Heart key={likeBurst} size={16} strokeWidth={1.7} fill={eng.viewerHasLiked ? 'currentColor' : 'none'}/><span>{eng.likeCount ? `${eng.likeCount} إعجاب` : 'إعجاب'}</span></button>
         <button className={`action-button bookmark${eng.viewerHasBookmarked ? ' active' : ''}`} onClick={() => toggle('bookmark', !eng.viewerHasBookmarked)} disabled={busy === 'bookmark'} aria-pressed={eng.viewerHasBookmarked}><Bookmark size={16} strokeWidth={1.7} fill={eng.viewerHasBookmarked ? 'currentColor' : 'none'}/><span>{eng.viewerHasBookmarked ? 'محفوظ' : 'حفظ'}</span></button>
         {isOwner
           ? <>
@@ -162,3 +172,9 @@ export function PostCard({ post, initialEngagement = null, viewerCode = null, on
     </div>
   </article>
 }
+
+// A feed re-renders whenever any of its own state moves -- another page of
+// posts, the viewer's code arriving, a batch of engagement counts. None of
+// that changes a card whose props are the same, and re-rendering thirty cards
+// means re-running the rich-text pass on thirty bodies.
+export const PostCard = memo(PostCardView)

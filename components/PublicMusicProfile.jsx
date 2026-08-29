@@ -12,6 +12,7 @@ function PublicTrack({ track }) {
           width={52}
           height={52}
           loading="lazy"
+          decoding="async"
           referrerPolicy="no-referrer"
           style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 10, flex: '0 0 auto' }}
         />

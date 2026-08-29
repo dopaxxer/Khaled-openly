@@ -46,6 +46,7 @@ function Cover({ track, size = 52 }) {
         width={size}
         height={size}
         loading="lazy"
+        decoding="async"
         referrerPolicy="no-referrer"
         style={{ width: size, height: size, objectFit: 'cover', borderRadius: 10, flex: '0 0 auto' }}
       />

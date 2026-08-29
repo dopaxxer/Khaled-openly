@@ -7,6 +7,7 @@ import { Avatar } from './Avatar'
 import { MentionField } from './MentionField'
 import { toggleListPrefix, toggleWrap } from '@/lib/textFormatting'
 import { POST_MAX_LENGTH } from '@/lib/validation'
+import { fetchViewer } from '@/lib/viewer'
 
 const MAX_LENGTH = POST_MAX_LENGTH
 
@@ -35,10 +36,11 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   const trackSearchTicket = useRef(0)
 
   useEffect(() => {
-    fetch('/api/auth/me', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : { user: null })
-      .then(d => setViewer(d.user || null))
+    let cancelled = false
+    fetchViewer()
+      .then(user => { if (!cancelled) setViewer(user) })
       .catch(() => {})
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
@@ -216,6 +218,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
                     alt=""
                     width={48}
                     height={48}
+                    decoding="async"
                     referrerPolicy="no-referrer"
                   />
                 : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
@@ -276,6 +279,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
                               width={48}
                               height={48}
                               loading="lazy"
+                              decoding="async"
                               referrerPolicy="no-referrer"
                             />
                           : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
