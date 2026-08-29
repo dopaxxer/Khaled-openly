@@ -502,6 +502,13 @@ function englishDynamic(value) {
   if (match) return `Joined ${match[1]}`
   match = value.match(/^(\d+) متابع$/)
   if (match) return `${match[1]} follower${match[1] === '1' ? '' : 's'}`
+  // A post's counters are built from a number and a word, so they can only be
+  // translated here. The like button used to show the bare number and slipped
+  // past this; the comment count never had an entry at all.
+  match = value.match(/^(\d+) إعجاب$/)
+  if (match) return `${match[1]} like${match[1] === '1' ? '' : 's'}`
+  match = value.match(/^(\d+) تعليق$/)
+  if (match) return `${match[1]} comment${match[1] === '1' ? '' : 's'}`
   match = value.match(/^تطابق (.+)$/)
   if (match) return `Connected ${match[1]}`
   match = value.match(/^حدث تطابق بينك وبين (.+)\. الاختيار كان متبادلًا\.$/)

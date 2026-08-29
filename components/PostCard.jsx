@@ -160,7 +160,7 @@ function PostCardView({ post, initialEngagement = null, viewerCode = null, onCha
 
       <div className="post-actions">
         <Link href={`/post/${post.id}`} className="action-button"><MessageCircle size={16} strokeWidth={1.7}/><span>{post.commentCount ? `${post.commentCount} تعليق` : 'تعليق'}</span></Link>
-        <button className={`action-button like${eng.viewerHasLiked ? ' active' : ''}`} onClick={() => toggle('like', !eng.viewerHasLiked)} disabled={busy === 'like'} aria-pressed={eng.viewerHasLiked}><Heart key={likeBurst} size={16} strokeWidth={1.7} fill={eng.viewerHasLiked ? 'currentColor' : 'none'}/><span>{eng.likeCount || 'إعجاب'}</span></button>
+        <button className={`action-button like${eng.viewerHasLiked ? ' active' : ''}`} onClick={() => toggle('like', !eng.viewerHasLiked)} disabled={busy === 'like'} aria-pressed={eng.viewerHasLiked}><Heart key={likeBurst} size={16} strokeWidth={1.7} fill={eng.viewerHasLiked ? 'currentColor' : 'none'}/><span>{eng.likeCount ? `${eng.likeCount} إعجاب` : 'إعجاب'}</span></button>
         <button className={`action-button bookmark${eng.viewerHasBookmarked ? ' active' : ''}`} onClick={() => toggle('bookmark', !eng.viewerHasBookmarked)} disabled={busy === 'bookmark'} aria-pressed={eng.viewerHasBookmarked}><Bookmark size={16} strokeWidth={1.7} fill={eng.viewerHasBookmarked ? 'currentColor' : 'none'}/><span>{eng.viewerHasBookmarked ? 'محفوظ' : 'حفظ'}</span></button>
         {isOwner
           ? <>

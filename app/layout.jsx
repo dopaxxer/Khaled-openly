@@ -15,11 +15,17 @@ import { headers } from 'next/headers'
 // listed after -apple-system never loads. Apple still hits local SF first.
 // Vazirmatn is the variable webfont fallback — same humanist Arabic sans as
 // SF Arabic, with real weights for 450/650 so the UI does not faux-bold.
+// Apple devices now resolve San Francisco through `-apple-system` (see the
+// @supports block in openly-v2.css) and never reference this face, so it is
+// no longer preloaded: an iPhone was downloading a webfont it would not draw
+// a single glyph with. Everywhere else the browser still fetches it as soon
+// as it parses the stylesheet that uses it.
 const arabicFallback = Vazirmatn({
   subsets: ['arabic', 'latin'],
   display: 'swap',
   variable: '--font-arabic',
-  adjustFontFallback: false
+  adjustFontFallback: false,
+  preload: false
 })
 
 export const dynamic = 'force-dynamic'
