@@ -63,3 +63,23 @@ test('every scope the API uses has a configured budget', () => {
   assert.ok(RATE_LIMITS.artistCreate.limit < RATE_LIMITS.musicSearch.limit)
   assert.ok(RATE_LIMITS.musicWrite.limit < RATE_LIMITS.musicSearch.limit)
 })
+
+test('a flood of distinct keys inside one window cannot grow the map without limit', () => {
+  // Sweeping only removes windows that have already closed, so a burst of
+  // fresh keys expired nothing and the documented ceiling held no bound at
+  // all: 20000 anonymous addresses inside one minute kept 20000 live buckets.
+  resetRateLimits()
+  const options = { limit: 60, windowMs: 60_000 }
+  const flood = 20_000
+  for (let index = 0; index < flood; index += 1) {
+    consumeRateLimit(`scope:ip:10.0.${(index >> 8) & 255}.${index & 255}`, options)
+  }
+
+  // A key whose bucket survived answers its second hit with limit - 2 left.
+  let tracked = 0
+  for (let index = 0; index < flood; index += 1) {
+    const result = consumeRateLimit(`scope:ip:10.0.${(index >> 8) & 255}.${index & 255}`, options)
+    if (result.remaining === options.limit - 2) tracked += 1
+  }
+  assert.ok(tracked <= 5000, `expected at most 5000 tracked buckets, found ${tracked}`)
+})

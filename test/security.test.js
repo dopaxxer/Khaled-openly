@@ -61,6 +61,44 @@ test('bodyless actions accept a zero-length runtime stream', async () => {
   assert.deepEqual(await readJson(request), { data: {} })
 })
 
+test('a JSON body with no declared length is read, not discarded', async () => {
+  // `Number(null)` is 0, so an absent Content-Length used to read as a
+  // zero-length body: a chunked or streamed request lost every field it sent
+  // and the route rejected it for input the caller had actually supplied.
+  const body = JSON.stringify({ publicCode: 'ABCD', enabled: true })
+  const request = new Request('https://openly.ink/api/v1/messages', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(body))
+        controller.close()
+      }
+    }),
+    duplex: 'half'
+  })
+
+  assert.equal(request.headers.get('content-length'), null, 'a streamed body declares no length')
+  assert.deepEqual(await readJson(request), { data: { publicCode: 'ABCD', enabled: true } })
+})
+
+test('an undeclared body over the cap is still refused', async () => {
+  const oversized = JSON.stringify({ body: 'x'.repeat(4096) })
+  const request = new Request('https://openly.ink/api/posts', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(oversized))
+        controller.close()
+      }
+    }),
+    duplex: 'half'
+  })
+
+  assert.equal((await readJson(request, 1024)).status, 413)
+})
+
 test('CSP permits Apple previews without weakening script-src', () => {
   const source = readFileSync(new URL('../proxy.js', import.meta.url), 'utf8')
   assert.match(source, /"media-src 'self' https:\/\/\*\.mzstatic\.com"/)
