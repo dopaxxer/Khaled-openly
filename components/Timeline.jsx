@@ -93,7 +93,9 @@ export function Timeline({
   }, [])
 
   useEffect(() => {
-    if (!cursor || loading || moreLoading) return
+    // Leave a failed page to the explicit retry button. Re-observing a visible
+    // sentinel after each failure otherwise starts an endless request loop.
+    if (!cursor || loading || moreLoading || error) return
     const node = sentinelRef.current
     if (!node) return
     const observer = new IntersectionObserver(entries => {
@@ -101,7 +103,7 @@ export function Timeline({
     }, { rootMargin: '640px 0px' })
     observer.observe(node)
     return () => observer.disconnect()
-  }, [load, cursor, loading, moreLoading])
+  }, [load, cursor, loading, moreLoading, error])
 
   if (loading) return <FeedSkeleton />
   if (error && !posts.length) return <div className="empty-state"><div><p>{error}</p><button className="secondary-button mt16" onClick={() => load()}><RotateCcw size={16} aria-hidden="true"/>المحاولة مجددًا</button></div></div>
