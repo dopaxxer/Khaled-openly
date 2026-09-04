@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { LanguageControl } from './LanguageBridge'
-import { COLOR_THEME_STORAGE_KEY, COLOR_THEMES, THEME_STORAGE_KEY, isColorTheme, isThemePreference } from '@/lib/theme'
+import { COLOR_THEME_STORAGE_KEY, COLOR_THEMES, DEFAULT_COLOR_THEME, THEME_STORAGE_KEY, isColorTheme, isThemePreference } from '@/lib/theme'
 
 const OPTIONS = [
   { value: 'system', label: 'حسب الجهاز' },
@@ -25,7 +25,7 @@ function applyMode(preference) {
   // after an override — resolve and write it through, or the phone's status
   // bar ends up the opposite of the page.
   for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
-    meta.content = resolved === 'dark' ? '#05070f' : '#f5f5f4'
+    meta.content = resolved === 'dark' ? '#111521' : '#f5f6fa'
   }
 
   try {
@@ -39,12 +39,10 @@ function applyMode(preference) {
 
 function applyColor(value) {
   const root = document.documentElement
-  if (value === 'crimson') root.removeAttribute('data-color-theme')
-  else root.setAttribute('data-color-theme', value)
+  root.setAttribute('data-color-theme', value)
 
   try {
-    if (value === 'crimson') localStorage.removeItem(COLOR_THEME_STORAGE_KEY)
-    else localStorage.setItem(COLOR_THEME_STORAGE_KEY, value)
+    localStorage.setItem(COLOR_THEME_STORAGE_KEY, value)
   } catch {
     // Same as the mode preference above — applies for this visit only.
   }
@@ -56,7 +54,7 @@ export function ThemeControl() {
   // be a hydration mismatch. The page is already correct by then: the boot
   // script in app/layout.jsx stamped both attributes before paint.
   const [preference, setPreference] = useState('system')
-  const [color, setColor] = useState('crimson')
+  const [color, setColor] = useState(DEFAULT_COLOR_THEME)
 
   useEffect(() => {
     try {

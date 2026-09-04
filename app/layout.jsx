@@ -1,6 +1,7 @@
 import './globals.css'
 import './ios-polish.css'
 import './openly-v2.css'
+import './interface.css'
 import { AppShell } from '@/components/AppShell'
 import { DeviceVisitTracker } from '@/components/DeviceVisitTracker'
 import { LanguageBridge } from '@/components/LanguageBridge'
@@ -61,8 +62,8 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f7f4ee' },
-    { media: '(prefers-color-scheme: dark)', color: '#141210' }
+    { media: '(prefers-color-scheme: light)', color: '#f5f6fa' },
+    { media: '(prefers-color-scheme: dark)', color: '#111521' }
   ]
 }
 

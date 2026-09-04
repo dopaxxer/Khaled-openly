@@ -6,6 +6,19 @@ import { useEffect, useState } from 'react'
 export const LANGUAGE_STORAGE_KEY = 'openly.language'
 
 const EN = {
+  'openly — الرئيسية': 'openly — Home',
+  'انتقل إلى المحتوى': 'Skip to content',
+  'اكتب شيئًا': 'Write something',
+  'اكتشف المزيد': 'Explore more',
+  'بينكم شيء مشترك.': 'Something in common.',
+  'أغنية، كتاب، أو فكرة. اكتشف أشخاصًا يشاركونك ما تحب.': 'A song, a book, an idea. Find people who love what you love.',
+  'ابدأ الاكتشاف': 'Start exploring',
+  'أقرب إلى ذوقك': 'More your kind of thing',
+  'هويتك لون وكود. والمساحة لكلماتك.': 'A color and a code for you. A space for your words.',
+  'مساحة للكلام الذي يشبهك.': 'A little more you. A little more openly.',
+  'فكرة عابرة، أغنية تحبها، أو بداية حديث.': 'A passing thought, a favorite song, a conversation waiting to happen.',
+  'آخر الكتابات': 'Latest thoughts',
+  'الأحدث أولًا': 'Newest first',
   'الرئيسية': 'Home',
   'بحث': 'Search',
   'مسح البحث': 'Clear search',
