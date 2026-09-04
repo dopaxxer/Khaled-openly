@@ -23,7 +23,10 @@ export async function POST(request) {
   const supabase = await createSupabaseServerClient()
   const origin = getPublicOrigin(request)
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/api/auth/callback?next=/auth/update-password?recovery=1`
+    // The nested query has to be encoded: unencoded, `?recovery=1` parsed as a
+    // parameter of the callback itself, so `next` arrived as a bare
+    // `/auth/update-password` and the flag was dropped on the way through.
+    redirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent('/auth/update-password?recovery=1')}`
   })
 
   if (error?.code === 'over_email_send_rate_limit') {

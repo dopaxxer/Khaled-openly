@@ -115,3 +115,40 @@ test('text a person authored is exempt from the language bridge', () => {
   assert.match(bridge, /\.comment-body/)
   assert.match(bridge, /\[data-user-content\]/)
 })
+
+test('Arabic-first components do not ship fixed English interface copy', () => {
+  const source = componentFiles()
+    .filter(name => name !== 'LanguageBridge.jsx')
+    .map(name => stripComments(readFileSync(new URL(name, componentsDir), 'utf8')))
+    .join('\n')
+
+  const fixedEnglishCopy = [
+    'Welcome to openly',
+    'A public space for thoughts, taste and conversation.',
+    'Continue with Apple',
+    'Continue with Google',
+    '>Post<',
+    'First post',
+    'New post',
+    'Write first. Add context only if it helps.',
+    '>Notifications<',
+    'Only things that need your attention',
+    'liked your post',
+    'mentioned you',
+    'replied to your post',
+    'No badges for noise.',
+    '>Bookmarks<',
+    'Private. Only you can see what you save.',
+    '>Taste<',
+    'Music, books and films are part of the profile',
+    '>Posts<',
+    'Popular cultural threads',
+    'songs that feel like leaving',
+    'books you read too young',
+    'films that changed after a breakup',
+    'shared taste'
+  ]
+
+  const found = fixedEnglishCopy.filter(value => source.includes(value))
+  assert.deepEqual(found, [], `fixed English copy bypasses Arabic localization: ${found.join(' | ')}`)
+})

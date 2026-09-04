@@ -69,7 +69,15 @@ test('the composer attachment flow is fully translated', () => {
     'جارِ الإرفاق…',
     'اختيار',
     'تعذر إرفاق الأغنية',
-    'تعذر البحث عن الأغاني'
+    'تعذر البحث عن الأغاني',
+    'إرفاق أغنية',
+    'ابحث في كتالوج Apple Music واختر نتيجة واحدة.',
+    'إغلاق البحث عن الأغاني',
+    'سجّل الدخول لإرفاق أغنية',
+    'يلزم حساب Openly لحفظ الأغنية ونشرها مع كلماتك.',
+    'سجّل الدخول للمشاركة',
+    'اكتب منشورًا وأرفق أغنية تحبها.',
+    'دخول'
   ]
 
   const unused = strings.filter(value => !composer.includes(value))
@@ -77,6 +85,13 @@ test('the composer attachment flow is fully translated', () => {
 
   const missing = strings.filter(value => !hasEntry(value))
   assert.deepEqual(missing, [], `untranslated interface copy: ${missing.join(' | ')}`)
+})
+
+test('the composer handles an expired or missing session before searching music', () => {
+  assert.match(composer, /response\.status === 401/)
+  assert.match(composer, /setTrackAuthRequired\(true\)/)
+  assert.match(composer, /trackAuthRequired[\s\S]*سجّل الدخول لإرفاق أغنية/)
+  assert.match(composer, /viewerResolved && !viewer/)
 })
 
 test('catalog metadata is exempt from the language bridge', () => {

@@ -80,14 +80,14 @@ export function MeScreen() {
       {user.bio && <p className="profile-bio" data-user-content="">{user.bio}</p>}
 
       <p className="v2-profile-stats">
-        <strong>{count ?? '—'}</strong> followers
+        <strong>{count ?? '—'}</strong> <span>متابعون</span>
         <span aria-hidden="true"> · </span>
-        <strong>{following.length}</strong> following
+        <strong>{following.length}</strong> <span>يتابعهم</span>
       </p>
     </section>
 
     <section className="v2-profile-taste">
-      <span className="v2-profile-kicker">Taste</span>
+      <span className="v2-profile-kicker">الذوق</span>
       <div className="v2-profile-taste-links">
         <Link href="/music">ذوقي الموسيقي</Link>
         <span aria-hidden="true">·</span>
@@ -95,10 +95,10 @@ export function MeScreen() {
         <span aria-hidden="true">·</span>
         <Link href="/bookmarks">المحفوظات</Link>
       </div>
-      <p>Music, books and films are part of the profile — not separate badges.</p>
+      <p>الموسيقى والكتب والأفلام جزء من الملف، وليست شارات منفصلة.</p>
     </section>
 
-    <div className="v2-profile-posts-title">Posts</div>
+    <div className="v2-profile-posts-title">المنشورات</div>
     <Timeline endpoint={`/api/posts?author=${encodeURIComponent(user.publicCode)}`} empty="لا توجد منشورات." />
 
     <details className="v2-profile-controls">

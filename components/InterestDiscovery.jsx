@@ -459,18 +459,18 @@ export function InterestDiscovery() {
           <span className="v2-taste-copy">
             <strong>{match.publicCode}</strong>
             <span data-user-content="">
-              {match.sharedItems?.slice(0, 3).map(item => item.label).join(' · ') || `${match.compatibility}% shared taste`}
+              {match.sharedItems?.slice(0, 3).map(item => item.label).join(' · ') || `${match.compatibility}%`}
             </span>
           </span>
           <span className="v2-taste-score" dir="ltr">{match.compatibility}%</span>
         </Link>)}
       </div>
 
-      <div className="v2-explore-section-title">Popular cultural threads</div>
+      <div className="v2-explore-section-title">مواضيع ثقافية رائجة</div>
       <div className="v2-cultural-threads">
-        <Link href="/search?q=songs" className="v2-cultural-thread">songs that feel like leaving</Link>
-        <Link href="/search?q=books" className="v2-cultural-thread">books you read too young</Link>
-        <Link href="/search?q=films" className="v2-cultural-thread">films that changed after a breakup</Link>
+        <Link href="/search?q=songs" className="v2-cultural-thread">أغانٍ تشبه شعور الرحيل</Link>
+        <Link href="/search?q=books" className="v2-cultural-thread">كتب قرأتها في سن مبكرة جدًا</Link>
+        <Link href="/search?q=films" className="v2-cultural-thread">أفلام تغيّرت بعد الانفصال</Link>
       </div>
 
       <div className="feed-footer">

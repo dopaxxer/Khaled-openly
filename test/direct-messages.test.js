@@ -105,3 +105,13 @@ test('message migration enforces privacy, block checks and idempotency', () => {
   assert.match(presenceMigration, /touch_direct_message_presence/)
   assert.match(presenceMigration, /get_direct_messages_after/)
 })
+
+test('switching threads clears cursors and rejects stale responses', () => {
+  const source = readFileSync(new URL('../components/DirectMessages.jsx', import.meta.url), 'utf8')
+
+  assert.match(source, /activeConversationId\.current !== conversationId/)
+  assert.match(source, /latestCursor\.current = null/)
+  assert.match(source, /setOlderCursor\(null\)/)
+  assert.match(source, /setHasMore\(false\)/)
+  assert.match(source, /setPresence\(\{ online: false, typing: false \}\)/)
+})

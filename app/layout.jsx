@@ -36,7 +36,7 @@ export const metadata = {
     default: 'Openly',
     template: '%s · Openly'
   },
-  description: 'شبكة نصية عامة بلا رسائل خاصة وبلا خوارزمية ترتيب.',
+  description: 'شبكة نصية عامة للأفكار والذوق والمحادثة، بلا خوارزمية ترتيب.',
   applicationName: 'Openly',
   alternates: { canonical: '/' },
   robots: { index: true, follow: true },
@@ -46,14 +46,14 @@ export const metadata = {
     url: '/',
     siteName: 'Openly',
     title: 'Openly',
-    description: 'شبكة نصية عامة بلا رسائل خاصة وبلا خوارزمية ترتيب.',
+    description: 'شبكة نصية عامة للأفكار والذوق والمحادثة، بلا خوارزمية ترتيب.',
     locale: 'ar_AR',
     alternateLocale: ['en_US']
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Openly',
-    description: 'شبكة نصية عامة بلا رسائل خاصة وبلا خوارزمية ترتيب.'
+    description: 'شبكة نصية عامة للأفكار والذوق والمحادثة، بلا خوارزمية ترتيب.'
   }
 }
 

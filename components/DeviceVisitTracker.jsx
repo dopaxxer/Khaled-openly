@@ -3,6 +3,10 @@
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 
+const VISIT_DEDUPE_KEY = 'openly:recent-device-visits'
+const VISIT_DEDUPE_MS = 10_000
+const MAX_RECENT_VISITS = 32
+
 function detectBrowser(ua) {
   const rules = [
     ['Edge', /EdgA?\/(\d+(?:\.\d+)*)/],
@@ -68,6 +72,31 @@ function getSessionId() {
   }
 }
 
+function shouldTrackVisit(pathname, now) {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(VISIT_DEDUPE_KEY) || '[]')
+    const recent = Array.isArray(parsed)
+      ? parsed.filter(item => Array.isArray(item) && typeof item[0] === 'string' &&
+        Number.isFinite(Number(item[1])) && now - Number(item[1]) < VISIT_DEDUPE_MS)
+      : []
+    const previous = recent.find(([path]) => path === pathname)
+    if (previous && now - Number(previous[1]) < VISIT_DEDUPE_MS) return false
+
+    // One bounded value replaces the old one-key-per-path layout. A long
+    // browsing session can now visit any number of pages without permanently
+    // growing sessionStorage.
+    const next = recent
+      .filter(([path]) => path !== pathname)
+      .slice(-(MAX_RECENT_VISITS - 1))
+    next.push([pathname, now])
+    sessionStorage.setItem(VISIT_DEDUPE_KEY, JSON.stringify(next))
+    return true
+  } catch {
+    // Analytics must not block navigation when storage is unavailable.
+    return true
+  }
+}
+
 export function DeviceVisitTracker() {
   const pathname = usePathname()
 
@@ -78,11 +107,8 @@ export function DeviceVisitTracker() {
 
     async function track() {
       try {
-        const dedupeKey = `openly:last-device-visit:${pathname}`
         const now = Date.now()
-        const previous = Number(sessionStorage.getItem(dedupeKey) || 0)
-        if (now - previous < 10000) return
-        sessionStorage.setItem(dedupeKey, String(now))
+        if (!shouldTrackVisit(pathname, now)) return
 
         const ua = navigator.userAgent || ''
         const platform = navigator.platform || navigator.userAgentData?.platform || null

@@ -1,5 +1,5 @@
 'use client'
-import { ArrowLeft, Bold, Italic, List, Music2, Search, Send, X } from 'lucide-react'
+import { ArrowLeft, Bold, Italic, List, LogIn, Music2, Search, Send, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -24,6 +24,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [viewer, setViewer] = useState(null)
+  const [viewerResolved, setViewerResolved] = useState(false)
   const [showTrackSearch, setShowTrackSearch] = useState(false)
   const [trackQuery, setTrackQuery] = useState('')
   const [trackResults, setTrackResults] = useState([])
@@ -31,6 +32,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   const [trackSearchDone, setTrackSearchDone] = useState(false)
   const [trackSaving, setTrackSaving] = useState('')
   const [trackError, setTrackError] = useState('')
+  const [trackAuthRequired, setTrackAuthRequired] = useState(false)
   const [selectedTrack, setSelectedTrack] = useState(null)
   const textareaRef = useRef(null)
   const trackSearchTicket = useRef(0)
@@ -40,15 +42,25 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
     fetchViewer()
       .then(user => { if (!cancelled) setViewer(user) })
       .catch(() => {})
+      .finally(() => { if (!cancelled) setViewerResolved(true) })
     return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
     const term = trackQuery.trim()
-    if (!showTrackSearch || !term) {
+    if (!showTrackSearch || !term || !viewerResolved) {
       setTrackResults([])
       setTrackSearching(false)
       setTrackSearchDone(false)
+      return
+    }
+
+    if (!viewer) {
+      setTrackResults([])
+      setTrackSearching(false)
+      setTrackSearchDone(false)
+      setTrackError('')
+      setTrackAuthRequired(true)
       return
     }
 
@@ -58,12 +70,19 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
       setTrackSearching(true)
       setTrackSearchDone(false)
       setTrackError('')
+      setTrackAuthRequired(false)
       try {
         const response = await fetch(
           `/api/v1/music/tracks/search?q=${encodeURIComponent(term)}`,
           { cache: 'no-store', signal: controller.signal }
         )
         const data = await response.json().catch(() => ({}))
+        if (response.status === 401) {
+          setTrackAuthRequired(true)
+          setTrackResults([])
+          setTrackSearchDone(false)
+          return
+        }
         if (!response.ok) throw new Error(data.error || 'تعذر البحث عن الأغاني')
         if (ticket === trackSearchTicket.current) {
           setTrackResults(Array.isArray(data.items) ? data.items : [])
@@ -84,7 +103,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
       clearTimeout(timer)
       controller.abort()
     }
-  }, [showTrackSearch, trackQuery])
+  }, [showTrackSearch, trackQuery, viewer, viewerResolved])
 
   // Starts small and grows with the text instead of opening as one large box —
   // the CSS max-height caps it so a long post scrolls internally rather than
@@ -124,12 +143,14 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
       })
       const data = await response.json().catch(() => ({}))
       if (response.status === 401) {
-        router.push('/login')
+        setTrackAuthRequired(true)
+        setShowTrackSearch(true)
         return
       }
       if (!response.ok || !data.track?.id) throw new Error(data.error || 'تعذر إرفاق الأغنية')
       setSelectedTrack(data.track)
       setShowTrackSearch(false)
+      setTrackAuthRequired(false)
       setTrackQuery('')
       setTrackResults([])
     } catch (trackSaveError) {
@@ -172,20 +193,31 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
     }
   }
 
+  if (inline && !open && viewerResolved && !viewer) {
+    return <Link href="/login" className="composer-prompt composer-guest-prompt panel v2-composer-prompt">
+      <span className="composer-guest-icon" aria-hidden="true"><LogIn size={17}/></span>
+      <span className="v2-composer-prompt-copy">
+        <strong>سجّل الدخول للمشاركة</strong>
+        <span>اكتب منشورًا وأرفق أغنية تحبها.</span>
+      </span>
+      <span className="v2-composer-prompt-post">دخول</span>
+    </Link>
+  }
+
   if (inline && !open) {
     return <button type="button" className="composer-prompt panel v2-composer-prompt" onClick={() => setOpen(true)}>
       <span className="v2-composer-prompt-copy">ماذا تريد أن تقول؟</span>
-      <span className="v2-composer-prompt-tools" aria-hidden="true">+ music</span>
-      <span className="v2-composer-prompt-post">Post</span>
+      <span className="v2-composer-prompt-tools" aria-hidden="true">+ موسيقى</span>
+      <span className="v2-composer-prompt-post">نشر</span>
     </button>
   }
 
   return <section>
     {!inline && <header className="v2-composer-page-head">
-      <Link href="/" className="v2-back-link">‹ Back</Link>
+      <Link href="/" className="v2-back-link">‹ العودة</Link>
       <div>
-        <h1>{firstPost ? 'First post' : 'New post'}</h1>
-        <p>Write first. Add context only if it helps.</p>
+        <h1>{firstPost ? 'منشورك الأول' : 'منشور جديد'}</h1>
+        <p>سيظهر كلامك للجميع بهويتك الملوّنة. لا توجد مسودات خاصة هنا.</p>
       </div>
     </header>}
     <div className={`composer panel${inline ? ' v2-composer-expanded openly-composer-enter' : ''}`}>
@@ -237,61 +269,92 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
               <button
                 type="button"
                 className="secondary-button composer-add-track"
-                onClick={() => { setShowTrackSearch(open => !open); setTrackError('') }}
+                onClick={() => {
+                  setShowTrackSearch(open => !open)
+                  setTrackError('')
+                  setTrackAuthRequired(viewerResolved && !viewer)
+                }}
                 aria-expanded={showTrackSearch}
               >
                 <Music2 size={16}/>
                 أضف أغنية
               </button>
 
-              {showTrackSearch && <div className="composer-track-search panel">
-                <label className="track-search-field">
-                  <Search size={16} aria-hidden="true"/>
-                  <input
-                    className="form-control"
-                    value={trackQuery}
-                    onChange={event => setTrackQuery(event.target.value)}
-                    placeholder="ابحث باسم الأغنية أو الفنان"
-                    aria-label="البحث في كتالوج الأغاني"
-                    autoFocus
-                  />
-                </label>
+              {showTrackSearch && <div className="composer-track-search">
+                <div className="composer-track-search-head">
+                  <span className="composer-track-search-icon" aria-hidden="true"><Music2 size={18}/></span>
+                  <span className="composer-track-search-copy">
+                    <strong>إرفاق أغنية</strong>
+                    <span>ابحث في كتالوج Apple Music واختر نتيجة واحدة.</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="track-search-close"
+                    aria-label="إغلاق البحث عن الأغاني"
+                    onClick={() => { setShowTrackSearch(false); setTrackError(''); setTrackAuthRequired(false) }}
+                  ><X size={17}/></button>
+                </div>
 
-                {trackSearching && <p className="tiny subtle">جارِ البحث في كتالوج الموسيقى…</p>}
-                {!trackQuery.trim() && <p className="tiny subtle">اكتب اسم أغنية أو فنان، ثم اختر نتيجة واحدة.</p>}
-                {trackSearchDone && !trackSearching && !trackResults.length && !trackError && <p className="tiny subtle">لا توجد نتائج مطابقة.</p>}
+                {trackAuthRequired
+                  ? <div className="composer-track-auth" role="status">
+                      <span className="composer-track-auth-icon" aria-hidden="true"><LogIn size={19}/></span>
+                      <span>
+                        <strong>سجّل الدخول لإرفاق أغنية</strong>
+                        <span>يلزم حساب Openly لحفظ الأغنية ونشرها مع كلماتك.</span>
+                      </span>
+                      <Link href="/login" className="primary-button">تسجيل الدخول</Link>
+                    </div>
+                  : <>
+                      <label className="track-search-field">
+                        <Search size={16} aria-hidden="true"/>
+                        <input
+                          className="form-control"
+                          value={trackQuery}
+                          onChange={event => setTrackQuery(event.target.value)}
+                          placeholder="ابحث باسم الأغنية أو الفنان"
+                          aria-label="البحث في كتالوج الأغاني"
+                          autoFocus
+                        />
+                      </label>
 
-                {trackResults.length > 0 && <ul className="result-list composer-track-results">
-                  {trackResults.map(track => {
-                    const key = `${track.provider}:${track.externalId}`
-                    return <li key={key}>
-                      <button
-                        type="button"
-                        className="result-row"
-                        onClick={() => chooseTrack(track)}
-                        disabled={!!trackSaving}
-                      >
-                        {track.artworkUrl
-                          ? <img
-                              className="track-artwork"
-                              src={track.artworkUrl}
-                              alt=""
-                              width={48}
-                              height={48}
-                              loading="lazy"
-                              decoding="async"
-                              referrerPolicy="no-referrer"
-                            />
-                          : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
-                        <span className="composer-track-result-main" dir="auto" data-user-content="">
-                          <strong>{track.title}</strong>
-                          <span className="tiny subtle">{track.artist}</span>
-                        </span>
-                        <span className="tiny subtle">{trackSaving === key ? 'جارِ الإرفاق…' : 'اختيار'}</span>
-                      </button>
-                    </li>
-                  })}
-                </ul>}
+                      <div className="composer-track-search-status" aria-live="polite">
+                        {trackSearching && <p className="tiny subtle">جارِ البحث في كتالوج الموسيقى…</p>}
+                        {!trackQuery.trim() && <p className="tiny subtle">اكتب اسم أغنية أو فنان، ثم اختر نتيجة واحدة.</p>}
+                        {trackSearchDone && !trackSearching && !trackResults.length && !trackError && <p className="tiny subtle">لا توجد نتائج مطابقة.</p>}
+                      </div>
+
+                      {trackResults.length > 0 && <ul className="result-list composer-track-results">
+                        {trackResults.map(track => {
+                          const key = `${track.provider}:${track.externalId}`
+                          return <li key={key}>
+                            <button
+                              type="button"
+                              className="result-row"
+                              onClick={() => chooseTrack(track)}
+                              disabled={!!trackSaving}
+                            >
+                              {track.artworkUrl
+                                ? <img
+                                    className="track-artwork"
+                                    src={track.artworkUrl}
+                                    alt=""
+                                    width={48}
+                                    height={48}
+                                    loading="lazy"
+                                    decoding="async"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                : <span className="track-artwork track-artwork-fallback" aria-hidden="true"><Music2 size={19}/></span>}
+                              <span className="composer-track-result-main" dir="auto" data-user-content="">
+                                <strong>{track.title}</strong>
+                                <span className="tiny subtle">{track.artist}{track.album ? ` · ${track.album}` : ''}</span>
+                              </span>
+                              <span className="composer-track-choose">{trackSaving === key ? 'جارِ الإرفاق…' : 'اختيار'}</span>
+                            </button>
+                          </li>
+                        })}
+                      </ul>}
+                    </>}
               </div>}
             </>}
         {trackError && <p className="status-message error composer-track-error">{trackError}</p>}
