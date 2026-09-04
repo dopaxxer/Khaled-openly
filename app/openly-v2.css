@@ -506,6 +506,30 @@ body {
     direction: ltr;
   }
 
+  .v2-composer-prompt.composer-guest-prompt {
+    block-size: 104px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: 1fr;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .v2-composer-prompt.composer-guest-prompt .composer-guest-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .v2-composer-prompt.composer-guest-prompt .v2-composer-prompt-copy {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .v2-composer-prompt.composer-guest-prompt .v2-composer-prompt-post {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
   .v2-composer-expanded {
     margin-inline: 24px;
     border-radius: 20px;
