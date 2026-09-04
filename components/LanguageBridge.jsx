@@ -8,6 +8,8 @@ export const LANGUAGE_STORAGE_KEY = 'openly.language'
 const EN = {
   'الرئيسية': 'Home',
   'بحث': 'Search',
+  'مسح البحث': 'Clear search',
+  'تصفية نتائج البحث': 'Filter search results',
   'اكتب': 'Write',
   'موسيقى': 'Music',
   'حسابي': 'Account',
