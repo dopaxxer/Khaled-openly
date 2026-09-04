@@ -1,0 +1,65 @@
+name: Mobile native scaffold
+
+on:
+  push:
+    branches:
+      - mobile/capacitor-ios-android
+    paths:
+      - 'mobile/package.json'
+      - 'mobile/capacitor.config.mjs'
+      - '.github/workflows/mobile-native-scaffold.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scaffold:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout mobile branch
+        uses: actions/checkout@v4
+        with:
+          ref: mobile/capacitor-ios-android
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Capacitor dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Create iOS project
+        run: |
+          if [ ! -d ios ]; then
+            npx cap add ios
+          fi
+
+      - name: Create Android project
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+
+      - name: Sync native projects
+        run: npx cap sync
+
+      - name: Commit generated native projects
+        working-directory: .
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/package-lock.json mobile/ios mobile/android
+          if git diff --cached --quiet; then
+            echo "Native projects are already up to date."
+            exit 0
+          fi
+          git commit -m "chore(mobile): generate native iOS and Android projects"
+          git push origin HEAD:mobile/capacitor-ios-android
