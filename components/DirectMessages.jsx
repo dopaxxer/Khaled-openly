@@ -135,6 +135,7 @@ export function MessageThread({ conversationId }) {
   const bottomRef = useRef(null)
   const scrollerRef = useRef(null)
   const latestCursor = useRef(null)
+  const activeConversationId = useRef(conversationId)
   const refreshBusy = useRef(false)
   const lastTypingSentAt = useRef(0)
   const typingStopTimer = useRef(null)
@@ -157,6 +158,7 @@ export function MessageThread({ conversationId }) {
       }
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'المحادثة غير متاحة')
+      if (activeConversationId.current !== conversationId) return
       setConversation(current => sameConversation(current, data.conversation) ? current : data.conversation)
       setMessages(current => {
         const merged = mergeMessages(current, data.items || [])
@@ -176,9 +178,22 @@ export function MessageThread({ conversationId }) {
   }, [conversationId, markRead])
 
   useEffect(() => {
+    activeConversationId.current = conversationId
+    latestCursor.current = null
+    refreshBusy.current = false
+    pendingRetry.current = null
+    lastTypingSentAt.current = 0
+    if (typingStopTimer.current) window.clearTimeout(typingStopTimer.current)
     setConversation(undefined)
     setMessages([])
+    setOlderCursor(null)
+    setHasMore(false)
+    setDraft('')
     setLoading(true)
+    setLoadingOlder(false)
+    setSending(false)
+    setError('')
+    setPresence({ online: false, typing: false })
     loadLatest()
   }, [loadLatest])
 
@@ -243,6 +258,7 @@ export function MessageThread({ conversationId }) {
       const response = await fetch(`/api/v1/messages/${conversationId}?limit=100&cursor=${encodeURIComponent(olderCursor)}`, { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'تعذر تحميل الرسائل')
+      if (activeConversationId.current !== conversationId) return
       setMessages(current => mergeMessages(current, data.items || []))
       setOlderCursor(data.nextCursor || null)
       setHasMore(!!data.hasMore)

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { getPublicOrigin, safeInternalPath } from '../lib/publicOrigin.js'
 import { isStrongPassword, isValidEmail, identitySearchNeedle, parseCursor, readJson } from '../lib/validation.js'
+import { fetchViewer } from '../lib/viewer.js'
 
 test('public origin ignores an untrusted request host', () => {
   const request = new Request('https://attacker.example/api/auth/register')
@@ -59,6 +60,10 @@ test('bodyless actions accept a zero-length runtime stream', async () => {
     text: async () => ''
   }
   assert.deepEqual(await readJson(request), { data: {} })
+})
+
+test('a server render never issues a relative viewer request', async () => {
+  assert.equal(await fetchViewer(), null)
 })
 
 test('a JSON body with no declared length is read, not discarded', async () => {

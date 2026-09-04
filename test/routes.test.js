@@ -44,3 +44,21 @@ test('production clients use approved Cloudflare origins', () => {
   assert.match(env, /^NEXT_PUBLIC_SITE_URL=https:\/\/openly\.ink$/m)
   assert.doesNotMatch(`${ios}\n${iosProject}\n${env}\n${readme}`, /khaled-openly\.vercel\.app/)
 })
+
+test('visit deduplication uses one bounded session storage value', () => {
+  const tracker = readFileSync(new URL('../components/DeviceVisitTracker.jsx', import.meta.url), 'utf8')
+
+  assert.match(tracker, /openly:recent-device-visits/)
+  assert.match(tracker, /MAX_RECENT_VISITS = 32/)
+  assert.doesNotMatch(tracker, /openly:last-device-visit:\$\{pathname\}/)
+})
+
+test('production metadata reflects the current product', () => {
+  const layout = readFileSync(new URL('../app/layout.jsx', import.meta.url), 'utf8')
+  const manifest = readFileSync(new URL('../app/manifest.js', import.meta.url), 'utf8')
+  const globalError = readFileSync(new URL('../app/global-error.jsx', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(layout, /بلا رسائل خاصة/)
+  assert.match(manifest, /name: 'Openly'/)
+  assert.match(globalError, /<html lang="ar" dir="rtl">/)
+})

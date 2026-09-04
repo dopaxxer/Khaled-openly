@@ -87,12 +87,14 @@ export function AppShell({ children }) {
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('openly:auth-changed', syncAuthState)
     window.addEventListener('openly:messages-changed', syncBadges)
+    window.addEventListener('openly:notifications-changed', syncBadges)
     return () => {
       controller.abort()
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('openly:auth-changed', syncAuthState)
       window.removeEventListener('openly:messages-changed', syncBadges)
+      window.removeEventListener('openly:notifications-changed', syncBadges)
     }
   }, [])
 

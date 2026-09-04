@@ -240,16 +240,16 @@ export function AuthScreen() {
   return <div className="auth-wrap v2-auth">
     <div className="auth-head v2-auth-head">
       <div className="auth-icon"><LogIn size={21} /></div>
-      <h1 className="auth-title">Welcome to openly</h1>
-      <p className="auth-sub">A public space for thoughts, taste and conversation.</p>
+      <h1 className="auth-title">مرحبًا بك في Openly</h1>
+      <p className="auth-sub">مساحة عامة للأفكار والذوق والمحادثة.</p>
     </div>
 
     <div className="panel auth-form v2-auth-card">
       {capabilities.apple && <a className="secondary-button full" href="/api/auth/oauth/apple?next=/">
-        <span aria-hidden="true"></span> Continue with Apple
+        <span aria-hidden="true"></span> المتابعة عبر Apple
       </a>}
       {capabilities.google && <a className="secondary-button full" href="/api/auth/oauth/google?next=/">
-        <span aria-hidden="true">G</span> Continue with Google
+        <span aria-hidden="true">G</span> المتابعة عبر Google
       </a>}
 
       {(capabilities.apple || capabilities.google) && <div className="center small muted" aria-hidden="true">──────── أو ────────</div>}

@@ -175,17 +175,17 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   if (inline && !open) {
     return <button type="button" className="composer-prompt panel v2-composer-prompt" onClick={() => setOpen(true)}>
       <span className="v2-composer-prompt-copy">ماذا تريد أن تقول؟</span>
-      <span className="v2-composer-prompt-tools" aria-hidden="true">+ music</span>
-      <span className="v2-composer-prompt-post">Post</span>
+      <span className="v2-composer-prompt-tools" aria-hidden="true">+ موسيقى</span>
+      <span className="v2-composer-prompt-post">نشر</span>
     </button>
   }
 
   return <section>
     {!inline && <header className="v2-composer-page-head">
-      <Link href="/" className="v2-back-link">‹ Back</Link>
+      <Link href="/" className="v2-back-link">‹ العودة</Link>
       <div>
-        <h1>{firstPost ? 'First post' : 'New post'}</h1>
-        <p>Write first. Add context only if it helps.</p>
+        <h1>{firstPost ? 'منشورك الأول' : 'منشور جديد'}</h1>
+        <p>سيظهر كلامك للجميع بهويتك الملوّنة. لا توجد مسودات خاصة هنا.</p>
       </div>
     </header>}
     <div className={`composer panel${inline ? ' v2-composer-expanded openly-composer-enter' : ''}`}>
