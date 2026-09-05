@@ -610,7 +610,7 @@ private struct PostTrackAttachment: View {
                         .overlay(Circle().stroke(OpenlyTheme.lineStrong, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(Text(LocalizedStringKey(actionLabel)))
+                .accessibilityLabel(Text(actionLabel))
             }
         }
         .padding(10)
