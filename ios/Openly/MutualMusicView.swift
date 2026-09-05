@@ -208,7 +208,7 @@ struct MutualMusicView: View {
 
     private func filterChip(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 14, weight: selected ? .semibold : .regular))
                 .foregroundColor(selected ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
                 .padding(.horizontal, 16)
@@ -313,7 +313,7 @@ private struct NativeMusicMatchCard: View {
                 IdentityBadge(code: match.publicCode, color: match.identityColor)
                 Spacer()
                 Text("\(match.compatibility)%")
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(OpenlyTheme.ink)
                     .environment(\.layoutDirection, .leftToRight)
             }
@@ -483,10 +483,10 @@ struct MusicVisibilitySettingsView: View {
     ) -> some View {
         Toggle(isOn: Binding(get: { value }, set: onChange)) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(OpenlyTheme.ink)
-                Text(subtitle)
+                Text(LocalizedStringKey(subtitle))
                     .font(.system(size: 13))
                     .foregroundColor(OpenlyTheme.muted)
             }

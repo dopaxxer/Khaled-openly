@@ -325,3 +325,232 @@
 "متصل الآن" = "Online now";
 "يكتب…" = "Typing…";
 "غير متصل" = "Offline";
+
+"جرافيت" = "Graphite";
+
+"أفكار وموسيقى وأشخاص" = "Thoughts, music and people";
+
+"أدخل رقم هاتفك مع رمز الدولة." = "Enter your phone number with its country code.";
+
+"Welcome to openly" = "Welcome to openly";
+
+"A public space for thoughts, taste and conversation." = "A public space for thoughts, taste and conversation.";
+
+"Continue with Google" = "Continue with Google";
+
+"auth_continue" = "Continue";
+
+"أو" = "or";
+
+"New post" = "New post";
+
+"Write first. Add context only if it helps." = "Write first. Add context only if it helps.";
+
+"Post" = "Post";
+
+"Conversation" = "Conversation";
+
+"Replies" = "Replies";
+
+"Reply" = "Reply";
+
+"Music" = "Music";
+
+"Add a song as context, not as the post itself." = "Add a song as context, not as the post itself.";
+
+"Tell us what you like" = "Tell us what you like";
+
+"Choose a few signals. You can change them later." = "Choose a few signals. You can change them later.";
+
+"Skip" = "Skip";
+
+"Books, films and topics help Openly find common ground without ranking people by popularity." = "Books, films and topics help Openly find common ground without ranking people by popularity.";
+
+"Explore" = "Explore";
+
+"Find people through what they care about" = "Find people through what they care about";
+
+"Search people, music, books, films…" = "Search people, music, books, films…";
+
+"shared taste" = "shared taste";
+
+"Settings" = "Settings";
+
+"Identity, appearance and privacy" = "Identity, appearance and privacy";
+
+"Home" = "Home";
+
+"Search" = "Search";
+
+"Write" = "Write";
+
+"You" = "You";
+
+"People, posts and cultural context" = "People, posts and cultural context";
+
+"Notifications" = "Notifications";
+
+"Only things that need your attention" = "Only things that need your attention";
+
+"public code" = "public code";
+
+"followers" = "followers";
+
+"following" = "following";
+
+"Taste" = "Taste";
+
+"Books · Films · Topics" = "Books · Films · Topics";
+
+"Music, books and films are part of the profile — not separate badges." = "Music, books and films are part of the profile — not separate badges.";
+
+"Posts" = "Posts";
+
+"Check your inbox" = "Check your inbox";
+
+"Bookmarks" = "Bookmarks";
+
+"Private. Only you can see what you save." = "Private. Only you can see what you save.";
+
+"Search people or posts…" = "Search people or posts…";
+
+"Enter the 6-digit code sent to %@." = "Enter the 6-digit code sent to %@.";
+
+"keyboard_done" = "Hide keyboard";
+
+"music_catalog_unavailable" = "The music catalog is unavailable. Try again.";
+
+"music_catalog_rate_limited" = "Too many requests. Wait a moment and try again.";
+
+"music_catalog_minimum" = "Type at least two characters of a song or artist.";
+
+"music_catalog_retry" = "Try again";
+
+"music_catalog_clear" = "Clear search";
+
+"music_catalog_saved" = "Showing saved songs while the Apple catalog is temporarily unavailable.";
+
+"message_search" = "Search chats";
+
+"message_latest" = "Latest messages";
+
+"message_sending" = "Sending";
+
+"message_retry" = "Not sent — tap to retry";
+
+"message_sent" = "Sent";
+
+"message_read" = "Read";
+
+"message_too_long" = "Messages can contain up to 2,000 characters.";
+
+"notification_someone" = "Someone";
+
+"notification_like" = "%@ liked your post";
+
+"notification_reply" = "%@ replied to your post";
+
+"notification_follow" = "%@ started following you";
+
+"notification_mention_post" = "%@ mentioned you in a post";
+
+"notification_mention_comment" = "%@ mentioned you in a comment";
+
+"notification_activity" = "%@ interacted with your content";
+
+"api_request_failed" = "The request could not be completed. Try again.";
+
+"Reply…" = "Reply…";
+
+"إعادة الإرسال بعد %lldث" = "Resend in %llds";
+
+"محسوبة من %lld فنان و%lld تصنيف مشترك؛ الفنان يزن ثلاثة أضعاف التصنيف." = "Based on %lld shared artists and %lld shared genres; artists count three times as much.";
+
+"4–8 رموز واضحة؛ لا نستخدم I أو L أو O أو 0 أو 1 لتجنب الالتباس." = "4–8 characters. I, L, O, 0 and 1 are excluded to avoid confusion.";
+
+"إرسال رمز SMS" = "Send SMS code";
+
+"إنشاء كود عشوائي" = "Generate a code";
+
+"اختر لغة واجهة Openly." = "Choose the Openly interface language.";
+
+"اكتب شيئًا مختصرًا عن هذه الهوية — اختياري" = "Write a short bio — optional";
+
+"العودة للبريد الإلكتروني" = "Back to email";
+
+"الكتابات" = "Posts";
+
+"المتابعة برقم الهاتف" = "Continue with phone";
+
+"تأكيد والدخول" = "Verify and sign in";
+
+"تسجيل الدخول داخل التطبيق غير متاح حاليًا." = "In-app sign-in is currently unavailable.";
+
+"تغيير كلمة المرور" = "Change password";
+
+"جارِ الإرسال…" = "Sending…";
+
+"جارِ تحميل الملف" = "Loading profile";
+
+"جملة قصيرة — اختياري" = "A short status — optional";
+
+"حفظ الهوية" = "Save profile";
+
+"رقم الهاتف" = "Phone number";
+
+"رمز الدولة" = "Country code";
+
+"عدّل ذوقك الموسيقي" = "Edit music preferences";
+
+"عرض المزيد" = "Show more";
+
+"كيف يظهر التطبيق على هذا الجهاز." = "How Openly appears on this device.";
+
+"لن نعرض أزرارًا لا تعمل. يمكنك استخدام تسجيل الدخول بالبريد على الموقع، وستظهر الطرق الأصلية هنا تلقائيًا عند تفعيلها." = "You can sign in by email on the website. In-app sign-in will appear when it is available.";
+
+"لون التمييز" = "Accent color";
+
+"هذه هي الهوية التي يراها الآخرون." = "This is the identity others see.";
+
+"يتطلب التغيير كلمة المرور الحالية، أو رابط استعادة موثّقًا عبر البريد." = "Requires your current password or a verified email recovery link.";
+
+"تعذر البحث" = "Search unavailable";
+
+"تعذر تحميل الإشعارات" = "Could not load notifications";
+
+"لا يوجد اتصال بالإنترنت. تحقق من الشبكة وحاول مجددًا." = "No internet connection. Check your network and try again.";
+
+"استغرق الاتصال وقتًا طويلًا. حاول مرة أخرى." = "The request timed out. Try again.";
+
+"تعذر الاتصال بالخادم. حاول مرة أخرى." = "Could not connect to the server. Try again.";
+
+"تعذر قراءة استجابة الخادم." = "Could not read the server response.";
+
+"عنوان الخادم غير صالح." = "The server address is invalid.";
+
+"post_comments_count" = "%ld comments";
+"post_likes_count" = "%ld likes";
+
+// Runtime interface labels and feedback.
+"كود الهوية" = "Identity code";
+"لون الهوية" = "Identity color";
+"الحالة" = "Status";
+"النبذة" = "Bio";
+"الأمان" = "Security";
+"حسب الجهاز" = "System";
+"تم حفظ التغييرات." = "Your changes were saved.";
+"الكود يجب أن يكون من 4 إلى 8 رموز." = "The code must contain 4 to 8 characters.";
+"أُرسل كود جديد." = "A new code was sent.";
+"تعذر إكمال تسجيل الدخول بحساب Apple." = "Could not complete Sign in with Apple.";
+"تعذر قراءة بيانات Apple الآمنة." = "Could not read the secure Apple sign-in information.";
+"Google Sign-In يحتاج إعدادات OAuth كاملة للتطبيق والخادم." = "Google sign-in is not configured for this app yet.";
+"تعذر فتح نافذة Google." = "Could not open Google sign-in.";
+"تسجيل البريد داخل التطبيق يحتاج OTP. استخدم نسخة الويب مؤقتًا." = "Email sign-in in this app requires a one-time code. Please use the website for now.";
+"لم يرجع Google رمز هوية صالحًا." = "Google did not return a valid sign-in token.";
+"محدد" = "Selected";
+"أزرق ملكي" = "Ultramarine";
+"عنّابي" = "Crimson";
+"غابي" = "Forest";
+"كهرماني" = "Amber";
+"بنفسجي" = "Violet";
+"auth_error_accessibility" = "Error: %@";

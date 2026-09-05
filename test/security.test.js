@@ -178,3 +178,14 @@ test('a misconfigured deployment can still report why', () => {
   assert.match(body, /catch/)
   assert.match(body, /proxy\.session_refresh_skipped/, 'the skipped refresh must be recorded')
 })
+
+
+test('retired Netlify environment URLs do not become trusted auth origins', () => {
+  const request = { url: 'https://old-preview.netlify.app/login' }
+  assert.equal(getPublicOrigin(request, {
+    NODE_ENV: 'production',
+    URL: 'https://old-preview.netlify.app',
+    DEPLOY_PRIME_URL: 'https://old-preview.netlify.app',
+    DEPLOY_URL: 'https://old-preview.netlify.app'
+  }), 'https://openly.ink')
+})

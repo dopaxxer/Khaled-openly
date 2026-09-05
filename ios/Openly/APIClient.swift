@@ -7,15 +7,16 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL: return "عنوان الخادم غير صالح."
-        case .server(let message): return message
-        case .invalidResponse: return "تعذر قراءة استجابة الخادم."
+        case .invalidURL: return OpenlyLocale.string("عنوان الخادم غير صالح.")
+        case .server(let message): return OpenlyLocale.serverMessage(message)
+        case .invalidResponse: return OpenlyLocale.string("تعذر قراءة استجابة الخادم.")
         }
     }
 }
 
 private struct ErrorResponse: Decodable {
     let error: String
+    let code: String?
 }
 
 struct AuthCapabilities: Decodable {
@@ -213,6 +214,12 @@ final class APIClient {
         query: [URLQueryItem] = [],
         body: [String: Any]? = nil
     ) async throws -> T {
+        #if DEBUG
+        if OpenlyUITestAPI.enabled {
+            let data = try await OpenlyUITestAPI.shared.response(path: path, method: method, query: query, body: body)
+            return try decoder.decode(T.self, from: data)
+        }
+        #endif
         var request = URLRequest(url: try makeURL(path: path, query: query))
         request.httpMethod = method
         request.cachePolicy = .useProtocolCachePolicy
@@ -242,8 +249,13 @@ final class APIClient {
             NotificationCenter.default.post(name: .openlySessionExpired, object: nil)
         }
         guard (200..<300).contains(http.statusCode) else {
-            let message = (try? decoder.decode(ErrorResponse.self, from: data).error)
-                ?? "حدث خطأ في الخادم (\(http.statusCode))."
+            let failure = try? decoder.decode(ErrorResponse.self, from: data)
+            let message: String
+            switch failure?.code {
+            case "catalog_unavailable": message = OpenlyLocale.string("music_catalog_unavailable")
+            case "rate_limited": message = OpenlyLocale.string("music_catalog_rate_limited")
+            default: message = failure?.error ?? "حدث خطأ في الخادم (\(http.statusCode))."
+            }
             throw APIError.server(message)
         }
         do {
@@ -450,13 +462,17 @@ final class APIClient {
     }
 
     func searchMusicCatalog(query: String) async throws -> [MusicCatalogTrack] {
+        try await searchMusicCatalogResult(query: query).items
+    }
+
+    func searchMusicCatalogResult(query: String) async throws -> MusicCatalogResponse {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 2 else { return [] }
+        guard trimmed.count >= 2 else { return MusicCatalogResponse(items: [], provider: "apple_music") }
         let response: MusicCatalogResponse = try await request(
             "v1/music/catalog",
             query: [URLQueryItem(name: "q", value: trimmed)]
         )
-        return response.items
+        return response
     }
 
     func addMusicTrack(_ track: MusicCatalogTrack) async throws -> MusicTrack {

@@ -6,7 +6,7 @@ struct OpenlyApp: App {
     @StateObject private var session = AppSession()
     @AppStorage("openly.appearance") private var appearanceRaw = OpenlyAppearance.system.rawValue
     @AppStorage("openly.language") private var languageRaw = OpenlyLanguage.arabic.rawValue
-    @AppStorage("openly.colorTheme") private var colorThemeRaw = OpenlyColorTheme.ultramarine.rawValue
+    @AppStorage("openly.colorTheme") private var colorThemeRaw = OpenlyColorTheme.graphite.rawValue
 
     private var selectedAppearance: OpenlyAppearance {
         OpenlyAppearance(rawValue: appearanceRaw) ?? .system
@@ -22,7 +22,7 @@ struct OpenlyApp: App {
                 .environmentObject(session)
                 .environment(\.locale, selectedLanguage.locale)
                 .environment(\.layoutDirection, selectedLanguage.layoutDirection)
-                .tint((OpenlyColorTheme(rawValue: colorThemeRaw) ?? .crimson).accent)
+                .tint((OpenlyColorTheme(rawValue: colorThemeRaw) ?? .graphite).accent)
                 .preferredColorScheme(selectedAppearance.colorScheme)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
@@ -56,6 +56,7 @@ enum OpenlyLanguage: String, CaseIterable, Identifiable {
 }
 
 enum OpenlyColorTheme: String, CaseIterable, Identifiable {
+    case graphite
     case ultramarine
     case crimson
     case forest
@@ -66,6 +67,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .graphite: return "جرافيت"
         case .ultramarine: return "أزرق ملكي"
         case .crimson: return "عنّابي"
         case .forest: return "غابي"
@@ -76,6 +78,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var swatch: Color {
         switch self {
+        case .graphite: return Color(red: 32/255, green: 38/255, blue: 35/255)
         case .ultramarine: return Color(red: 22/255, green: 39/255, blue: 122/255)
         case .crimson: return Color(red: 184/255, green: 36/255, blue: 76/255)
         case .forest: return Color(red: 31/255, green: 122/255, blue: 66/255)
@@ -86,6 +89,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var accent: Color {
         switch self {
+        case .graphite: return adaptiveColor(light: (32, 38, 35), dark: (214, 234, 219))
         case .ultramarine:
             return adaptiveColor(light: (22, 39, 122), dark: (142, 160, 255))
         case .crimson:
@@ -101,6 +105,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var accentStrong: Color {
         switch self {
+        case .graphite: return adaptiveColor(light: (16, 23, 19), dark: (228, 244, 231))
         case .ultramarine:
             return adaptiveColor(light: (22, 39, 122), dark: (166, 179, 255))
         case .crimson:
@@ -116,6 +121,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var accentSoft: Color {
         switch self {
+        case .graphite: return adaptiveColor(light: (233, 238, 233), dark: (40, 56, 45))
         case .ultramarine:
             return adaptiveColor(light: (235, 238, 250), dark: (35, 39, 61))
         case .crimson:
@@ -178,6 +184,7 @@ final class AppSession: ObservableObject {
     @Published var needsInterestOnboarding = false
     @Published private(set) var feedRevision = 0
     @Published var notificationsRevision: UInt = 0
+    @Published var pendingMessages: [String: [PendingDirectMessage]] = [:]
     let api = APIClient.shared
 
     private static let cachedUserKey = "openly.cachedUser"
@@ -204,6 +211,7 @@ final class AppSession: ObservableObject {
     func refresh(afterAuthentication: Bool = false) async {
         do {
             let refreshed = try await api.sessionUser()
+            if user?.publicCode != refreshed?.publicCode { pendingMessages.removeAll() }
             user = refreshed
             if let refreshed {
                 Self.cacheUser(refreshed)
@@ -259,6 +267,7 @@ final class AppSession: ObservableObject {
     }
 
     private func clearUser() {
+        pendingMessages.removeAll()
         user = nil
         needsInterestOnboarding = false
         Self.removeCachedUser()
@@ -310,6 +319,9 @@ final class AppSession: ObservableObject {
     }
 
     private static func cacheUser(_ user: UserSummary) {
+#if DEBUG
+        guard !OpenlyUITestAPI.enabled else { return }
+#endif
         guard let data = try? JSONEncoder().encode(user) else { return }
         UserDefaults.standard.set(data, forKey: cachedUserKey)
     }
@@ -344,32 +356,32 @@ private func adaptiveColor(light: (Int, Int, Int), dark: (Int, Int, Int)) -> Col
 }
 
 enum OpenlyTheme {
-    // Openly V2: warm paper, dark ink, quiet surfaces. These values mirror
-    // the web/Figma direction while keeping the existing dynamic theme system.
-    static let background = adaptiveColor(light: (247, 244, 238), dark: (17, 17, 19))
-    static let surface = adaptiveColor(light: (255, 253, 248), dark: (25, 25, 28))
-    static let surfaceSoft = adaptiveColor(light: (244, 239, 231), dark: (31, 31, 34))
-    static let elevated = adaptiveColor(light: (252, 249, 243), dark: (34, 34, 38))
-    static let line = adaptiveColor(light: (233, 225, 216), dark: (44, 44, 49))
-    static let lineStrong = adaptiveColor(light: (217, 206, 194), dark: (63, 63, 69))
-    static let ink = adaptiveColor(light: (23, 21, 19), dark: (232, 230, 226))
-    static let muted = adaptiveColor(light: (107, 98, 91), dark: (154, 152, 148))
-    static let subtle = adaptiveColor(light: (149, 138, 130), dark: (112, 110, 106))
+    // Shared neutral palette, with system light/dark adaptation.
+    static let background = adaptiveColor(light: (244, 245, 244), dark: (16, 20, 17))
+    static let surface = adaptiveColor(light: (255, 255, 255), dark: (24, 30, 26))
+    static let surfaceSoft = adaptiveColor(light: (241, 243, 241), dark: (34, 42, 36))
+    static let elevated = adaptiveColor(light: (255, 255, 255), dark: (39, 48, 41))
+    static let line = adaptiveColor(light: (229, 233, 229), dark: (44, 56, 47))
+    static let lineStrong = adaptiveColor(light: (205, 212, 206), dark: (71, 86, 75))
+    static let ink = adaptiveColor(light: (32, 38, 35), dark: (240, 244, 239))
+    static let muted = adaptiveColor(light: (98, 109, 102), dark: (176, 189, 178))
+    static let subtle = adaptiveColor(light: (112, 122, 116), dark: (156, 169, 158))
 
     private static var selectedColorTheme: OpenlyColorTheme {
         let raw = UserDefaults.standard.string(forKey: "openly.colorTheme")
-        return OpenlyColorTheme(rawValue: raw ?? "") ?? .crimson
+        return OpenlyColorTheme(rawValue: raw ?? "") ?? .graphite
     }
 
     static var accent: Color { selectedColorTheme.accent }
     static var accentStrong: Color { selectedColorTheme.accentStrong }
     static var accentSoft: Color { selectedColorTheme.accentSoft }
-    static let accentForeground = adaptiveColor(light: (255, 250, 244), dark: (25, 25, 28))
+    static let accentForeground = adaptiveColor(light: (255, 255, 255), dark: (16, 23, 19))
     static let danger = adaptiveColor(light: (180, 35, 24), dark: (248, 113, 113))
     static var card: Color { surfaceSoft }
 }
 
 struct RootView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var session: AppSession
     @Environment(\.scenePhase) private var scenePhase
 
@@ -400,6 +412,7 @@ struct RootView: View {
                 MainTabView()
             }
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: session.isBooting)
         .onChange(of: scenePhase) { phase in
             guard phase == .active, !session.isBooting else { return }
             Task { await session.refresh() }
@@ -417,97 +430,75 @@ struct RootView: View {
 }
 
 struct MainTabView: View {
+    @EnvironmentObject private var session: AppSession
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection = 0
+    @State private var unreadMessages = 0
+    @State private var unreadNotifications = 0
 
     var body: some View {
         TabView(selection: $selection) {
             FeedView()
-                .tabItem { Label("Home", systemImage: selection == 0 ? "house.fill" : "house") }
-                .tag(0)
-
-            InterestDiscoveryView()
-                .tabItem { Label("Explore", systemImage: selection == 1 ? "safari.fill" : "safari") }
-                .tag(1)
-
-            NativeWriteView()
-                .tabItem { Label("Write", systemImage: selection == 2 ? "square.and.pencil.circle.fill" : "square.and.pencil") }
-                .tag(2)
-
+                .tabItem { Label("Home", systemImage: "house") }.tag(0)
+            SearchView()
+                .tabItem { Label("Search", systemImage: "magnifyingglass") }.tag(1)
+            NavigationView { DirectMessagesView() }.navigationViewStyle(.stack)
+                .tabItem { Label("الرسائل", systemImage: "bubble.left.and.bubble.right") }
+                .badge(unreadMessages).tag(2)
+            NavigationView { NotificationsView() }.navigationViewStyle(.stack)
+                .tabItem { Label("الإشعارات", systemImage: "bell") }
+                .badge(unreadNotifications).tag(3)
             AccountView()
-                .tabItem { Label("You", systemImage: selection == 3 ? "person.crop.circle.fill" : "person.crop.circle") }
-                .tag(3)
+                .tabItem { Label("You", systemImage: "person.crop.circle") }.tag(4)
         }
         .tint(OpenlyTheme.accent)
         .toolbarBackground(OpenlyTheme.surface, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .onChange(of: selection) { _ in OpenlyKeyboard.dismiss() }
+        .task(id: session.notificationsRevision) {
+            while !Task.isCancelled {
+                if scenePhase == .active, session.user != nil {
+                    async let messages = session.api.unreadDirectMessageCount()
+                    async let notifications = session.api.unreadNotificationCount()
+                    if let value = try? await messages { unreadMessages = value }
+                    if let value = try? await notifications { unreadNotifications = value }
+                }
+                do { try await Task.sleep(nanoseconds: 20_000_000_000) } catch { return }
+            }
+        }
     }
 }
 
 struct AppHeader: View {
     @EnvironmentObject private var session: AppSession
-    @State private var unreadCount = 0
+    @State private var showComposer = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                BrandLockup(markSize: 34)
-                Text("مساحة عامة · الأحدث أولًا")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(OpenlyTheme.muted)
-                    .environment(\.layoutDirection, .leftToRight)
+        HStack(spacing: 10) {
+            BrandLockup(markSize: 30)
+            Spacer()
+            NavigationLink(destination: InterestDiscoveryView()) {
+                Label("Explore", systemImage: "safari")
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(minHeight: 44)
             }
-
-            Spacer(minLength: 12)
-
-            NavigationLink(destination: NotificationsView()) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: unreadCount > 0 ? "bell.fill" : "bell")
-                        .font(.system(size: 19, weight: .medium))
-                        .foregroundColor(OpenlyTheme.ink)
-                        .frame(width: 38, height: 38)
-
-                    if unreadCount > 0 {
-                        Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(minWidth: 16, minHeight: 16)
-                            .background(OpenlyTheme.accent)
-                            .clipShape(Capsule())
-                            .offset(x: 3, y: -1)
-                    }
-                }
+            .accessibilityIdentifier("home.explore")
+            Button { showComposer = true } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: 44, height: 44)
+                    .background(OpenlyTheme.accentSoft, in: Circle())
             }
-            .buttonStyle(.plain)
-
-            if let user = session.user {
-                NavigationLink(destination: AccountView()) {
-                    HStack(spacing: 7) {
-                        Circle()
-                            .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
-                            .frame(width: 9, height: 9)
-                        Text(user.publicCode)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(OpenlyTheme.ink)
-                            .environment(\.layoutDirection, .leftToRight)
-                    }
-                    .padding(.horizontal, 11)
-                    .frame(height: 34)
-                    .background(OpenlyTheme.surface)
-                    .overlay(Capsule().stroke(OpenlyTheme.line, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
+            .accessibilityLabel(Text("New post"))
+            .accessibilityIdentifier("home.write")
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 18)
-        .padding(.bottom, 12)
-        .background(OpenlyTheme.background)
-        .task(id: "\(session.user?.publicCode ?? "")-\(session.notificationsRevision)") {
-            if session.user != nil, let count = try? await session.api.unreadNotificationCount() {
-                unreadCount = count
-            } else {
-                unreadCount = 0
-            }
+        .foregroundColor(OpenlyTheme.ink)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(OpenlyTheme.surface)
+        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
+        .sheet(isPresented: $showComposer) {
+            NativeWriteView().environmentObject(session)
         }
     }
 }
@@ -516,28 +507,27 @@ struct BrandLockup: View {
     var markSize: CGFloat = 32
 
     var body: some View {
-        Text("openly")
-            .font(.system(size: markSize <= 34 ? 27 : 30, weight: .bold))
-            .tracking(-0.8)
-            .foregroundColor(OpenlyTheme.ink)
-            .environment(\.layoutDirection, .leftToRight)
-            .accessibilityLabel("Openly")
+        HStack(spacing: 8) {
+            BrandMark(size: markSize)
+            Text(verbatim: "openly")
+                .font(.system(size: 22, weight: .bold))
+                .tracking(-0.6)
+                .foregroundColor(OpenlyTheme.ink)
+        }
+        .environment(\.layoutDirection, .leftToRight)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Openly")
     }
 }
 
 struct BrandMark: View {
     var size: CGFloat = 32
-
     var body: some View {
-        ZStack {
-            Circle().fill(Color.white)
-            Circle().stroke(OpenlyTheme.muted.opacity(0.7), lineWidth: 1)
-            Image(systemName: "water.waves")
-                .font(.system(size: size * 0.48, weight: .semibold))
-                .foregroundColor(Color(red: 31 / 255, green: 57 / 255, blue: 126 / 255))
-        }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
+        Image("BrandLogo")
+            .resizable().scaledToFit()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .accessibilityHidden(true)
     }
 }
 
@@ -572,7 +562,7 @@ struct ScreenHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(LocalizedStringKey(title))
-                .font(.system(size: 27, weight: .bold))
+                .font(.system(size: 22, weight: .bold))
                 .foregroundColor(OpenlyTheme.ink)
             if let subtitle {
                 Text(LocalizedStringKey(subtitle))
@@ -616,11 +606,11 @@ struct EmptyState: View {
         VStack(spacing: 14) {
             if !icon.isEmpty {
                 Image(systemName: icon)
-                    .font(.system(size: 28, weight: .regular))
+                    .font(.system(size: 22, weight: .regular))
                     .foregroundColor(OpenlyTheme.muted)
             }
             Text(LocalizedStringKey(title))
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(OpenlyTheme.ink)
             Text(LocalizedStringKey(message))
                 .font(.system(size: 16, weight: .medium))
@@ -635,15 +625,18 @@ struct EmptyState: View {
 }
 
 struct OpenlyPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 17, weight: .bold))
+            .font(.system(size: 15, weight: .semibold))
             .foregroundColor(OpenlyTheme.accentForeground)
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: 48)
             .background(OpenlyTheme.accent)
-            .clipShape(Capsule())
-            .opacity(configuration.isPressed ? 0.82 : 1)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .opacity(!isEnabled ? 0.4 : (configuration.isPressed ? 0.78 : 1))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -657,9 +650,10 @@ struct OpenlyFieldContainer<Content: View>: View {
     var body: some View {
         content
             .padding(.horizontal, 18)
-            .frame(height: 56)
-            .background(OpenlyTheme.background)
-            .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1.2))
+            .frame(minHeight: 48)
+            .background(OpenlyTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(OpenlyTheme.lineStrong, lineWidth: 1))
     }
 }
 

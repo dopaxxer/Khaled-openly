@@ -8,12 +8,11 @@ struct FavoriteTracksView: View {
 
     @State private var tracks: [MusicTrack] = []
     @State private var query = ""
-    @State private var results: [MusicCatalogTrack] = []
+    @StateObject private var catalog = MusicCatalogSearch()
+    private var results: [MusicCatalogTrack] { catalog.results }
     @State private var isLoading = true
-    @State private var isSearching = false
     @State private var busy = false
     @State private var errorMessage: String?
-    @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -28,7 +27,7 @@ struct FavoriteTracksView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         VStack(alignment: .leading, spacing: 7) {
                             Text("الأغاني المفضلة")
-                                .font(.system(size: 24, weight: .bold))
+                                .font(.system(size: 20, weight: .bold))
                                 .foregroundColor(OpenlyTheme.ink)
                             Text("ابحث باسم الأغنية أو الفنان واختر النتيجة الأصلية مع الغلاف والألبوم.")
                                 .font(.system(size: 14, weight: .medium))
@@ -44,15 +43,27 @@ struct FavoriteTracksView: View {
                             .background(OpenlyTheme.surfaceSoft)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .autocorrectionDisabled()
-                            .onChange(of: query) { scheduleSearch($0) }
+                            .textInputAutocapitalization(.never)
 
-                        if isSearching {
+                        if catalog.phase == .loading {
                             HStack(spacing: 8) {
                                 ProgressView().tint(OpenlyTheme.accent)
                                 Text("جارِ البحث في الكتالوج…")
                                     .font(.system(size: 13))
                                     .foregroundColor(OpenlyTheme.subtle)
                             }
+                        }
+
+                        if catalog.phase == .failed {
+                            Text(catalog.errorMessage ?? OpenlyLocale.string("music_catalog_unavailable"))
+                                .foregroundColor(OpenlyTheme.danger)
+                            Button("music_catalog_retry") { Task { await catalog.search(query, debounce: 0) } }
+                                .buttonStyle(OpenlySecondaryButtonStyle())
+                        } else if catalog.phase == .empty {
+                            Text("composer_track_empty").foregroundColor(OpenlyTheme.muted)
+                        }
+                        if catalog.usingSavedCatalog {
+                            Text("music_catalog_saved").font(.footnote).foregroundColor(OpenlyTheme.muted)
                         }
 
                         if !results.isEmpty {
@@ -85,7 +96,7 @@ struct FavoriteTracksView: View {
 
                         HStack {
                             Text("اختياراتي")
-                                .font(.system(size: 18, weight: .bold))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(OpenlyTheme.ink)
                             Spacer()
                             Text("\(tracks.count) / \(MusicNormalize.maxTracksPerProfile)")
@@ -146,7 +157,9 @@ struct FavoriteTracksView: View {
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .task { if session.user != nil { await load() } }
-        .onDisappear { searchTask?.cancel() }
+        .task(id: query) { await catalog.search(query) }
+        .onDisappear { catalog.cancel() }
+        .openlyKeyboardDismissal()
     }
 
     @MainActor
@@ -160,37 +173,6 @@ struct FavoriteTracksView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
-    }
-
-    private func scheduleSearch(_ value: String) {
-        searchTask?.cancel()
-        let term = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !term.isEmpty else {
-            results = []
-            isSearching = false
-            return
-        }
-
-        searchTask = Task {
-            try? await Task.sleep(nanoseconds: 280_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run { isSearching = true }
-            do {
-                let found = try await session.api.searchMusicCatalog(query: term)
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    results = found
-                    isSearching = false
-                }
-            } catch {
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    results = []
-                    isSearching = false
-                    errorMessage = error.localizedDescription
-                }
-            }
-        }
     }
 
     @MainActor
@@ -211,7 +193,7 @@ struct FavoriteTracksView: View {
             let profile = try await session.api.updateMusicTracks(ids: next.map(\.id))
             tracks = profile.tracks ?? next
             query = ""
-            results = []
+            catalog.cancel()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -265,7 +247,7 @@ private struct CatalogTrackRow: View {
             }
             Spacer(minLength: 8)
             Image(systemName: selected ? "checkmark.circle.fill" : "plus.circle")
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(selected ? OpenlyTheme.subtle : OpenlyTheme.accent)
         }
         .padding(.horizontal, 12)

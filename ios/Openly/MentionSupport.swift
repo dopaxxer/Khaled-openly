@@ -171,12 +171,12 @@ enum MentionParser {
 struct MentionText: View {
     let body_: String
     let mentions: [MentionRef]
-    var font: Font = .system(size: 19, weight: .medium)
+    var font: Font = .subheadline
     var color: Color = OpenlyTheme.ink
 
     @State private var target: String?
 
-    init(_ body: String, mentions: [MentionRef]?, font: Font = .system(size: 19, weight: .medium), color: Color = OpenlyTheme.ink) {
+    init(_ body: String, mentions: [MentionRef]?, font: Font = .subheadline, color: Color = OpenlyTheme.ink) {
         self.body_ = body
         self.mentions = mentions ?? []
         self.font = font

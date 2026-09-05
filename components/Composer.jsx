@@ -32,6 +32,8 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   const [trackSearchDone, setTrackSearchDone] = useState(false)
   const [trackSaving, setTrackSaving] = useState('')
   const [trackError, setTrackError] = useState('')
+  const [trackCatalogSaved, setTrackCatalogSaved] = useState(false)
+  const [trackRetry, setTrackRetry] = useState(0)
   const [trackAuthRequired, setTrackAuthRequired] = useState(false)
   const [selectedTrack, setSelectedTrack] = useState(null)
   const textareaRef = useRef(null)
@@ -47,8 +49,13 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
   }, [])
 
   useEffect(() => {
+    const ticket = ++trackSearchTicket.current
     const term = trackQuery.trim()
-    if (!showTrackSearch || !term || !viewerResolved) {
+    setTrackError('')
+    setTrackCatalogSaved(false)
+    setTrackResults([])
+    setTrackSearchDone(false)
+    if (!showTrackSearch || term.length < 2 || !viewerResolved) {
       setTrackResults([])
       setTrackSearching(false)
       setTrackSearchDone(false)
@@ -64,7 +71,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
       return
     }
 
-    const ticket = ++trackSearchTicket.current
+    setTrackSearching(true)
     const controller = new AbortController()
     const timer = setTimeout(async () => {
       setTrackSearching(true)
@@ -77,6 +84,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
           { cache: 'no-store', signal: controller.signal }
         )
         const data = await response.json().catch(() => ({}))
+        if (controller.signal.aborted || ticket !== trackSearchTicket.current) return
         if (response.status === 401) {
           setTrackAuthRequired(true)
           setTrackResults([])
@@ -87,6 +95,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
         if (ticket === trackSearchTicket.current) {
           setTrackResults(Array.isArray(data.items) ? data.items : [])
           setTrackSearchDone(true)
+          setTrackCatalogSaved(data.catalogUnavailable === true)
         }
       } catch (searchError) {
         if (searchError.name !== 'AbortError' && ticket === trackSearchTicket.current) {
@@ -103,7 +112,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
       clearTimeout(timer)
       controller.abort()
     }
-  }, [showTrackSearch, trackQuery, viewer, viewerResolved])
+  }, [showTrackSearch, trackQuery, viewer, viewerResolved, trackRetry])
 
   // Starts small and grows with the text instead of opening as one large box —
   // the CSS max-height caps it so a long post scrolls internally rather than
@@ -319,6 +328,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
 
                       <div className="composer-track-search-status" aria-live="polite">
                         {trackSearching && <p className="tiny subtle">جارِ البحث في كتالوج الموسيقى…</p>}
+                        {trackCatalogSaved && <p className="tiny subtle">نعرض الأغاني المحفوظة؛ كتالوج Apple غير متاح مؤقتًا.</p>}
                         {!trackQuery.trim() && <p className="tiny subtle">اكتب اسم أغنية أو فنان، ثم اختر نتيجة واحدة.</p>}
                         {trackSearchDone && !trackSearching && !trackResults.length && !trackError && <p className="tiny subtle">لا توجد نتائج مطابقة.</p>}
                       </div>
@@ -357,7 +367,7 @@ export function Composer({ firstPost = false, inline = false, onPublished = null
                     </>}
               </div>}
             </>}
-        {trackError && <p className="status-message error composer-track-error">{trackError}</p>}
+        {trackError && <div role="alert"><p className="status-message error composer-track-error">{trackError}</p>{showTrackSearch && <button type="button" className="secondary-button" onClick={() => setTrackRetry(value => value + 1)}>إعادة المحاولة</button>}</div>}
       </div>
       <div className="composer-foot">
         <span className={`tiny ${body.length > MAX_LENGTH - 40 ? 'danger-text' : 'subtle'}`} dir="ltr">{body.length} / {MAX_LENGTH}</span>

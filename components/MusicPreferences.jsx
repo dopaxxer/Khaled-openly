@@ -64,6 +64,9 @@ export function MusicPreferences() {
   const [trackResults, setTrackResults] = useState([])
   const [trackSearching, setTrackSearching] = useState(false)
   const trackSearchTicket = useRef(0)
+  const [trackError, setTrackError] = useState('')
+  const [trackCatalogSaved, setTrackCatalogSaved] = useState(false)
+  const [trackRetry, setTrackRetry] = useState(0)
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -96,21 +99,31 @@ export function MusicPreferences() {
   }, [])
 
   useEffect(() => {
+    const ticket = ++trackSearchTicket.current
+    setTrackError('')
+    setTrackCatalogSaved(false)
+    setTrackResults([])
     const term = trackQuery.trim()
     if (term.length < 2) {
       setTrackResults([])
       setTrackSearching(false)
       return
     }
-    const ticket = ++trackSearchTicket.current
+    setTrackSearching(true)
     const controller = new AbortController()
     const timer = setTimeout(async () => {
       setTrackSearching(true)
       try {
         const data = await callApi(`/api/v1/music/catalog?q=${encodeURIComponent(term)}`, { signal: controller.signal })
-        if (ticket === trackSearchTicket.current) setTrackResults(data.items || [])
-      } catch {
-        if (ticket === trackSearchTicket.current) setTrackResults([])
+        if (!controller.signal.aborted && ticket === trackSearchTicket.current) {
+          setTrackResults(data.items || [])
+          setTrackCatalogSaved(data.catalogUnavailable === true)
+        }
+      } catch (error) {
+        if (!controller.signal.aborted && ticket === trackSearchTicket.current) {
+          setTrackResults([])
+          setTrackError(error.message || 'تعذر البحث عن الأغاني')
+        }
       } finally {
         if (ticket === trackSearchTicket.current) setTrackSearching(false)
       }
@@ -119,7 +132,7 @@ export function MusicPreferences() {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [trackQuery])
+  }, [trackQuery, trackRetry])
 
   useEffect(() => {
     const term = query.trim()
@@ -427,6 +440,8 @@ export function MusicPreferences() {
           </div>
         </label>
 
+        {trackError && <div role="alert"><p className="danger-text">{trackError}</p><button type="button" className="secondary-button" onClick={() => setTrackRetry(value => value + 1)}>إعادة المحاولة</button></div>}
+        {trackCatalogSaved && <p className="tiny subtle">نعرض الأغاني المحفوظة؛ كتالوج Apple غير متاح مؤقتًا.</p>}
         {trackSearching && <p className="tiny subtle">جارِ البحث في الكتالوج…</p>}
 
         {trackResults.length > 0 && <ul className="result-list" aria-label="نتائج الأغاني">

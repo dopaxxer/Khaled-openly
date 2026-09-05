@@ -22,6 +22,7 @@ import {
   searchAppleTracks
 } from '@/lib/musicCatalog'
 import { consumeRateLimit, RATE_LIMITS, rateLimitKey } from '@/lib/rateLimit'
+import { findSavedMusicTrack, searchSavedMusicTracks, searchMusicWithFallback } from '@/lib/savedMusicCatalog'
 
 export const dynamic = 'force-dynamic'
 
@@ -207,8 +208,12 @@ export async function GET(request, { params }) {
     const limit = boundedInt(url.searchParams.get('limit'), MUSIC_CATALOG_RESULT_LIMIT, 1, MUSIC_CATALOG_RESULT_LIMIT)
 
     try {
-      const items = await withCatalogTimeout(signal => searchAppleTracks(query, limit, signal))
-      return ok({ items, provider: MUSIC_PROVIDER_APPLE })
+      const result = await searchMusicWithFallback({
+        search: () => withCatalogTimeout(signal => searchAppleTracks(query, limit, signal)),
+        savedSearch: () => searchSavedMusicTracks(supabase, query, limit),
+        onUnavailable: error => logError('v1.catalog_using_saved', error)
+      })
+      return ok(result)
     } catch (error) {
       logError('v1.catalog_upstream', error)
       return fail(502, 'catalog_unavailable', 'تعذر الوصول إلى كتالوج الموسيقى الآن')
@@ -347,6 +352,11 @@ export async function POST(request, { params }) {
 
     let track
     try {
+      // A previously saved song already has a server-owned ID and metadata.
+      // Requiring Apple again made even existing songs impossible to attach
+      // during an upstream outage. No client-supplied metadata is accepted.
+      const saved = await findSavedMusicTrack(supabase, externalId)
+      if (saved) return ok({ track: saved })
       track = await withCatalogTimeout(signal => lookupAppleTrack(externalId, signal))
     } catch (error) {
       logError('v1.catalog_lookup_upstream', error)

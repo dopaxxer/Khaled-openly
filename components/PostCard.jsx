@@ -121,7 +121,7 @@ function PostCardView({ post, initialEngagement = null, viewerCode = null, onCha
   return <article className="post-card v2-post-card">
     <div className="v2-post-head">
       <Link href={`/u/${post.authorCode}`} className="v2-post-identity" aria-label={`صفحة ${post.authorCode}`}>
-        <span className="v2-post-dot" style={{ backgroundColor: post.authorColor }} aria-hidden="true" />
+        <span className="v2-post-dot" style={{ '--identity-color': post.authorColor }} aria-hidden="true"><span>{post.authorCode.slice(0, 1)}</span></span>
       </Link>
       <div className="post-top">
         <Link href={`/u/${post.authorCode}`} className="post-author">{post.authorCode}</Link>
