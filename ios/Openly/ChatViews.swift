@@ -67,14 +67,14 @@ struct ConversationsView:View {
     private var file:URL?
     func start()async throws{
         let allowed=await withCheckedContinuation{
-            continuation in AVAudioSession.sharedInstance().requestRecordPermission{
+            continuation in AVAudioApplication.requestRecordPermission{
                 continuation.resume(returning:$0)
             }
         }
         guard allowed else{
             throw OpenlyError(code:"Microphone access was denied. Enable it in Settings.")
         }
-        try AVAudioSession.sharedInstance().setCategory(.playAndRecord,mode:.default,options:[.defaultToSpeaker,.allowBluetooth])
+        try AVAudioSession.sharedInstance().setCategory(.playAndRecord,mode:.default,options:[.defaultToSpeaker,.allowBluetoothHFP])
         try AVAudioSession.sharedInstance().setActive(true)
         let url=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString+".m4a")
         file=url
@@ -132,7 +132,7 @@ struct ChatView:View {
     var localKey:String{
         "openly.\(api.user?.id ?? "").chat.\(cid)"
     }
-    var body:some View{
+    var content:some View{
         VStack(spacing:0){
             if status=="pending"{
                 VStack{
@@ -153,6 +153,91 @@ struct ChatView:View {
             if typing{
                 Text(api.t("Typing…","يكتب الآن…")).font(.caption).foregroundStyle(.secondary)
             }
+            transcript
+            if let error{
+                ErrorNotice(message:error,retry:{
+                    Task{
+                        await load()
+                    }
+                }
+                )
+            }
+            composer
+        }
+    }
+    var body:some View {
+        content
+        .navigationTitle(name).navigationBarTitleDisplayMode(.inline).toolbar{
+            ToolbarItem(placement:.topBarTrailing){
+                Button{
+                    Task{
+                        do{
+                            let _:OK=try await api.request("conversations/\(cid)/state",method:"PATCH",body:["muted":muted ? 0:1])
+                            muted.toggle()
+                        }
+                        catch{
+                            self.error=error.localizedDescription
+                        }
+                    }
+                } label:{
+                    Image(systemName:muted ? "bell.slash.fill":"bell.slash")
+                }
+            }
+        }
+        .dismissKeyboardToolbar(api.t("Done","تم")).task{
+            current=conversation
+            if current==nil{
+                let list:Page<Conversation>?=try? await api.request("conversations")
+                current=list?.items.first{
+                    $0.id==cid
+                }
+            }
+            status=current?.status ?? "accepted"
+            let state:StateResponse?=try? await api.request("conversations/\(cid)/state")
+            draft=UserDefaults.standard.string(forKey:localKey) ?? state?.state?.draft ?? ""
+            muted=state?.state?.muted==1
+            await load()
+            for await _ in api.updates(cid){
+                if Task.isCancelled{
+                    break
+                }
+                await load()
+            }
+        }
+        .task(id:draft){
+            UserDefaults.standard.set(draft,forKey:localKey)
+            do{
+                try await Task.sleep(for:.milliseconds(700))
+                let _:OK=try await api.request("conversations/\(cid)/state",method:"PATCH",body:["draft":draft,"typing":!draft.isEmpty])
+            }
+            catch{
+            }
+        }
+        .onDisappear{
+            voice.cancel()
+            UserDefaults.standard.set(draft,forKey:localKey)
+        }
+        .onChange(of:photo){
+            _,item in Task{
+                busy=true
+                defer{
+                    busy=false
+                }
+                do{
+                    if let data=try await item?.loadTransferable(type:Data.self),let jpeg=UIImage(data:data)?.jpegData(compressionQuality:0.8){
+                        media=try await api.upload(jpeg,type:"image/jpeg")
+                    }
+                }
+                catch{
+                    self.error=error.localizedDescription
+                }
+            }
+        }
+        .sheet(item:$report){
+            m in ReportView(kind:"message",target:m.id)
+        }
+    }
+    var transcript: some View {
             ScrollViewReader{
                 proxy in ScrollView{
                     LazyVStack(spacing:14){
@@ -234,85 +319,6 @@ struct ChatView:View {
                     }
                 }
             }
-            if let error{
-                ErrorNotice(message:error,retry:{
-                    Task{
-                        await load()
-                    }
-                }
-                )
-            }
-            composer
-        }
-        .navigationTitle(name).navigationBarTitleDisplayMode(.inline).toolbar{
-            ToolbarItem(placement:.topBarTrailing){
-                Button{
-                    Task{
-                        do{
-                            let _:OK=try await api.request("conversations/\(cid)/state",method:"PATCH",body:["muted":muted ? 0:1])
-                            muted.toggle()
-                        }
-                        catch{
-                            self.error=error.localizedDescription
-                        }
-                    }
-                } label:{
-                    Image(systemName:muted ? "bell.slash.fill":"bell.slash")
-                }
-            }
-        }
-        .dismissKeyboardToolbar(api.t("Done","تم")).task{
-            current=conversation
-            if current==nil{
-                let list:Page<Conversation>?=try? await api.request("conversations")
-                current=list?.items.first{
-                    $0.id==cid
-                }
-            }
-            status=current?.status ?? "accepted"
-            let state:StateResponse?=try? await api.request("conversations/\(cid)/state")
-            draft=UserDefaults.standard.string(forKey:localKey) ?? state?.state?.draft ?? ""
-            muted=state?.state?.muted==1
-            await load()
-            for await _ in api.updates(cid){
-                if Task.isCancelled{
-                    break
-                }
-                await load()
-            }
-        }
-        .task(id:draft){
-            UserDefaults.standard.set(draft,forKey:localKey)
-            do{
-                try await Task.sleep(for:.milliseconds(700))
-                let _:OK=try await api.request("conversations/\(cid)/state",method:"PATCH",body:["draft":draft,"typing":!draft.isEmpty])
-            }
-            catch{
-            }
-        }
-        .onDisappear{
-            voice.cancel()
-            UserDefaults.standard.set(draft,forKey:localKey)
-        }
-        .onChange(of:photo){
-            _,item in Task{
-                busy=true
-                defer{
-                    busy=false
-                }
-                do{
-                    if let data=try await item?.loadTransferable(type:Data.self),let jpeg=UIImage(data:data)?.jpegData(compressionQuality:0.8){
-                        media=try await api.upload(jpeg,type:"image/jpeg")
-                    }
-                }
-                catch{
-                    self.error=error.localizedDescription
-                }
-            }
-        }
-        .sheet(item:$report){
-            m in ReportView(kind:"message",target:m.id)
-        }
     }
     @ViewBuilder var composer:some View{
         VStack(spacing:8){
