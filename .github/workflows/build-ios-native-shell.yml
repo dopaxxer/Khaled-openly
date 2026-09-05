@@ -1,0 +1,94 @@
+name: Build Openly Persistent Native IPA
+
+on:
+  push:
+    paths:
+      - 'ios/Openly/PersistentMainTabView.swift'
+      - '.github/workflows/build-ios-native-shell.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: persistent-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Activate persistent native shell
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('ios/Openly/AppDelegate.swift')
+          source = path.read_text()
+          old = '                MainTabView()'
+          new = '                PersistentMainTabView()'
+          if old not in source:
+              raise SystemExit('MainTabView root call was not found')
+          path.write_text(source.replace(old, new, 1))
+          PY
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate app icons
+        working-directory: ios
+        run: python3 generate_icons.py
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build native iPhone app
+        working-directory: ios
+        run: |
+          build_number="${GITHUB_RUN_NUMBER}"
+          xcodebuild \
+            -project Openly.xcodeproj \
+            -scheme Openly \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION="$build_number" \
+            MARKETING_VERSION=1.3.0 \
+            build
+
+      - name: Verify native shell
+        working-directory: ios
+        run: |
+          test -d build/Build/Products/Release-iphoneos/Openly.app
+          grep -q 'struct PersistentMainTabView' Openly/PersistentMainTabView.swift
+          if grep -R "WKWebView\|WebKit" Openly --include='*.swift'; then
+            echo "Web wrapper code found" >&2
+            exit 1
+          fi
+
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          rm -rf Payload Openly-1.3.0-persistent-UNSIGNED.ipa
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/Openly.app Payload/Openly.app
+          zip -qry Openly-1.3.0-persistent-UNSIGNED.ipa Payload
+          shasum -a 256 Openly-1.3.0-persistent-UNSIGNED.ipa > Openly-1.3.0-persistent-UNSIGNED.ipa.sha256
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: Openly-1.3.0-persistent-native-ipa
+          path: |
+            ios/Openly-1.3.0-persistent-UNSIGNED.ipa
+            ios/Openly-1.3.0-persistent-UNSIGNED.ipa.sha256
+          if-no-files-found: error
