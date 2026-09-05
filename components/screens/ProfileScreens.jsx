@@ -175,7 +175,16 @@ export function SettingsScreen() {
   }
 
   if (user === undefined) return <div className="screen-pad"><div className="skeleton" /></div>
-  if (user === null) return <div className="empty-state"><div><p>سجّل الدخول لتعديل هويتك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div></div>
+  if (user === null) return <section className="v2-settings-screen">
+    <header className="page-header v2-settings-head">
+      <div className="page-title-row"><Settings size={20} /><h1 className="page-title">الإعدادات</h1></div>
+      <p className="page-description">كيف يظهر التطبيق على هذا الجهاز.</p>
+    </header>
+    <div className="screen-pad stack v2-settings-body">
+      <div className="panel" style={{ padding: 20 }}><ThemeControl /></div>
+      <div className="panel" style={{ padding: 20 }}><p>سجّل الدخول لتعديل هويتك.</p><Link href="/login" className="primary-button mt16">تسجيل الدخول</Link></div>
+    </div>
+  </section>
 
   return <section className="v2-settings-screen">
     <header className="page-header v2-settings-head">
