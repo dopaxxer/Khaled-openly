@@ -222,11 +222,7 @@ struct PostRow:View {
             ComposerView(edit:post)
         }
         .sheet(isPresented:$image){
-            NavigationStack{
-                if let id=post.image{
-                    SecureImage(id:id).scaledToFit().padding()
-                }
-            }
+            if let id=post.image { ImageViewer(id:id) }
         }
         .confirmationDialog(api.t("Delete this post?","حذف هذا المنشور؟"),isPresented:$delete,titleVisibility:.visible){
             Button(api.t("Delete","حذف"),role:.destructive){

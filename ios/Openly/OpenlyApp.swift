@@ -188,6 +188,9 @@ struct MainView:View {
                 }
             }
         }
+        .alert(api.t("Something needs your attention", "هناك أمر يحتاج انتباهك"), isPresented: Binding(get: { api.error != nil }, set: { if !$0 { api.error=nil } })) {
+            Button(api.t("Close", "إغلاق")) { api.error=nil }
+        } message: { Text(api.error ?? "") }
     }
     @ToolbarContentBuilder var topToolbar:some ToolbarContent {
         ToolbarItemGroup(placement:.topBarTrailing){

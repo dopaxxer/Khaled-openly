@@ -251,8 +251,7 @@ struct ChatView:View {
                                             m in !messages.contains{
                                                 $0.id==m.id
                                             }
-                                        }
-                                        +messages
+                                        } + messages
                                         self.next=p.next
                                         if let anchor{
                                             proxy.scrollTo(anchor,anchor:.top)

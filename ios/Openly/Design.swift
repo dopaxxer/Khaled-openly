@@ -26,12 +26,13 @@ struct AvatarView:View {
 struct SecureImage:View {
     @EnvironmentObject var api:API
     let id:String
+    var fit=false
     @State private var image:UIImage?
     @State private var failed=false
     var body:some View{
         Group{
             if let image{
-                Image(uiImage:image).resizable().scaledToFill()
+                Image(uiImage:image).resizable().aspectRatio(contentMode:fit ? .fit : .fill)
             }
             else if failed{
                 Image(systemName:"photo.badge.exclamationmark").foregroundStyle(.secondary)
@@ -190,6 +191,31 @@ extension View {
                 Spacer()
                 Button(title){
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),to:nil,from:nil,for:nil)
+                }
+            }
+        }
+    }
+}
+
+struct ImageViewer: View {
+    @EnvironmentObject var api: API
+    @Environment(\.dismiss) var dismiss
+    let id: String
+    @State private var zoom: CGFloat=1
+    @GestureState private var gestureZoom: CGFloat=1
+    var body: some View {
+        NavigationStack {
+            ScrollView([.horizontal,.vertical]) {
+                SecureImage(id:id,fit:true).containerRelativeFrame([.horizontal,.vertical])
+                    .scaleEffect(zoom*gestureZoom)
+                    .gesture(MagnifyGesture().updating($gestureZoom) { value,state,_ in state=value.magnification }.onEnded { value in zoom=min(5,max(1,zoom*value.magnification)) })
+            }
+            .navigationTitle(api.t("Photo", "صورة"))
+            .toolbar {
+                ToolbarItem(placement:.cancellationAction) { Button(api.t("Close", "إغلاق")) { dismiss() } }
+                ToolbarItemGroup(placement:.topBarTrailing) {
+                    Button { zoom=max(1,zoom-0.5) } label: { Image(systemName:"minus.magnifyingglass") }.accessibilityLabel(api.t("Zoom out", "تصغير"))
+                    Button { zoom=min(5,zoom+0.5) } label: { Image(systemName:"plus.magnifyingglass") }.accessibilityLabel(api.t("Zoom in", "تكبير"))
                 }
             }
         }

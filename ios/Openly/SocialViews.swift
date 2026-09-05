@@ -1027,7 +1027,7 @@ struct SettingsView:View {
                         }
                         ))
                     }
-                    Button(api.t("Enable iPhone notifications","تفعيل إشعارات iPhone")){
+                    Button(api.t("Enable push notifications","تفعيل الإشعارات")){
                         Task{
                             do{
                                 let allowed=try await UNUserNotificationCenter.current().requestAuthorization(options:[.alert,.badge,.sound])
@@ -1043,6 +1043,8 @@ struct SettingsView:View {
                             }
                         }
                     }
+                    .disabled(!api.pushConfigured)
+                    if !api.pushConfigured { Text(api.t("Push is not configured on this server yet. In-app notifications are available.", "الإشعارات الفورية غير مفعلة على الخادم بعد. إشعارات التطبيق متاحة.")).font(.caption).foregroundStyle(.secondary) }
                 }
                 if let error{
                     ErrorNotice(message:error)

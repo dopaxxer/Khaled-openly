@@ -139,6 +139,7 @@ struct Cursor: Codable {
     let score:Double?
 }
 struct UserResponse: Decodable {
+    let capabilities:Capabilities?
     let user:Person
     let token:String?
     let recovery:String?
@@ -182,3 +183,5 @@ struct StateResponse:Decodable {
     }
     let state:State?
 }
+
+struct Capabilities: Decodable { let push: Bool; let emailRecovery: Bool }

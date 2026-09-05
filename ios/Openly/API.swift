@@ -30,6 +30,7 @@ enum Keychain {
     }
 }
 @MainActor final class API: ObservableObject {
+    @Published var pushConfigured=false
     @Published var user:Person?
     @Published var loading=true
     @Published var error:String?
@@ -97,6 +98,7 @@ enum Keychain {
         do{
             let r:UserResponse=try await request("me")
             user=r.user
+            pushConfigured=r.capabilities?.push ?? false
         }
         catch{
             self.error=error.localizedDescription
@@ -107,6 +109,7 @@ enum Keychain {
         Keychain.save(r.token)
         user=r.user
         recovery=r.recovery
+        if let current: UserResponse = try? await request("me") { pushConfigured=current.capabilities?.push ?? false }
     }
     func update(_ values:[String:Any]) async throws {
         let r:UserResponse=try await request("me",method:"PATCH",body:values)

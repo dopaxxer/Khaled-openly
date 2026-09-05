@@ -404,6 +404,10 @@ test("Moment expiration is enforced on posts and protected media, including its 
     .run(mid, a.id, "image/png", 8, Date.now());
   await env.BUCKET.put(mid, new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]));
   const p = await post(a, { kind: "moment", image: mid });
+  assert.equal(
+    database.prepare("SELECT expires FROM media WHERE id=?").get(mid).expires,
+    p.expires,
+  );
   assert.equal((await call("media/" + mid, "GET", null, b)).status, 200);
   database
     .prepare("UPDATE posts SET expires=? WHERE id=?")
@@ -415,6 +419,37 @@ test("Moment expiration is enforced on posts and protected media, including its 
     (await call("feed?kind=moment", "GET", null, b)).data.items.length,
     0,
   );
+});
+test("expired media stays inaccessible after content removal and account deletion purges bytes", async () => {
+  const mid = crypto.randomUUID();
+  database
+    .prepare("INSERT INTO media(id,owner,type,size,created) VALUES (?,?,?,?,?)")
+    .run(mid, a.id, "image/png", 8, Date.now());
+  await env.BUCKET.put(mid, new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]));
+  const p = await post(a, { kind: "moment", image: mid });
+  database
+    .prepare("UPDATE media SET expires=? WHERE id=?")
+    .run(Date.now() - 1, mid);
+  database.prepare("DELETE FROM posts WHERE id=?").run(p.id);
+  assert.equal((await call("media/" + mid, "GET", null, a)).status, 404);
+  assert.equal((await call("media/" + mid, "GET", null, b)).status, 404);
+  assert.ok(await env.BUCKET.get(mid));
+  assert.equal((await call("me", "DELETE", null, a)).status, 200);
+  assert.equal(await env.BUCKET.get(mid), undefined);
+  assert.equal((await call("me", "GET", null, a)).status, 401);
+});
+test("ranked zero-score cursors do not repeat content and profile pins precede newer posts", async () => {
+  const first = await post(a, { body: "First" });
+  const second = await post(a, { body: "Second" });
+  const page1 = (await call("feed?mode=for-you&limit=1", "GET", null, b)).data;
+  assert.equal(page1.next.score, 0);
+  const q = new URLSearchParams({ ...page1.next, mode: "for-you", limit: "1" });
+  const page2 = (await call("feed?" + q, "GET", null, b)).data;
+  assert.notEqual(page1.items[0].id, page2.items[0].id);
+  await call("posts/" + first.id, "PATCH", { pinned: 1 }, a);
+  const profile = (await call("feed?author=" + a.id, "GET", null, b)).data;
+  assert.equal(profile.items[0].id, first.id);
+  assert.equal(profile.items[1].id, second.id);
 });
 test("restricted images cannot be fetched by guessing identifiers", async () => {
   const mid = crypto.randomUUID();
