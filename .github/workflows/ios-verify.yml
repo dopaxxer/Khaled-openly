@@ -38,6 +38,16 @@ jobs:
         run: xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPHONE_SIMULATOR" -resultBundlePath build/iPhone.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM=""
       - name: Test iPad layouts
         run: xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPAD_SIMULATOR" -only-testing:OpenlyUITests -resultBundlePath build/iPad.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM=""
+      - name: Compile Release for physical-device SDK without distribution signing
+        run: |
+          xcodebuild build -project ios/Openly.xcodeproj -scheme Openly -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/Device CODE_SIGNING_ALLOWED=NO
+          ditto -c -k --sequesterRsrc --keepParent build/Device/Build/Products/Release-iphoneos/Openly.app build/Openly-1.0.0-unsigned-device-build.zip
+      - name: Upload unsigned device compilation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Openly-1.0.0-unsigned-device-build-${{ github.run_number }}
+          path: build/Openly-1.0.0-unsigned-device-build.zip
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: always()
         with:
