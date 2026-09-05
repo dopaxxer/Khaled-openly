@@ -539,7 +539,11 @@ export function SavePost({
             placeholder={t("New collection name", "اسم المجموعة الجديدة")}
             aria-label={t("Collection name", "اسم المجموعة")}
           />
-          <BusyButton type="submit" busy={busy}>
+          <BusyButton
+            type="submit"
+            busy={busy}
+            aria-label={t("Create collection", "إنشاء مجموعة")}
+          >
             <Plus />
           </BusyButton>
         </form>

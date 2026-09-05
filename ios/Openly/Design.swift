@@ -5,6 +5,13 @@ struct Ink {
         $0.userInterfaceStyle == .dark ? UIColor(red:0.61,green:0.71,blue:1,alpha:1) : UIColor(red:0.14,green:0.29,blue:0.70,alpha:1)
     }
     )
+    static func accent(_ name:String?) -> Color {
+        guard name != nil && name != "blue" else { return blue }
+        return Color(UIColor { trait in
+            if name == "indigo" { return trait.userInterfaceStyle == .dark ? UIColor(red:0.72,green:0.67,blue:1,alpha:1) : UIColor(red:0.31,green:0.27,blue:0.65,alpha:1) }
+            return trait.userInterfaceStyle == .dark ? UIColor(red:0.61,green:0.75,blue:0.78,alpha:1) : UIColor(red:0.24,green:0.37,blue:0.42,alpha:1)
+        })
+    }
     static let paper=Color(uiColor:.systemGroupedBackground)
 }
 struct AvatarView:View {
@@ -66,6 +73,7 @@ struct QuietEmpty:View {
     }
 }
 struct ErrorNotice:View {
+    @EnvironmentObject var api:API
     let message:String
     var retry:(()->Void)?
     var body:some View{
@@ -74,7 +82,7 @@ struct ErrorNotice:View {
             if let retry{
                 Button(action:retry){
                     Image(systemName:"arrow.clockwise")
-                }
+                }.accessibilityLabel(api.t("Try again","حاول مجددًا"))
             }
         }
         .padding().accessibilityElement(children:.combine)

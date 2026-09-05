@@ -524,7 +524,7 @@ struct SongPickerView:View {
                 }
                 do{
                     try await Task.sleep(for:.milliseconds(350))
-                    let r:Page<Song>=try await api.request("music?q="+(query.addingPercentEncoding(withAllowedCharacters:.urlQueryAllowed) ?? ""))
+                    let r:Page<Song>=try await api.request("music?q="+(query.addingPercentEncoding(withAllowedCharacters:.urlQueryAllowed.subtracting(CharacterSet(charactersIn:"&+=?#"))) ?? ""))
                     songs=r.items
                     error=nil
                 }

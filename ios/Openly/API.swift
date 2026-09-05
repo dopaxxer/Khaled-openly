@@ -117,7 +117,13 @@ enum Keychain {
     }
     func logout() async throws {
         let _:OK=try await request("auth/logout",method:"POST")
+        endSession()
+    }
+    func endSession() {
         Keychain.save(nil)
+        route=nil
+        recovery=nil
+        pushConfigured=false
         user=nil
     }
     func media(_ id:String) async throws ->(Data,String) {

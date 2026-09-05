@@ -79,7 +79,7 @@ struct DiscoverView:View {
         }
     }
     var encoded:String{
-        query.addingPercentEncoding(withAllowedCharacters:.urlQueryAllowed) ?? ""
+        query.addingPercentEncoding(withAllowedCharacters:.urlQueryAllowed.subtracting(CharacterSet(charactersIn:"&+=?#"))) ?? ""
     }
 }
 struct PersonLabel:View {
@@ -115,7 +115,7 @@ struct ProfileView:View {
         ScrollView{
             VStack(alignment:.leading,spacing:16){
                 if let p=person{
-                    Rectangle().fill(Ink.blue.opacity(0.1)).frame(height:95).overlay(alignment:.bottomLeading){
+                    Rectangle().fill(Ink.accent(p.accent).opacity(0.14)).frame(height:95).overlay(alignment:.bottomLeading){
                         AvatarView(person:p.name,media:p.avatar,size:72).padding(.leading,20).offset(y:25)
                     }
                     .padding(.bottom,24)
