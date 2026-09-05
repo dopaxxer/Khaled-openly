@@ -20,8 +20,13 @@ enum DirectMessageCollection {
         var byID = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
         incoming.forEach { byID[$0.id] = $0 }
         // Parse once per item; timestamps may contain different fractional widths.
-        return byID.values.map { ($0, OpenlyDate.date(from: $0.createdAt) ?? .distantPast) }
-            .sorted { $0.1 == $1.1 ? $0.0.id < $1.0.id : $0.1 < $1.1 }
-            .map(\.0)
+        let dated: [(message: DirectMessage, date: Date)] = byID.values.map { message in
+            (message: message, date: OpenlyDate.date(from: message.createdAt) ?? Date.distantPast)
+        }
+        let ordered = dated.sorted { lhs, rhs in
+            if lhs.date == rhs.date { return lhs.message.id < rhs.message.id }
+            return lhs.date < rhs.date
+        }
+        return ordered.map { $0.message }
     }
 }
