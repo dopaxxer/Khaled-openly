@@ -61,12 +61,12 @@ struct MusicPreferencesView: View {
                             .frame(width: 48, height: 48)
                             .overlay(
                                 Image(systemName: "music.note.list")
-                                    .font(.system(size: 20, weight: .semibold))
+                                    .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(OpenlyTheme.accent)
                             )
                         VStack(alignment: .leading, spacing: 4) {
                             Text("الأغاني المفضلة")
-                                .font(.system(size: 17, weight: .bold))
+                                .font(.system(size: 15, weight: .bold))
                                 .foregroundColor(OpenlyTheme.ink)
                             Text("اختر أغاني حقيقية مع الغلاف والفنان والألبوم")
                                 .font(.system(size: 13))
@@ -253,8 +253,8 @@ struct MusicPreferencesView: View {
     @ViewBuilder
     private func sectionCard<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(size: 18, weight: .bold))
+            Text(LocalizedStringKey(title))
+                .font(.system(size: 16, weight: .bold))
                 .foregroundColor(OpenlyTheme.ink)
             content()
         }
@@ -436,9 +436,8 @@ struct MusicDiscoveryView: View {
     @State private var didLoad = false
 
     var body: some View {
-        NavigationView {
+        Group {
             VStack(spacing: 0) {
-                AppHeader()
 
                 if session.user == nil {
                     LoginRequiredView(message: "سجّل الدخول لرؤية من يشاركك ذوقك.")
@@ -505,7 +504,9 @@ struct MusicDiscoveryView: View {
                 }
             }
             .background(OpenlyTheme.background.ignoresSafeArea())
-            .navigationBarHidden(true)
+            .navigationTitle("Music")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarHidden(false)
             .task {
                 guard !didLoad, session.user != nil else { return }
                 didLoad = true
@@ -517,7 +518,6 @@ struct MusicDiscoveryView: View {
                 Task { await load(reset: true) }
             }
         }
-        .navigationViewStyle(.stack)
     }
 
     private var genreFilter: some View {
@@ -541,7 +541,7 @@ struct MusicDiscoveryView: View {
 
     private func filterChip(title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 14, weight: isOn ? .semibold : .regular))
                 .foregroundColor(isOn ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
                 .padding(.horizontal, 16)
@@ -587,7 +587,7 @@ private struct MatchCard: View {
                 Spacer(minLength: 12)
                 VStack(alignment: .trailing, spacing: 5) {
                     Text("\(match.compatibility)%")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundColor(OpenlyTheme.ink)
                         .environment(\.layoutDirection, .leftToRight)
                     GeometryReader { proxy in

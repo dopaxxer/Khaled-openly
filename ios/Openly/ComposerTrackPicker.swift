@@ -11,20 +11,18 @@ struct ComposerTrackPicker: View {
     @Environment(\.dismiss) private var dismiss
 
     let onPick: (MusicTrack) -> Void
+    @StateObject var catalog = MusicCatalogSearch()
 
     @State private var query = ""
-    @State private var results: [MusicCatalogTrack] = []
-    @State private var isSearching = false
     @State private var attachingKey: String?
     @State private var errorMessage: String?
-    @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("Music")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 22, weight: .bold))
                         .tracking(-0.6)
                         .foregroundColor(OpenlyTheme.ink)
                     Text("Add a song as context, not as the post itself.")
@@ -35,7 +33,6 @@ struct ComposerTrackPicker: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 22)
                 .padding(.bottom, 14)
-                .environment(\.layoutDirection, .leftToRight)
 
                 searchField
 
@@ -48,35 +45,59 @@ struct ComposerTrackPicker: View {
                                 .padding(.horizontal, 24)
                         }
 
-                        if isSearching {
+                        if catalog.phase == .failed {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(catalog.errorMessage ?? OpenlyLocale.string("music_catalog_unavailable"))
+                                    .foregroundColor(OpenlyTheme.danger)
+                                    .accessibilityIdentifier("music.search.error")
+                                Button("music_catalog_retry") {
+                                    Task { await catalog.search(query, debounce: 0) }
+                                }
+                                .buttonStyle(OpenlyPressStyle())
+                                .frame(minHeight: 44)
+                                .accessibilityIdentifier("music.search.retry")
+                            }
+                            .padding(.horizontal, 24)
+                        } else if catalog.phase == .loading {
                             statusText("composer_track_searching")
-                        } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            statusText("composer_track_hint")
-                        } else if results.isEmpty {
+                        } else if catalog.phase == .idle {
+                            statusText("music_catalog_minimum")
+                        } else if catalog.phase == .empty {
                             statusText("composer_track_empty")
+                                .accessibilityIdentifier("music.search.empty")
                         }
 
-                        ForEach(results) { track in
+                        if catalog.usingSavedCatalog {
+                            statusText("music_catalog_saved")
+                                .accessibilityIdentifier("music.search.saved")
+                        }
+
+                        ForEach(catalog.results) { track in
                             resultRow(track)
                         }
                     }
                     .padding(.vertical, 16)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .background(OpenlyTheme.background.ignoresSafeArea())
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(action: { dismiss() }) {
+                    Button(action: { OpenlyKeyboard.dismiss(); dismiss() }) {
                         Text("composer_track_cancel")
                             .foregroundColor(OpenlyTheme.accent)
                     }
+                    .accessibilityIdentifier("music.search.close")
                 }
             }
+            .openlyKeyboardDismissal()
         }
         .navigationViewStyle(.stack)
-        .onDisappear { searchTask?.cancel() }
+        .task(id: query) { await catalog.search(query) }
+        .onChange(of: query) { _ in errorMessage = nil }
+        .onDisappear { catalog.cancel() }
     }
 
     private var searchField: some View {
@@ -89,7 +110,22 @@ struct ComposerTrackPicker: View {
                 .font(.system(size: 16))
                 .foregroundColor(OpenlyTheme.ink)
                 .autocorrectionDisabled()
-                .onChange(of: query) { value in scheduleSearch(value) }
+                .textInputAutocapitalization(.never)
+                .accessibilityIdentifier("music.search.query")
+
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                    catalog.cancel()
+                    errorMessage = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(OpenlyTheme.muted)
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel(Text("music_catalog_clear"))
+                .accessibilityIdentifier("music.search.clear")
+            }
         }
         .padding(.horizontal, 16)
         .frame(height: 48)
@@ -146,37 +182,6 @@ struct ComposerTrackPicker: View {
         .buttonStyle(.plain)
         .disabled(attachingKey != nil)
         .padding(.horizontal, 18)
-    }
-
-    private func scheduleSearch(_ value: String) {
-        searchTask?.cancel()
-        let term = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !term.isEmpty else {
-            results = []
-            isSearching = false
-            return
-        }
-
-        searchTask = Task {
-            try? await Task.sleep(nanoseconds: 280_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run { isSearching = true }
-            do {
-                let found = try await session.api.searchMusicCatalog(query: term)
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    results = found
-                    isSearching = false
-                }
-            } catch {
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    results = []
-                    isSearching = false
-                    errorMessage = error.localizedDescription
-                }
-            }
-        }
     }
 
     @MainActor

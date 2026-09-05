@@ -59,7 +59,7 @@ body::before { content: none; }
 .content-column:focus { outline: none; }
 .brand { gap: 10px; font-size: 30px; letter-spacing: -.06em; }
 :root[dir="rtl"] .brand { letter-spacing: -.06em; }
-.brand-mark { display: block; flex: none; inline-size: 23px; block-size: 23px; color: var(--foreground); border: 5px solid currentColor; border-inline-end-color: transparent; border-radius: 50%; background: none; box-shadow: none; font-size: 0; transform: rotate(-35deg); }
+.brand-mark { display: block; flex: none; inline-size: 32px; block-size: 32px; object-fit: contain; border: 0; border-radius: 50%; background: #fff; box-shadow: none; transform: none; }
 .brand span:last-child::after { content: none; }
 .skip-content { position: fixed; inset-block-start: -100px; inset-inline-start: 16px; z-index: 100; padding: 12px 18px; border-radius: 12px; background: var(--accent-strong); color: var(--accent-foreground); }
 .skip-content:focus { inset-block-start: 12px; }

@@ -14,6 +14,13 @@
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
+                            <imageView opaque="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="BrandLogo" translatesAutoresizingMaskIntoConstraints="NO" id="openly-launch-logo">
+                                <rect key="frame" x="169" y="340" width="76" height="76"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="76" id="launch-logo-width"/>
+                                    <constraint firstAttribute="height" constant="76" id="launch-logo-height"/>
+                                </constraints>
+                            </imageView>
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="openly" textAlignment="center" translatesAutoresizingMaskIntoConstraints="NO" id="openly-launch-label">
                                 <rect key="frame" x="0" y="430" width="414" height="38"/>
                                 <fontDescription key="fontDescription" type="system" weight="bold" pointSize="30"/>
@@ -23,6 +30,8 @@
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
+                            <constraint firstItem="openly-launch-logo" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="launch-logo-center-x"/>
+                            <constraint firstItem="openly-launch-label" firstAttribute="top" secondItem="openly-launch-logo" secondAttribute="bottom" constant="14" id="launch-logo-spacing"/>
                             <constraint firstItem="openly-launch-label" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="openly-launch-center-x"/>
                             <constraint firstItem="openly-launch-label" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="openly-launch-center-y"/>
                         </constraints>
@@ -34,6 +43,7 @@
         </scene>
     </scenes>
     <resources>
+        <image name="BrandLogo" width="1254" height="1254"/>
         <systemColor name="labelColor">
             <color white="0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

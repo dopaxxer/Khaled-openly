@@ -13,7 +13,7 @@ struct NativePublicMusicSection: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     Text("الذوق الموسيقي")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(OpenlyTheme.ink)
                     Spacer()
                     Image(systemName: "music.note")
@@ -97,7 +97,7 @@ struct NativePublicMusicSection: View {
             HStack(spacing: 7) {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .semibold))
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.system(size: 12, weight: .semibold))
             }
             .foregroundColor(OpenlyTheme.muted)
@@ -134,7 +134,7 @@ struct NativePublicMusicSection: View {
         ZStack {
             OpenlyTheme.surfaceSoft
             Image(systemName: "music.note")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 16, weight: .medium))
                 .foregroundColor(OpenlyTheme.muted)
         }
     }

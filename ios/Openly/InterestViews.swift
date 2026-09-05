@@ -202,7 +202,7 @@ private struct InterestArtwork: View {
         ZStack {
             OpenlyTheme.surfaceSoft
             Image(systemName: item.interestKind?.systemImage ?? "sparkles")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 16, weight: .medium))
                 .foregroundColor(OpenlyTheme.subtle)
         }
     }
@@ -265,7 +265,7 @@ struct InterestPreferencesView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 5) {
                             Text("Tell us what you like")
-                                .font(.system(size: 28, weight: .bold))
+                                .font(.system(size: 22, weight: .bold))
                                 .tracking(-0.6)
                                 .foregroundColor(OpenlyTheme.ink)
                             Text("Choose a few signals. You can change them later.")
@@ -296,7 +296,7 @@ struct InterestPreferencesView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
                         Text(interestTitle(kind))
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(OpenlyTheme.ink)
                         Spacer()
                         Text("\(selectedForKind.count) / \(maxInterestsPerKind)")
@@ -452,7 +452,7 @@ struct InterestPreferencesView: View {
                     errorMessage = nil
                     Task { await search("") }
                 } label: {
-                    Label(value.title, systemImage: value.systemImage)
+                    Label(LocalizedStringKey(value.title), systemImage: value.systemImage)
                         .font(.system(size: 13, weight: kind == value ? .bold : .semibold))
                         .foregroundColor(kind == value ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
                         .padding(.horizontal, 12)
@@ -657,9 +657,8 @@ struct InterestDiscoveryView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        NavigationView {
+        Group {
             VStack(spacing: 0) {
-                AppHeader()
 
                 if session.user == nil {
                     LoginRequiredView(message: "سجّل الدخول لرؤية من يشاركك اهتماماتك.")
@@ -669,27 +668,12 @@ struct InterestDiscoveryView: View {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Explore")
-                                    .font(.system(size: 28, weight: .bold))
+                                    .font(.system(size: 22, weight: .bold))
                                     .tracking(-0.6)
                                     .foregroundColor(OpenlyTheme.ink)
                                 Text("Find people through what they care about")
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundColor(OpenlyTheme.muted)
-                                NavigationLink(destination: SearchView()) {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "magnifyingglass")
-                                        Text("Search people, music, books, films…")
-                                        Spacer()
-                                    }
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(OpenlyTheme.muted)
-                                    .padding(.horizontal, 16)
-                                    .frame(height: 48)
-                                    .background(OpenlyTheme.surface)
-                                    .overlay(Capsule().stroke(OpenlyTheme.line, lineWidth: 1))
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.top, 10)
                             }
                             .padding(.horizontal, 24)
                             .padding(.top, 22)
@@ -751,12 +735,13 @@ struct InterestDiscoveryView: View {
                 }
             }
             .background(OpenlyTheme.background.ignoresSafeArea())
-            .navigationBarHidden(true)
+            .navigationTitle("Explore")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarHidden(false)
             .task(id: session.user?.publicCode) {
                 if session.user != nil { await load(reset: true) }
             }
         }
-        .navigationViewStyle(.stack)
     }
 
     private var filterBar: some View {
@@ -778,7 +763,7 @@ struct InterestDiscoveryView: View {
             kind = value
             Task { await load(reset: true) }
         } label: {
-            Label(title, systemImage: image)
+            Label(LocalizedStringKey(title), systemImage: image)
                 .font(.system(size: 13, weight: selected ? .bold : .semibold))
                 .foregroundColor(selected ? OpenlyTheme.accentForeground : OpenlyTheme.ink)
                 .padding(.horizontal, 13)
@@ -924,7 +909,7 @@ struct NativePublicInterestSection: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     Text("الاهتمامات")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(OpenlyTheme.ink)
                     Spacer()
                     Text("\(profile.items.count)")
@@ -983,7 +968,7 @@ private struct InterestMediaCard: View {
                 .frame(width: 112, alignment: .leading)
 
             if let subtitle = item.subtitle, !subtitle.isEmpty {
-                Text(subtitle)
+                Text(LocalizedStringKey(subtitle))
                     .font(.system(size: 11))
                     .foregroundColor(OpenlyTheme.subtle)
                     .lineLimit(1)

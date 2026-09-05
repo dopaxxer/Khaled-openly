@@ -41,7 +41,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Settings")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 22, weight: .bold))
                         .tracking(-0.6)
                         .foregroundColor(OpenlyTheme.ink)
                     Text("Identity, appearance and privacy")
@@ -51,7 +51,6 @@ struct SettingsView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 22)
                 .padding(.bottom, 8)
-                .environment(\.layoutDirection, .leftToRight)
 
                 if session.user == nil {
                     EmptyState(
@@ -73,6 +72,8 @@ struct SettingsView: View {
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .scrollDismissesKeyboard(.interactively)
+        .openlyKeyboardDismissal()
         .task(id: session.user?.publicCode) { loadIdentityFromSession() }
     }
 
@@ -86,7 +87,7 @@ struct SettingsView: View {
                         .shadow(color: (Color(hex: identityColor) ?? OpenlyTheme.accent).opacity(0.3), radius: 4)
 
                     Text(publicCode.isEmpty ? (session.user?.publicCode ?? "") : publicCode)
-                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .font(.system(size: 16, weight: .bold, design: .monospaced))
                         .tracking(1.1)
                         .foregroundColor(OpenlyTheme.ink)
                         .environment(\.layoutDirection, .leftToRight)
@@ -109,7 +110,7 @@ struct SettingsView: View {
                         inlineError = nil
                     } label: {
                         Image(systemName: "shuffle")
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(OpenlyTheme.ink)
                             .frame(width: 58, height: 56)
                             .background(OpenlyTheme.background)
@@ -121,7 +122,7 @@ struct SettingsView: View {
 
                     OpenlyFieldContainer {
                         TextField("KHA9D", text: $publicCode)
-                            .font(.system(size: 17, weight: .bold, design: .monospaced))
+                            .font(.system(size: 15, weight: .bold, design: .monospaced))
                             .tracking(1.2)
                             .textInputAutocapitalization(.characters)
                             .autocorrectionDisabled()
@@ -280,11 +281,11 @@ struct SettingsView: View {
     private var displayPanel: some View {
         VStack(alignment: .leading, spacing: 28) {
             VStack(alignment: .leading, spacing: 14) {
-                Text("اللغة / Language")
-                    .font(.system(size: 18, weight: .bold))
+                Text("اللغة")
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(OpenlyTheme.ink)
 
-                Text("اختر لغة واجهة Openly. / Choose the Openly interface language.")
+                Text("اختر لغة واجهة Openly.")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(OpenlyTheme.muted)
                     .lineSpacing(4)
@@ -355,7 +356,7 @@ struct SettingsView: View {
 
     private func fieldTitle(_ value: String) -> some View {
         Text(value)
-            .font(.system(size: 17, weight: .bold))
+            .font(.system(size: 15, weight: .bold))
             .foregroundColor(OpenlyTheme.ink)
     }
 

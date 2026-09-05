@@ -23,7 +23,7 @@ const mobileNav = [
 
 function Brand() {
   return <Link href="/" className="brand" aria-label="openly — الرئيسية" dir="ltr">
-    <span className="brand-mark" aria-hidden="true">O</span>
+    <img className="brand-mark" src="/openly-logo.jpg" width="32" height="32" alt="" />
     <span>openly</span>
   </Link>
 }

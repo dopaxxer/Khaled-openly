@@ -9,116 +9,66 @@ import UIKit
 struct SearchView: View {
     @EnvironmentObject private var session: AppSession
     @State private var query = ""
-    @State private var searchGeneration = UUID()
     @State private var result: SearchResponse?
     @State private var isLoading = false
-    @FocusState private var focused: Bool
+    @State private var errorMessage: String?
+    @State private var generation = UUID()
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text("Search")
-                                .font(.system(size: 28, weight: .bold))
-                                .tracking(-0.6)
-                                .foregroundColor(OpenlyTheme.ink)
-                            Text("People, posts and cultural context")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(OpenlyTheme.muted)
+            ScrollView {
+                if isLoading {
+                    ProgressView("جارِ البحث").padding(.top, 24)
+                } else if let errorMessage {
+                    EmptyState(icon: "wifi.exclamationmark", title: "تعذر البحث", message: errorMessage)
+                } else if let result {
+                    SearchResultsView(result: result)
+                } else {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("People, posts and cultural context")
+                            .font(.system(size: 14)).foregroundColor(OpenlyTheme.muted)
+                        NavigationLink(destination: InterestDiscoveryView()) {
+                            Label("Explore", systemImage: "safari")
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 24)
-                        .padding(.top, 22)
-                        .padding(.bottom, 16)
-
-                        HStack(spacing: 10) {
-                            OpenlyFieldContainer {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "magnifyingglass")
-                                        .foregroundColor(OpenlyTheme.muted)
-                                    TextField("Search people or posts…", text: $query)
-                                        .foregroundColor(OpenlyTheme.ink)
-                                        .textInputAutocapitalization(.never)
-                                        .autocorrectionDisabled()
-                                        .focused($focused)
-                                        .submitLabel(.search)
-                                        .onSubmit { Task { await search() } }
-
-                                    if !query.isEmpty {
-                                        Button {
-                                            query = ""
-                                            result = nil
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(OpenlyTheme.subtle)
-                                        }
-                                    }
-                                }
-                            }
-
-                            Button {
-                                Task { await search() }
-                            } label: {
-                                if isLoading {
-                                    ProgressView().tint(OpenlyTheme.accentForeground)
-                                } else {
-                                    Image(systemName: "arrow.right")
-                                        .font(.system(size: 16, weight: .bold))
-                                }
-                            }
-                            .foregroundColor(OpenlyTheme.accentForeground)
-                            .frame(width: 54, height: 54)
-                            .background(OpenlyTheme.ink)
-                            .clipShape(Circle())
-                            .buttonStyle(.plain)
-                            .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 22)
-
-                        if isLoading {
-                            ProgressView("جارِ البحث")
-                                .tint(OpenlyTheme.accent)
-                                .foregroundColor(OpenlyTheme.muted)
-                                .padding(.top, 24)
-                        } else if let result {
-                            SearchResultsView(result: result)
+                        NavigationLink(destination: MusicDiscoveryView()) {
+                            Label("Music", systemImage: "music.note")
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
                     }
+                    .padding(20)
                 }
-                .background(OpenlyTheme.background)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(OpenlyTheme.background.ignoresSafeArea())
-            .navigationBarHidden(true)
+            .navigationTitle("Search")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search people or posts…")
+            .openlyKeyboardDismissal()
+            .task(id: query) { await search() }
         }
         .navigationViewStyle(.stack)
-        .onChange(of: query) { _ in
-            // A result for an earlier query must not reappear after clearing/editing.
-            searchGeneration = UUID()
-            result = nil
-            isLoading = false
-        }
     }
 
     @MainActor
     private func search() async {
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { result = nil; return }
-        focused = false
-        let generation = UUID()
-        searchGeneration = generation
+        let token = UUID()
+        generation = token
+        result = nil
+        errorMessage = nil
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty else { isLoading = false; return }
         isLoading = true
         do {
-            let response = try await session.api.search(text)
-            guard searchGeneration == generation else { return }
-            result = response
+            try await Task.sleep(nanoseconds: 300_000_000)
+            let value = try await session.api.search(term)
+            guard !Task.isCancelled, generation == token else { return }
+            result = value
         } catch {
-            guard searchGeneration == generation else { return }
-            session.alertMessage = error.localizedDescription
+            guard !Task.isCancelled, generation == token else { return }
+            errorMessage = error.localizedDescription
         }
-        isLoading = false
+        if generation == token { isLoading = false }
     }
 }
 
@@ -134,7 +84,7 @@ private struct SearchResultsView: View {
             if !result.users.isEmpty {
                 HStack {
                     Text("الهويات")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(OpenlyTheme.ink)
                     Spacer()
                 }
@@ -162,7 +112,7 @@ private struct SearchResultsView: View {
             if !result.posts.isEmpty {
                 HStack {
                     Text("المنشورات")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(OpenlyTheme.ink)
                     Spacer()
                 }
@@ -182,23 +132,10 @@ struct NotificationsView: View {
     @EnvironmentObject private var session: AppSession
     @State private var response: NotificationResponse?
     @State private var isLoading = false
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 7) {
-                Text("Notifications")
-                    .font(.system(size: 28, weight: .bold))
-                    .tracking(-0.6)
-                    .foregroundColor(OpenlyTheme.ink)
-                Text("Only things that need your attention")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(OpenlyTheme.muted)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 22)
-            .padding(.bottom, 14)
-
             Group {
             if session.user == nil {
                 LoginRequiredView(message: "سجّل الدخول لرؤية الإشعارات.")
@@ -238,13 +175,16 @@ struct NotificationsView: View {
                     }
                 }
                 .refreshable { await load() }
+            } else if let errorMessage {
+                EmptyState(icon: "wifi.exclamationmark", title: "تعذر تحميل الإشعارات", message: errorMessage)
+                Button("المحاولة مجددًا") { Task { await load() } }.buttonStyle(OpenlySecondaryButtonStyle())
             } else {
                 EmptyState(icon: "bell.slash", title: "لا توجد إشعارات", message: "ستظهر هنا الإعجابات والردود المرتبطة بك.")
             }
             }
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
-        .navigationTitle("")
+        .navigationTitle("الإشعارات")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
@@ -259,29 +199,30 @@ struct NotificationsView: View {
     }
 
     private func notificationText(_ item: NotificationItem) -> String {
-        let actor = item.actorCode ?? "أحد المستخدمين"
+        let actor = item.actorCode ?? OpenlyLocale.string("notification_someone")
+        let key: String
         switch item.kind {
-        case "like": return "أعجب \(actor) بمنشورك"
-        case "comment", "reply": return "ردّ \(actor) على منشورك"
-        case "follow": return "بدأ \(actor) بمتابعتك"
-        case "mention":
-            return item.commentId == nil
-                ? "أشار إليك \(actor) في منشور"
-                : "أشار إليك \(actor) في تعليق"
-        default: return "تفاعل \(actor) مع محتواك"
+        case "like": key = "notification_like"
+        case "comment", "reply": key = "notification_reply"
+        case "follow": key = "notification_follow"
+        case "mention": key = item.commentId == nil ? "notification_mention_post" : "notification_mention_comment"
+        default: key = "notification_activity"
         }
+        return String(format: OpenlyLocale.string(key), locale: OpenlyLocale.locale, actor)
     }
 
     @MainActor
     private func load() async {
+        guard !isLoading else { return }
         isLoading = true
+        errorMessage = nil
         do {
             let value = try await session.api.notifications()
             response = value
             let unread = value.items.filter { $0.readAt == nil }.map(\.id)
             if !unread.isEmpty { try? await session.api.markNotificationsRead(ids: unread) }
             session.notificationsRevision &+= 1
-        } catch { session.alertMessage = error.localizedDescription }
+        } catch { errorMessage = error.localizedDescription }
         isLoading = false
     }
 }
@@ -304,7 +245,7 @@ struct AccountView: View {
                                             .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
                                             .frame(width: 14, height: 14)
                                         Text(user.publicCode)
-                                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                            .font(.system(size: 20, weight: .bold, design: .monospaced))
                                             .tracking(0.6)
                                             .foregroundColor(OpenlyTheme.ink)
                                             .environment(\.layoutDirection, .leftToRight)
@@ -339,7 +280,7 @@ struct AccountView: View {
 
                             if let bio = user.bio, !bio.isEmpty {
                                 Text(bio)
-                                    .font(.system(size: 17, weight: .regular))
+                                    .font(.system(size: 15, weight: .regular))
                                     .foregroundColor(OpenlyTheme.ink)
                                     .lineSpacing(5)
                                     .padding(.top, 10)
@@ -462,9 +403,9 @@ private struct AccountMenuRow: View {
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 19, weight: .regular))
+                .font(.system(size: 16, weight: .regular))
                 .frame(width: 28)
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.system(size: 16, weight: .medium))
             Spacer()
             Image(systemName: "chevron.left")
@@ -485,7 +426,7 @@ struct LoginRequiredView: View {
         VStack(spacing: 24) {
             Spacer()
             Text(message)
-                .font(.system(size: 20, weight: .medium))
+                .font(.system(size: 18, weight: .medium))
                 .foregroundColor(OpenlyTheme.muted)
                 .multilineTextAlignment(.center)
 
@@ -630,7 +571,7 @@ struct LoginView: View {
     private var entryContent: some View {
         Text("Welcome to openly")
             .accessibilityIdentifier("login.title")
-            .font(.system(size: 30, weight: .bold))
+            .font(.system(size: 24, weight: .bold))
             .tracking(-0.7)
             .foregroundColor(OpenlyTheme.ink)
         Text("A public space for thoughts, taste and conversation.")
@@ -660,7 +601,7 @@ struct LoginView: View {
                 Task { await signInWithGoogle() }
             } label: {
                 HStack(spacing: 10) {
-                    Text("G").font(.system(size: 18, weight: .bold))
+                    Text("G").font(.system(size: 16, weight: .bold))
                     Text("Continue with Google").font(.system(size: 16, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
@@ -814,7 +755,7 @@ struct LoginView: View {
             TextField("000000", text: $token)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
-                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
                 .tracking(10)
                 .multilineTextAlignment(.center)
                 .foregroundColor(OpenlyTheme.ink)
@@ -1238,7 +1179,7 @@ struct VerificationView: View {
                 .font(.system(size: 44))
                 .foregroundColor(OpenlyTheme.accent)
             Text("تحقق من بريدك")
-                .font(.system(size: 25, weight: .bold))
+                .font(.system(size: 22, weight: .bold))
                 .foregroundColor(OpenlyTheme.ink)
             Text("أرسلنا كودًا من 6 أرقام إلى\n\(email)")
                 .multilineTextAlignment(.center)
@@ -1247,7 +1188,7 @@ struct VerificationView: View {
             OpenlyFieldContainer {
                 TextField("000000", text: $token)
                     .keyboardType(.numberPad)
-                    .font(.system(size: 25, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 22, weight: .semibold, design: .monospaced))
                     .multilineTextAlignment(.center)
                     .foregroundColor(OpenlyTheme.ink)
                     .environment(\.layoutDirection, .leftToRight)
@@ -1349,7 +1290,7 @@ struct UserProfileView: View {
                 IdentityAvatar(code: user.publicCode, color: user.identityColor, size: 72)
 
                 Text(user.publicCode)
-                    .font(.system(size: 27, weight: .bold, design: .monospaced))
+                    .font(.system(size: 22, weight: .bold, design: .monospaced))
                     .tracking(-0.4)
                     .foregroundColor(OpenlyTheme.ink)
                     .environment(\.layoutDirection, .leftToRight)
@@ -1406,7 +1347,7 @@ struct UserProfileView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(OpenlyTheme.muted)
                             .frame(width: 46, height: 44)
                             .background(OpenlyTheme.surfaceSoft)
@@ -1428,7 +1369,7 @@ struct UserProfileView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("الكتابات")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundColor(OpenlyTheme.ink)
                 Spacer()
                 if !posts.isEmpty {
@@ -1518,7 +1459,7 @@ struct BookmarksView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 7) {
                 Text("Bookmarks")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: 22, weight: .bold))
                     .tracking(-0.6)
                     .foregroundColor(OpenlyTheme.ink)
                 Text("Private. Only you can see what you save.")

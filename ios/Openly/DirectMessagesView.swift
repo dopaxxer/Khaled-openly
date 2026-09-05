@@ -3,7 +3,11 @@ import SwiftUI
 
 struct DirectMessagesView: View {
     @EnvironmentObject private var session: AppSession
+    @Environment(\.scenePhase) private var scenePhase
     @State private var conversations: [DirectConversation] = []
+    @State private var query = ""
+    @State private var hasMore = false
+    @State private var loadingMore = false
     @State private var isLoading = true
     @State private var errorMessage: String?
 
@@ -34,14 +38,20 @@ struct DirectMessagesView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(conversations) { conversation in
+                        ForEach(conversations.filter { query.isEmpty || $0.publicCode.localizedCaseInsensitiveContains(query) || ($0.lastMessageBody?.localizedCaseInsensitiveContains(query) ?? false) }) { conversation in
                             NavigationLink(destination: DirectMessageThreadView(conversation: conversation)) {
                                 DirectConversationRow(conversation: conversation)
                             }
                             .buttonStyle(.plain)
                         }
+                        if hasMore {
+                            Button("عرض المزيد") { Task { await loadMore() } }
+                                .buttonStyle(OpenlySecondaryButtonStyle()).disabled(loadingMore)
+                                .padding(12)
+                        }
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .refreshable { await load() }
             }
         }
@@ -51,23 +61,50 @@ struct DirectMessagesView: View {
         .navigationBarHidden(false)
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "message_search")
+        .openlyKeyboardDismissal()
         .task {
             if session.user != nil { await load() }
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 10_000_000_000) } catch { return }
+                guard scenePhase == .active, session.user != nil else { continue }
+                await load(refresh: true)
+            }
         }
     }
 
     @MainActor
-    private func load() async {
+    private func load(refresh: Bool = false) async {
+        guard !isLoading || conversations.isEmpty else { return }
         isLoading = true
         defer { isLoading = false }
         do {
             let response = try await session.api.directConversations()
-            conversations = response.items
+            if refresh && conversations.count > response.items.count {
+                let ids = Set(response.items.map(\.id))
+                conversations = response.items + conversations.filter { !ids.contains($0.id) }
+            } else {
+                conversations = response.items
+                hasMore = response.hasMore
+            }
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }
     }
+    @MainActor
+    private func loadMore() async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        do {
+            let response = try await session.api.directConversations(offset: conversations.count)
+            let ids = Set(conversations.map(\.id))
+            conversations += response.items.filter { !ids.contains($0.id) }
+            hasMore = response.hasMore
+        } catch { errorMessage = error.localizedDescription }
+    }
+
 }
 
 private struct DirectConversationRow: View {
@@ -75,10 +112,7 @@ private struct DirectConversationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            IdentityBadge(
-                code: conversation.publicCode,
-                color: conversation.identityColor ?? "#5C7AEA"
-            )
+            IdentityAvatar(code: conversation.publicCode, color: conversation.identityColor, size: 44)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
@@ -89,13 +123,13 @@ private struct DirectConversationRow: View {
                     Spacer()
                     if let date = DirectMessageTime.label(conversation.lastMessageAt) {
                         Text(date)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundColor(OpenlyTheme.subtle)
                     }
                 }
 
                 if let body = conversation.lastMessageBody, !body.isEmpty {
-                    Text(verbatim: (conversation.lastMessageIsMine == true ? NSLocalizedString("أنت:", comment: "") + " " : "") + body)
+                    Text(verbatim: (conversation.lastMessageIsMine == true ? OpenlyLocale.string("أنت:") + " " : "") + body)
                         .font(.system(size: 13))
                         .foregroundColor(OpenlyTheme.muted)
                         .lineLimit(1)
@@ -116,7 +150,7 @@ private struct DirectConversationRow: View {
                     .clipShape(Capsule())
             }
 
-            Image(systemName: "chevron.left")
+            Image(systemName: "chevron.forward")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(OpenlyTheme.subtle)
         }
@@ -182,6 +216,7 @@ struct StartDirectMessageView: View {
 struct DirectMessageThreadView: View {
     @EnvironmentObject private var session: AppSession
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var conversation: DirectConversation
     @State private var messages: [DirectMessage] = []
@@ -193,8 +228,13 @@ struct DirectMessageThreadView: View {
     @State private var isLoadingOlder = false
     @State private var isSending = false
     @State private var errorMessage: String?
-    @State private var retryNonce: UUID?
-    @State private var retryBody: String?
+    // Keep failed/in-flight messages when navigating away and back this session.
+    private var pending: [PendingDirectMessage] {
+        get { session.pendingMessages[conversation.conversationId] ?? [] }
+        nonmutating set { session.pendingMessages[conversation.conversationId] = newValue }
+    }
+    @State private var followsLatest = true
+    @State private var scrollRequest = UUID()
     @State private var shouldScrollToBottom = true
     @State private var presence = DirectPresenceResponse(online: false, typing: false, lastSeenAt: nil)
     @State private var lastTypingSignalAt = Date.distantPast
@@ -228,7 +268,7 @@ struct DirectMessageThreadView: View {
                                 .padding(.vertical, 8)
                             }
 
-                            if messages.isEmpty {
+                            if messages.isEmpty && pending.isEmpty {
                                 EmptyState(
                                     icon: "message",
                                     title: "لا توجد رسائل",
@@ -238,19 +278,43 @@ struct DirectMessageThreadView: View {
                             }
 
                             ForEach(messages) { message in
-                                DirectMessageBubble(message: message)
-                                    .id(message.id)
+                                DirectMessageBubble(message: message).id(message.id)
                             }
+                            ForEach(pending) { item in
+                                PendingMessageBubble(item: item) {
+                                    Task { await deliver(item) }
+                                }
+                            }
+                            Color.clear.frame(height: 1).id("thread.bottom")
+                                .onAppear { followsLatest = true }
+                                .onDisappear { followsLatest = false }
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
                     }
                     .scrollDismissesKeyboard(.interactively)
+                    .simultaneousGesture(DragGesture().onChanged { _ in followsLatest = false })
+                    .onChange(of: scrollRequest) { _ in
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) {
+                            proxy.scrollTo("thread.bottom", anchor: .bottom)
+                        }
+                    }
                     .onChange(of: messages.count) { _ in
-                        guard shouldScrollToBottom, let last = messages.last else { return }
+                        guard shouldScrollToBottom else { return }
                         shouldScrollToBottom = false
-                        withAnimation(.easeOut(duration: 0.18)) {
-                            proxy.scrollTo(last.id, anchor: .bottom)
+                        scrollRequest = UUID()
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        if !followsLatest && !messages.isEmpty {
+                            Button { followsLatest = true; scrollRequest = UUID() } label: {
+                                Image(systemName: "arrow.down")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .frame(width: 44, height: 44)
+                                    .background(OpenlyTheme.surface, in: Circle())
+                            }
+                            .buttonStyle(OpenlyPressStyle())
+                            .accessibilityLabel(Text("message_latest"))
+                            .padding(12)
                         }
                     }
                 }
@@ -263,6 +327,8 @@ struct DirectMessageThreadView: View {
         .toolbarBackground(OpenlyTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom) { composer }
+        .openlyKeyboardDismissal()
+        .toolbar(.hidden, for: .tabBar)
         .task(id: conversation.conversationId) {
             await loadLatest()
             await touchPresence(typing: false)
@@ -291,6 +357,8 @@ struct DirectMessageThreadView: View {
             signalTyping(for: value)
         }
         .onDisappear {
+            composerFocused = false
+            OpenlyKeyboard.dismiss()
             Task { await touchPresence(typing: false) }
         }
     }
@@ -321,6 +389,8 @@ struct DirectMessageThreadView: View {
             if conversation.canMessage {
                 HStack(alignment: .bottom, spacing: 8) {
                     TextField("اكتب رسالة خاصة…", text: $draft, axis: .vertical)
+                        .font(.system(size: 15))
+                        .accessibilityIdentifier("message.composer")
                         .lineLimit(1...5)
                         .focused($composerFocused)
                         .textInputAutocapitalization(.sentences)
@@ -338,10 +408,15 @@ struct DirectMessageThreadView: View {
                     } label: {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 16, weight: .bold))
-                            .frame(width: 42, height: 42)
+                            .foregroundColor(OpenlyTheme.accentForeground)
+                            .frame(width: 44, height: 44)
+                            .background(OpenlyTheme.accent, in: Circle())
                     }
-                    .buttonStyle(OpenlyPrimaryButtonStyle())
-                    .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .buttonStyle(OpenlyPressStyle())
+                    .accessibilityLabel(Text("إرسال"))
+                    .accessibilityIdentifier("message.send")
+                    .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draft.count > 2000)
+                    .opacity(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1)
                 }
             } else {
                 Text("لا يمكن إرسال رسائل جديدة في هذه المحادثة.")
@@ -350,6 +425,9 @@ struct DirectMessageThreadView: View {
                     .frame(maxWidth: .infinity)
             }
 
+            if draft.count > 2000 {
+                Text("message_too_long").font(.footnote).foregroundColor(OpenlyTheme.danger)
+            }
             if let errorMessage {
                 Text(errorMessage)
                     .font(.system(size: 12, weight: .medium))
@@ -379,10 +457,11 @@ struct DirectMessageThreadView: View {
             )
             conversation = response.conversation
             shouldScrollToBottom = true
-            messages = merge(messages, response.items)
+            let page = DirectMessageCollection.mergeFetchedPage(messages, response.items)
+            messages = page.items
             olderCursor = response.nextCursor
             hasMore = response.hasMore
-            latestCursor = cursor(for: messages.last)
+            latestCursor = page.cursor
 
             if (response.conversation.unreadCount ?? 0) > 0 {
                 _ = try? await session.api.markDirectConversationRead(
@@ -396,7 +475,7 @@ struct DirectMessageThreadView: View {
 
     @MainActor
     private func loadIncremental() async {
-        guard let latestCursor else { return }
+        // An empty conversation still needs polling: nil means fetch latest.
 
         do {
             let response = try await session.api.directMessages(
@@ -407,9 +486,10 @@ struct DirectMessageThreadView: View {
             conversation = response.conversation
 
             if !response.items.isEmpty {
-                shouldScrollToBottom = true
-                messages = merge(messages, response.items)
-                self.latestCursor = cursor(for: messages.last)
+                shouldScrollToBottom = followsLatest
+                let page = DirectMessageCollection.mergeFetchedPage(messages, response.items)
+                messages = page.items
+                self.latestCursor = page.cursor
             }
 
             if (response.conversation.unreadCount ?? 0) > 0 {
@@ -491,51 +571,39 @@ struct DirectMessageThreadView: View {
     private func send() async {
         let body = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty, body.count <= 2000, conversation.canMessage, !isSending else { return }
+        let item = PendingDirectMessage(body: body)
+        pending.append(item)
+        // Clear only the submitted text, before the request. New typing is safe.
+        draft = ""
+        followsLatest = true
+        scrollRequest = UUID()
+        await deliver(item)
+    }
 
-        let nonce: UUID
-        if retryBody == body, let retryNonce {
-            nonce = retryNonce
-        } else {
-            nonce = UUID()
-            retryBody = body
-            retryNonce = nonce
-        }
-
+    @MainActor
+    private func deliver(_ item: PendingDirectMessage) async {
+        guard !isSending, conversation.canMessage else { return }
         isSending = true
         errorMessage = nil
+        if let index = pending.firstIndex(where: { $0.id == item.id }) { pending[index].failed = false }
         defer { isSending = false }
-
         do {
             let message = try await session.api.sendDirectMessage(
-                conversationID: conversation.conversationId,
-                body: body,
-                clientNonce: nonce
+                conversationID: conversation.conversationId, body: item.body, clientNonce: item.id
             )
-            shouldScrollToBottom = true
+            pending.removeAll { $0.id == item.id }
+            shouldScrollToBottom = followsLatest
             messages = merge(messages, [message])
-            latestCursor = cursor(for: messages.last)
-            draft = ""
-            retryBody = nil
-            retryNonce = nil
-            composerFocused = true
-            await touchPresence(typing: false)
+            // Keep polling from the last fetched page, even after a newer send.
+            await touchPresence(typing: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } catch {
+            if let index = pending.firstIndex(where: { $0.id == item.id }) { pending[index].failed = true }
             errorMessage = error.localizedDescription
         }
     }
 
-    private func cursor(for message: DirectMessage?) -> String? {
-        guard let message else { return nil }
-        return "\(message.createdAt)|\(message.id)"
-    }
-
     private func merge(_ current: [DirectMessage], _ incoming: [DirectMessage]) -> [DirectMessage] {
-        var byID = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
-        incoming.forEach { byID[$0.id] = $0 }
-        return byID.values.sorted {
-            if $0.createdAt == $1.createdAt { return $0.id < $1.id }
-            return $0.createdAt < $1.createdAt
-        }
+        DirectMessageCollection.merge(current, incoming)
     }
 }
 
@@ -553,8 +621,15 @@ private struct DirectMessageBubble: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let label = DirectMessageTime.label(message.createdAt) {
-                    Text(label)
-                        .font(.system(size: 9, weight: .medium))
+                    HStack(spacing: 4) {
+                        Text(label)
+                        if message.isMine {
+                            Image(systemName: message.readAt == nil ? "checkmark" : "checkmark.circle.fill")
+                                .accessibilityIdentifier("message.sent")
+                                .accessibilityLabel(Text(message.readAt == nil ? "message_sent" : "message_read"))
+                        }
+                    }
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundColor(OpenlyTheme.subtle)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -578,9 +653,35 @@ private enum DirectMessageTime {
         guard let raw, !raw.isEmpty, let date = OpenlyDate.date(from: raw) else { return nil }
 
         let output = DateFormatter()
-        output.locale = Locale.current
+        output.locale = OpenlyLocale.locale
         output.dateStyle = Calendar.current.isDateInToday(date) ? .none : .short
         output.timeStyle = .short
         return output.string(from: date)
+    }
+}
+
+private struct PendingMessageBubble: View {
+    let item: PendingDirectMessage
+    let retry: () -> Void
+    var body: some View {
+        HStack {
+            Spacer(minLength: 54)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(verbatim: item.body).font(.system(size: 15))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if item.failed {
+                    Button(action: retry) {
+                        Label("message_retry", systemImage: "arrow.clockwise")
+                            .font(.system(size: 12, weight: .medium)).frame(minHeight: 44)
+                    }
+                    .foregroundColor(OpenlyTheme.danger)
+                } else {
+                    Label("message_sending", systemImage: "clock").font(.system(size: 11))
+                        .foregroundColor(OpenlyTheme.muted)
+                }
+            }
+            .padding(12)
+            .background(OpenlyTheme.accentSoft, in: RoundedRectangle(cornerRadius: 16))
+        }
     }
 }

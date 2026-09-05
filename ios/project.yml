@@ -11,7 +11,7 @@ settings:
   base:
     SWIFT_VERSION: 5.0
     MARKETING_VERSION: 1.0.0
-    CURRENT_PROJECT_VERSION: "12"
+    CURRENT_PROJECT_VERSION: "13"
     DEVELOPMENT_LANGUAGE: ar
 targets:
   Openly:
@@ -31,7 +31,7 @@ targets:
       properties:
         CFBundleDisplayName: Openly
         CFBundleShortVersionString: 1.0.0
-        CFBundleVersion: "12"
+        CFBundleVersion: "13"
         CFBundleLocalizations:
           - ar
           - en
@@ -59,7 +59,7 @@ targets:
         PRODUCT_NAME: Openly
         OPENLY_API_BASE_URL: "https://openly.nootjetzt.workers.dev/api/"
         MARKETING_VERSION: 1.0.0
-        CURRENT_PROJECT_VERSION: "12"
+        CURRENT_PROJECT_VERSION: "13"
         GOOGLE_WEB_CLIENT_ID: "536812654632-elrmj9nv1aqte2r3en6ihfjn5al358rc.apps.googleusercontent.com"
         GOOGLE_IOS_CLIENT_ID: "536812654632-lk6vucd897n0jqdvgmejmed025f6soim.apps.googleusercontent.com"
         GOOGLE_REVERSED_CLIENT_ID: "com.googleusercontent.apps.536812654632-lk6vucd897n0jqdvgmejmed025f6soim"

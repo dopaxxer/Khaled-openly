@@ -136,6 +136,7 @@ struct FeedView: View {
                     }
                 }
                 .refreshable { await load(reset: true) }
+                .scrollDismissesKeyboard(.interactively)
                 .background(OpenlyTheme.background)
             }
             .background(OpenlyTheme.background.ignoresSafeArea())
@@ -185,155 +186,36 @@ struct FeedView: View {
 
 private struct HomeComposerCard: View {
     @EnvironmentObject private var session: AppSession
-    @StateObject private var suggestions = MentionSuggestionModel()
-    @State private var bodyText = ""
-    @State private var isPublishing = false
-    @State private var selectedTrack: MusicTrack?
-    @State private var showTrackPicker = false
-    @FocusState private var isFocused: Bool
+    @State private var showComposer = false
     let onPublished: () -> Void
 
     var body: some View {
-        Group {
-            if session.user == nil {
-                NavigationLink(destination: LoginView()) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(OpenlyTheme.accent)
-                        Text("ماذا تريد أن تقول؟")
-                            .font(.system(size: 17, weight: .regular))
-                            .foregroundColor(OpenlyTheme.muted)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 18)
-                    .frame(height: 118)
-                    .background(OpenlyTheme.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(OpenlyTheme.lineStrong, lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-            } else {
-                VStack(spacing: 12) {
-                    TextField("ماذا تريد أن تقول؟", text: $bodyText, axis: .vertical)
-                        .focused($isFocused)
-                        .font(.system(size: 17, weight: .regular))
-                        .foregroundColor(OpenlyTheme.ink)
-                        .lineLimit(2...5)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(OpenlyTheme.background)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                                .stroke(OpenlyTheme.lineStrong, lineWidth: 1)
-                        )
-                        .onChange(of: bodyText) { value in
-                            if value.count > postCharacterLimit {
-                                bodyText = String(value.prefix(postCharacterLimit))
-                            }
-                            // SwiftUI's TextField hides the caret, so this
-                            // compact composer reads the token at the end of the
-                            // text. That covers typing, which is what happens
-                            // here; the full-screen composer tracks the caret.
-                            suggestions.update(
-                                MentionParser.activeQuery(in: bodyText, caret: (bodyText as NSString).length)
-                            )
-                        }
-
-                    MentionSuggestionBar(items: suggestions.items) { item in
-                        guard let query = suggestions.activeQuery else { return }
-                        let result = MentionParser.applyCompletion(
-                            to: bodyText,
-                            range: query.range,
-                            code: item.publicCode
-                        )
-                        bodyText = result.text
-                        suggestions.clear()
-                    }
-
-                    if let selectedTrack {
-                        ComposerTrackChip(track: selectedTrack) { self.selectedTrack = nil }
-                    } else {
-                        HStack {
-                            ComposerAddTrackButton { showTrackPicker = true }
-                            Spacer()
-                        }
-                    }
-
-                    HStack(spacing: 12) {
-                        Text("\(bodyText.count) / \(postCharacterLimit)")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(OpenlyTheme.subtle)
-                            .environment(\.layoutDirection, .leftToRight)
-
-                        Spacer()
-
-                        Button {
-                            Task { await publish() }
-                        } label: {
-                            HStack(spacing: 8) {
-                                if isPublishing {
-                                    ProgressView().tint(OpenlyTheme.accentForeground)
-                                } else {
-                                    Image(systemName: "paperplane")
-                                    Text("نشر")
-                                }
-                            }
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(OpenlyTheme.accentForeground)
-                            .padding(.horizontal, 20)
-                            .frame(height: 42)
-                            .background(OpenlyTheme.accent)
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishing)
-                        .opacity(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
-                    }
-                }
-                .padding(18)
-                .background(OpenlyTheme.surface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(OpenlyTheme.lineStrong, lineWidth: 1)
-                )
+        Button { showComposer = true } label: {
+            HStack(spacing: 12) {
+                IdentityAvatar(code: session.user?.publicCode ?? "O", color: session.user?.identityColor, size: 34)
+                Text("ماذا تريد أن تقول؟")
+                    .font(.system(size: 15))
+                    .foregroundColor(OpenlyTheme.muted)
+                Spacer()
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(OpenlyTheme.accent)
             }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 66)
+            .background(OpenlyTheme.surface)
+            .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 10)
-        .padding(.bottom, 16)
-        .sheet(isPresented: $showTrackPicker) {
-            ComposerTrackPicker { selectedTrack = $0 }
-                .environmentObject(session)
+        .buttonStyle(OpenlyPressStyle())
+        .sheet(isPresented: $showComposer) {
+            NativeWriteView().environmentObject(session)
         }
-    }
-
-    @MainActor
-    private func publish() async {
-        guard session.requireLogin() else { return }
-        let text = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        isPublishing = true
-        do {
-            _ = try await session.api.createPost(body: text, trackId: selectedTrack?.id)
-            bodyText = ""
-            selectedTrack = nil
-            isFocused = false
-            suggestions.clear()
-            session.markFeedChanged()
-            onPublished()
-        } catch {
-            session.alertMessage = error.localizedDescription
-        }
-        isPublishing = false
     }
 }
 
-
 struct NativeWriteView: View {
     @EnvironmentObject private var session: AppSession
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var suggestions = MentionSuggestionModel()
     @State private var bodyText = ""
     @State private var selectedTrack: MusicTrack?
@@ -343,104 +225,63 @@ struct NativeWriteView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("New post")
-                            .font(.system(size: 28, weight: .bold))
-                            .tracking(-0.6)
-                            .foregroundColor(OpenlyTheme.ink)
-                        Text("Write first. Add context only if it helps.")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(OpenlyTheme.muted)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 18)
-
-                VStack(spacing: 14) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
                     TextField("ماذا تريد أن تقول؟", text: $bodyText, axis: .vertical)
                         .focused($focused)
-                        .font(.system(size: 19, weight: .regular))
+                        .font(.system(size: 16))
                         .foregroundColor(OpenlyTheme.ink)
-                        .lineLimit(7...14)
-                        .padding(16)
-                        .frame(minHeight: 190, alignment: .topLeading)
-                        .background(OpenlyTheme.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(OpenlyTheme.line, lineWidth: 1)
-                        )
+                        .lineLimit(5...12)
+                        .padding(14)
+                        .frame(minHeight: 144, alignment: .topLeading)
+                        .background(OpenlyTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                        .accessibilityIdentifier("composer.body")
                         .onChange(of: bodyText) { value in
-                            if value.count > postCharacterLimit {
-                                bodyText = String(value.prefix(postCharacterLimit))
-                            }
-                            suggestions.update(
-                                MentionParser.activeQuery(in: bodyText, caret: (bodyText as NSString).length)
-                            )
+                            if value.count > postCharacterLimit { bodyText = String(value.prefix(postCharacterLimit)) }
+                            suggestions.update(MentionParser.activeQuery(in: bodyText, caret: (bodyText as NSString).length))
                         }
-
                     MentionSuggestionBar(items: suggestions.items) { item in
                         guard let query = suggestions.activeQuery else { return }
-                        let result = MentionParser.applyCompletion(
-                            to: bodyText,
-                            range: query.range,
-                            code: item.publicCode
-                        )
+                        let result = MentionParser.applyCompletion(to: bodyText, range: query.range, code: item.publicCode)
                         bodyText = result.text
                         suggestions.clear()
                     }
-
                     if let selectedTrack {
                         ComposerTrackChip(track: selectedTrack) { self.selectedTrack = nil }
                     } else {
-                        HStack {
-                            ComposerAddTrackButton { showTrackPicker = true }
-                            Spacer()
+                        ComposerAddTrackButton {
+                            focused = false
+                            OpenlyKeyboard.dismiss()
+                            showTrackPicker = true
                         }
                     }
-
-                    HStack {
-                        Text("\(bodyText.count) / \(postCharacterLimit)")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(OpenlyTheme.subtle)
-                            .environment(\.layoutDirection, .leftToRight)
-
-                        Spacer()
-
-                        Button {
-                            Task { await publish() }
-                        } label: {
-                            if isPublishing {
-                                ProgressView().tint(OpenlyTheme.accentForeground)
-                                    .frame(width: 104, height: 46)
-                            } else {
-                                Text("Post")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(OpenlyTheme.accentForeground)
-                                    .frame(width: 104, height: 46)
-                            }
-                        }
-                        .background(OpenlyTheme.ink)
-                        .clipShape(Capsule())
-                        .buttonStyle(.plain)
-                        .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishing)
-                        .opacity(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
-                    }
+                    Text("\(bodyText.count) / \(postCharacterLimit)")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(OpenlyTheme.subtle)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .environment(\.layoutDirection, .leftToRight)
                 }
-                .padding(.horizontal, 24)
-
-                Spacer()
+                .padding(16)
             }
-            .background(OpenlyTheme.background.ignoresSafeArea())
-            .navigationBarHidden(true)
-            .onAppear { focused = true }
             .scrollDismissesKeyboard(.interactively)
+            .background(OpenlyTheme.background.ignoresSafeArea())
+            .navigationTitle("New post")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("composer_track_cancel") { focused = false; OpenlyKeyboard.dismiss(); dismiss() }
+                        .accessibilityIdentifier("composer.close")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button { Task { await publish() } } label: {
+                        if isPublishing { ProgressView() } else { Text("Post").fontWeight(.semibold) }
+                    }
+                    .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishing)
+                }
+            }
+            .openlyKeyboardDismissal()
             .sheet(isPresented: $showTrackPicker) {
-                ComposerTrackPicker { selectedTrack = $0 }
-                    .environmentObject(session)
+                ComposerTrackPicker { selectedTrack = $0 }.environmentObject(session)
             }
         }
         .navigationViewStyle(.stack)
@@ -450,21 +291,17 @@ struct NativeWriteView: View {
     private func publish() async {
         guard session.requireLogin() else { return }
         let text = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty, !isPublishing else { return }
         isPublishing = true
         defer { isPublishing = false }
-
         do {
             _ = try await session.api.createPost(body: text, trackId: selectedTrack?.id)
-            bodyText = ""
-            selectedTrack = nil
             focused = false
+            OpenlyKeyboard.dismiss()
             suggestions.clear()
             session.markFeedChanged()
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        } catch {
-            session.alertMessage = error.localizedDescription
-        }
+            dismiss()
+        } catch { session.alertMessage = error.localizedDescription }
     }
 }
 
@@ -505,7 +342,6 @@ struct OpenlySecondaryButtonStyle: ButtonStyle {
             .background(Color.clear)
             .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1.2))
             .opacity(configuration.isPressed ? 0.7 : 1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: configuration.isPressed)
     }
 }
@@ -522,11 +358,11 @@ struct PostCard: View {
     var body: some View {
         let code = post.authorCode ?? "OPEN"
 
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 NavigationLink(destination: UserProfileView(code: code)) {
                     HStack(spacing: 9) {
-                        IdentityAvatar(code: code, color: post.authorColor, size: 42)
+                        IdentityAvatar(code: code, color: post.authorColor, size: 34)
                         Text(code)
                             .font(.system(size: 14, weight: .bold))
                             .tracking(0.5)
@@ -561,7 +397,7 @@ struct PostCard: View {
                 NavigationLink(destination: PostDetailView(postID: post.id)) {
                     actionLabel(
                         icon: "bubble.left",
-                        text: (post.commentCount ?? 0) > 0 ? "\(post.commentCount ?? 0) تعليق" : "تعليق",
+                        text: (post.commentCount ?? 0) > 0 ? String(format: OpenlyLocale.string("post_comments_count"), post.commentCount ?? 0) : OpenlyLocale.string("تعليق"),
                         active: false
                     )
                 }
@@ -571,7 +407,7 @@ struct PostCard: View {
                 Button { Task { await toggleLike() } } label: {
                     actionLabel(
                         icon: engagement?.viewerHasLiked == true ? "heart.fill" : "heart",
-                        text: (engagement?.likeCount ?? 0) > 0 ? "\(engagement?.likeCount ?? 0) إعجاب" : "إعجاب",
+                        text: (engagement?.likeCount ?? 0) > 0 ? String(format: OpenlyLocale.string("post_likes_count"), engagement?.likeCount ?? 0) : OpenlyLocale.string("إعجاب"),
                         active: engagement?.viewerHasLiked == true
                     )
                 }
@@ -597,8 +433,8 @@ struct PostCard: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 24)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(OpenlyTheme.surface)
         .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
         .task { await loadEngagement() }
@@ -818,7 +654,7 @@ struct PostTrackArtwork: View {
         ZStack {
             OpenlyTheme.background
             Image(systemName: "music.note")
-                .font(.system(size: 17, weight: .medium))
+                .font(.system(size: 15, weight: .medium))
                 .foregroundColor(OpenlyTheme.subtle)
         }
     }
@@ -845,7 +681,7 @@ struct PostDetailView: View {
                     LazyVStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Post")
-                                .font(.system(size: 28, weight: .bold))
+                                .font(.system(size: 22, weight: .bold))
                                 .tracking(-0.6)
                                 .foregroundColor(OpenlyTheme.ink)
                             Text("Conversation")

@@ -194,6 +194,7 @@ struct MusicGenresResponse: Codable {
 struct MusicCatalogResponse: Codable {
     let items: [MusicCatalogTrack]
     let provider: String
+    var catalogUnavailable: Bool? = nil
 }
 
 struct MusicTrackCreateResponse: Codable {
@@ -460,6 +461,20 @@ struct ActionResponse: Codable {
 }
 
 enum OpenlyLocale {
+    static func serverMessage(_ message: String) -> String {
+        let translated = string(message)
+        if translated != message { return translated }
+        let containsArabic = message.range(of: "[\\u0600-\\u06ff]", options: .regularExpression) != nil
+        if currentLanguageCode == "en" && containsArabic { return string("api_request_failed") }
+        return message
+    }
+
+    static func string(_ key: String) -> String {
+        let bundle = Bundle.main.path(forResource: currentLanguageCode, ofType: "lproj")
+            .flatMap(Bundle.init(path:)) ?? Bundle.main
+        return bundle.localizedString(forKey: key, value: nil, table: nil)
+    }
+
     static var currentLanguageCode: String {
         UserDefaults.standard.string(forKey: "openly.language") == "en" ? "en" : "ar"
     }

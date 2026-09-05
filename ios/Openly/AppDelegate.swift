@@ -184,6 +184,7 @@ final class AppSession: ObservableObject {
     @Published var needsInterestOnboarding = false
     @Published private(set) var feedRevision = 0
     @Published var notificationsRevision: UInt = 0
+    @Published var pendingMessages: [String: [PendingDirectMessage]] = [:]
     let api = APIClient.shared
 
     private static let cachedUserKey = "openly.cachedUser"
@@ -210,6 +211,7 @@ final class AppSession: ObservableObject {
     func refresh(afterAuthentication: Bool = false) async {
         do {
             let refreshed = try await api.sessionUser()
+            if user?.publicCode != refreshed?.publicCode { pendingMessages.removeAll() }
             user = refreshed
             if let refreshed {
                 Self.cacheUser(refreshed)
@@ -265,6 +267,7 @@ final class AppSession: ObservableObject {
     }
 
     private func clearUser() {
+        pendingMessages.removeAll()
         user = nil
         needsInterestOnboarding = false
         Self.removeCachedUser()
@@ -316,6 +319,9 @@ final class AppSession: ObservableObject {
     }
 
     private static func cacheUser(_ user: UserSummary) {
+#if DEBUG
+        guard !OpenlyUITestAPI.enabled else { return }
+#endif
         guard let data = try? JSONEncoder().encode(user) else { return }
         UserDefaults.standard.set(data, forKey: cachedUserKey)
     }
@@ -424,101 +430,75 @@ struct RootView: View {
 }
 
 struct MainTabView: View {
+    @EnvironmentObject private var session: AppSession
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection = 0
+    @State private var unreadMessages = 0
+    @State private var unreadNotifications = 0
 
     var body: some View {
         TabView(selection: $selection) {
             FeedView()
-                .tabItem { Label("Home", systemImage: selection == 0 ? "house.fill" : "house") }
-                .tag(0)
-
+                .tabItem { Label("Home", systemImage: "house") }.tag(0)
             SearchView()
-                .tabItem { Label("Search", systemImage: "magnifyingglass") }
-                .tag(1)
-
-            NativeWriteView()
-                .tabItem { Label("Write", systemImage: selection == 2 ? "square.and.pencil.circle.fill" : "square.and.pencil") }
-                .tag(2)
-
-            InterestDiscoveryView()
-                .tabItem { Label("Explore", systemImage: selection == 3 ? "safari.fill" : "safari") }
-                .tag(3)
-
+                .tabItem { Label("Search", systemImage: "magnifyingglass") }.tag(1)
+            NavigationView { DirectMessagesView() }.navigationViewStyle(.stack)
+                .tabItem { Label("الرسائل", systemImage: "bubble.left.and.bubble.right") }
+                .badge(unreadMessages).tag(2)
+            NavigationView { NotificationsView() }.navigationViewStyle(.stack)
+                .tabItem { Label("الإشعارات", systemImage: "bell") }
+                .badge(unreadNotifications).tag(3)
             AccountView()
-                .tabItem { Label("You", systemImage: selection == 4 ? "person.crop.circle.fill" : "person.crop.circle") }
-                .tag(4)
+                .tabItem { Label("You", systemImage: "person.crop.circle") }.tag(4)
         }
         .tint(OpenlyTheme.accent)
         .toolbarBackground(OpenlyTheme.surface, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .onChange(of: selection) { _ in OpenlyKeyboard.dismiss() }
+        .task(id: session.notificationsRevision) {
+            while !Task.isCancelled {
+                if scenePhase == .active, session.user != nil {
+                    async let messages = session.api.unreadDirectMessageCount()
+                    async let notifications = session.api.unreadNotificationCount()
+                    if let value = try? await messages { unreadMessages = value }
+                    if let value = try? await notifications { unreadNotifications = value }
+                }
+                do { try await Task.sleep(nanoseconds: 20_000_000_000) } catch { return }
+            }
+        }
     }
 }
 
 struct AppHeader: View {
     @EnvironmentObject private var session: AppSession
-    @State private var unreadCount = 0
+    @State private var showComposer = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                BrandLockup(markSize: 34)
-                Text("أفكار وموسيقى وأشخاص")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(OpenlyTheme.muted)
+        HStack(spacing: 10) {
+            BrandLockup(markSize: 30)
+            Spacer()
+            NavigationLink(destination: InterestDiscoveryView()) {
+                Label("Explore", systemImage: "safari")
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(minHeight: 44)
             }
-
-            Spacer(minLength: 12)
-
-            NavigationLink(destination: NotificationsView()) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: unreadCount > 0 ? "bell.fill" : "bell")
-                        .font(.system(size: 19, weight: .medium))
-                        .foregroundColor(OpenlyTheme.ink)
-                        .frame(width: 44, height: 44)
-
-                    if unreadCount > 0 {
-                        Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(minWidth: 16, minHeight: 16)
-                            .background(OpenlyTheme.accent)
-                            .clipShape(Capsule())
-                            .offset(x: 3, y: -1)
-                    }
-                }
+            .accessibilityIdentifier("home.explore")
+            Button { showComposer = true } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: 44, height: 44)
+                    .background(OpenlyTheme.accentSoft, in: Circle())
             }
-            .buttonStyle(.plain)
-
-            if let user = session.user {
-                NavigationLink(destination: AccountView()) {
-                    HStack(spacing: 7) {
-                        Circle()
-                            .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
-                            .frame(width: 9, height: 9)
-                        Text(user.publicCode)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(OpenlyTheme.ink)
-                            .environment(\.layoutDirection, .leftToRight)
-                    }
-                    .padding(.horizontal, 11)
-                    .frame(height: 34)
-                    .background(OpenlyTheme.surface)
-                    .overlay(Capsule().stroke(OpenlyTheme.line, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
+            .accessibilityLabel(Text("New post"))
+            .accessibilityIdentifier("home.write")
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 18)
-        .padding(.bottom, 16)
+        .foregroundColor(OpenlyTheme.ink)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
         .background(OpenlyTheme.surface)
-        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
-        .task(id: "\(session.user?.publicCode ?? "")-\(session.notificationsRevision)") {
-            if session.user != nil, let count = try? await session.api.unreadNotificationCount() {
-                unreadCount = count
-            } else {
-                unreadCount = 0
-            }
+        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 0.5) }
+        .sheet(isPresented: $showComposer) {
+            NativeWriteView().environmentObject(session)
         }
     }
 }
@@ -527,28 +507,27 @@ struct BrandLockup: View {
     var markSize: CGFloat = 32
 
     var body: some View {
-        Text("openly")
-            .font(.system(size: markSize <= 34 ? 27 : 30, weight: .bold))
-            .tracking(-0.8)
-            .foregroundColor(OpenlyTheme.ink)
-            .environment(\.layoutDirection, .leftToRight)
-            .accessibilityLabel("Openly")
+        HStack(spacing: 8) {
+            BrandMark(size: markSize)
+            Text(verbatim: "openly")
+                .font(.system(size: 22, weight: .bold))
+                .tracking(-0.6)
+                .foregroundColor(OpenlyTheme.ink)
+        }
+        .environment(\.layoutDirection, .leftToRight)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Openly")
     }
 }
 
 struct BrandMark: View {
     var size: CGFloat = 32
-
     var body: some View {
-        ZStack {
-            Circle().fill(Color.white)
-            Circle().stroke(OpenlyTheme.muted.opacity(0.7), lineWidth: 1)
-            Image(systemName: "water.waves")
-                .font(.system(size: size * 0.48, weight: .semibold))
-                .foregroundColor(Color(red: 31 / 255, green: 57 / 255, blue: 126 / 255))
-        }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
+        Image("BrandLogo")
+            .resizable().scaledToFit()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .accessibilityHidden(true)
     }
 }
 
@@ -583,7 +562,7 @@ struct ScreenHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(LocalizedStringKey(title))
-                .font(.system(size: 27, weight: .bold))
+                .font(.system(size: 22, weight: .bold))
                 .foregroundColor(OpenlyTheme.ink)
             if let subtitle {
                 Text(LocalizedStringKey(subtitle))
@@ -627,11 +606,11 @@ struct EmptyState: View {
         VStack(spacing: 14) {
             if !icon.isEmpty {
                 Image(systemName: icon)
-                    .font(.system(size: 28, weight: .regular))
+                    .font(.system(size: 22, weight: .regular))
                     .foregroundColor(OpenlyTheme.muted)
             }
             Text(LocalizedStringKey(title))
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(OpenlyTheme.ink)
             Text(LocalizedStringKey(message))
                 .font(.system(size: 16, weight: .medium))
@@ -646,18 +625,18 @@ struct EmptyState: View {
 }
 
 struct OpenlyPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 17, weight: .bold))
+            .font(.system(size: 15, weight: .semibold))
             .foregroundColor(OpenlyTheme.accentForeground)
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: 48)
             .background(OpenlyTheme.accent)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .opacity(configuration.isPressed ? 0.88 : 1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
-            .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
+            .opacity(!isEnabled ? 0.4 : (configuration.isPressed ? 0.78 : 1))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -671,7 +650,7 @@ struct OpenlyFieldContainer<Content: View>: View {
     var body: some View {
         content
             .padding(.horizontal, 18)
-            .frame(height: 56)
+            .frame(minHeight: 48)
             .background(OpenlyTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(OpenlyTheme.lineStrong, lineWidth: 1))
