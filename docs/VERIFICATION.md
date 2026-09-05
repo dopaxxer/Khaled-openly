@@ -15,6 +15,7 @@ The server checks identity and permissions on protected reads and writes. Post/m
 - Production web/Worker build: passed.
 - Full Node suite: **22 passed, 0 failed** (17 API integration tests and 5 rendering/component checks).
 - Workflow YAML, application plist parsing and Python/shell/JavaScript build-script syntax checks: passed.
+- Additional provisioning/export validation suite: **12 passed**. Synthetic metadata checks expired or mismatched profiles, distribution methods, allowed certificates/entitlements, exported version/build and universal-link domains. These fixtures cannot sign an app and do not prove Apple acceptance. The suite is a required validation step before distribution.
 
 API tests execute the actual server handler using SQLite with the real SQL migrations, and an isolated R2-compatible storage test double. Two generated accounts are used throughout; a third account checks conversation isolation. These are database/API integration tests, not a claim of full device UI end-to-end coverage or a production R2 load test.
 
@@ -22,9 +23,9 @@ Coverage includes the register → profile → publish → discover → follow �
 
 ## Automatically verified in the cloud
 
-[Web/API validation](https://github.com/dopaxxer/Khaled-openly/actions/runs/33941751798) completed successfully on GitHub Ubuntu, using a clean locked dependency installation, TypeScript, ESLint, API tests and the production build.
+[Web/API validation](https://github.com/dopaxxer/Khaled-openly/actions/runs/33943092695) completed successfully on GitHub Ubuntu, using a clean locked dependency installation, TypeScript, ESLint, API tests and the production build.
 
-[Native verification](https://github.com/dopaxxer/Khaled-openly/actions/runs/33941751795) completed successfully on GitHub macOS with Xcode 26.3: the native app compiled; 3 unit tests and 2 UI tests passed on iPhone; the 2 UI tests also passed on iPad. These tests verify Keychain persistence/deletion, Arabic draft serialization, unknown receipt handling, Arabic registration UI and English keyboard dismissal. They do not exercise authenticated social journeys or real-device permissions. Subsequent source revisions use the same PR checks; see the PR Checks view for the latest run.
+[Native verification](https://github.com/dopaxxer/Khaled-openly/actions/runs/33942365485) completed successfully on GitHub macOS with Xcode 26.3: the native app compiled for the simulator and in Release for the physical-device SDK without distribution signing; 3 unit tests and 2 UI tests passed on iPhone; the 2 UI tests also passed on iPad. These tests verify Keychain persistence/deletion, Arabic draft serialization, unknown receipt handling, Arabic registration UI and English keyboard dismissal. They do not exercise authenticated social journeys or real-device permissions. The run generated an unsigned app compilation artifact, not an installable IPA. Subsequent source revisions use the same PR checks; see the PR Checks view for the latest run.
 
 ## Deployment
 

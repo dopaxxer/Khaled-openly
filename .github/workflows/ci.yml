@@ -19,5 +19,6 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - run: python3 -m unittest discover -s tests -p "test_ios_*.py" -v
       - run: npm run test:api
       - run: npm run build
