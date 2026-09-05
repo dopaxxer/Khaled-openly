@@ -20,7 +20,7 @@ struct AvatarView:View {
                 Text(String(person.prefix(1))).font(.headline).foregroundStyle(Ink.blue).frame(maxWidth:.infinity,maxHeight:.infinity).background(Ink.blue.opacity(0.09))
             }
         }
-        .frame(width:size,height:size).clipShape(Circle()).accessibilityHidden(true)
+        .frame(width:size,height:size).clipShape(SwiftUI.Circle()).accessibilityHidden(true)
     }
 }
 struct SecureImage:View {

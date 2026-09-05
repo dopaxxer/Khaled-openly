@@ -1,5 +1,5 @@
 import { api, type APIEnv } from "../server/api";
-/** Cloudflare Worker entry point for the vinext-starter template. */
+/** Openly website and authenticated API entry point. */
 import {
   handleImageOptimization,
   DEFAULT_DEVICE_SIZES,
@@ -40,6 +40,31 @@ const worker = {
   ): Promise<Response> {
     const url = new URL(request.url);
 
+    if (url.pathname === "/.well-known/apple-app-site-association") {
+      const appID =
+        env.APPLE_TEAM_ID && env.IOS_BUNDLE_ID
+          ? `${env.APPLE_TEAM_ID}.${env.IOS_BUNDLE_ID}`
+          : null;
+      return Response.json(
+        {
+          applinks: {
+            details: appID
+              ? [
+                  {
+                    appIDs: [appID],
+                    components: [
+                      { "/": "/", "?": { post: "*" } },
+                      { "/": "/", "?": { profile: "*" } },
+                      { "/": "/", "?": { conversation: "*" } },
+                    ],
+                  },
+                ]
+              : [],
+          },
+        },
+        { headers: { "cache-control": "public, max-age=300" } },
+      );
+    }
     if (url.pathname.startsWith("/api/")) return api(request, env);
 
     if (url.pathname === "/_vinext/image") {

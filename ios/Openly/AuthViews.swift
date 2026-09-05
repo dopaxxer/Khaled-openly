@@ -85,7 +85,7 @@ struct RecoveryView:View {
     }
 }
 let interestKeys=["music","art","books","photography","film","everyday","design","science","gaming","travel"]
-func interestName(_ key:String,_ api:API)->String{
+@MainActor func interestName(_ key:String,_ api:API)->String{
     let ar=["موسيقى","فن","كتب","تصوير","أفلام","حياة يومية","تصميم","علوم","ألعاب","سفر"]
     guard let i=interestKeys.firstIndex(of:key) else{
         return key

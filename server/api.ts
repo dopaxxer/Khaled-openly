@@ -28,6 +28,7 @@ export interface APIEnv {
   APNS_TEAM_ID?: string;
   APNS_PRIVATE_KEY?: string;
   IOS_BUNDLE_ID?: string;
+  APPLE_TEAM_ID?: string;
   APNS_SANDBOX?: string;
   MODERATOR_IDS?: string;
 }
@@ -549,12 +550,11 @@ async function feed(c: Context, url: URL, extra = "1=1", args: any[] = []) {
   }
   if (mode === "following") filter += ` AND (p.author=v.id OR ${followed})`;
   const ranked =
-    mode === "for-you" &&
-    url.searchParams.get("sort") !== "chronological" &&
-    !author;
+    Boolean(author) ||
+    (mode === "for-you" && url.searchParams.get("sort") !== "chronological");
   const relevance = `2*(SELECT count(*) FROM json_each(u.interests) i WHERE i.value IN (SELECT value FROM json_each((SELECT interests FROM users WHERE id=v.id)))) + CASE WHEN EXISTS(SELECT 1 FROM likes il JOIN posts ip ON ip.id=il.postId WHERE il.userId=v.id AND ip.author=p.author) THEN 1 ELSE 0 END`;
-  const score = ranked ? relevance : "0";
-  const scoreBefore = Number(url.searchParams.get("score") || 10000);
+  const score = author ? "p.pinned" : ranked ? relevance : "0";
+  const scoreBefore = Number(url.searchParams.get("score") ?? 10000);
   // Rank + time + ID form one stable cursor. Newly changed interests/interactions intentionally refresh ranking.
   const keyset = ranked
     ? `((${score})<? OR ((${score})=? AND (p.created<? OR (p.created=? AND p.id<?))))`
@@ -586,7 +586,8 @@ async function feed(c: Context, url: URL, extra = "1=1", args: any[] = []) {
 }
 async function canMedia(c: Context, mid: string) {
   const m = await c.one("SELECT * FROM media WHERE id=?", mid);
-  if (!m) fail("unavailable", 404);
+  if (!m || (m.expires !== null && m.expires <= now()))
+    fail("unavailable", 404);
   const expired = await c.one(
     "SELECT 1 FROM posts WHERE image=? AND kind=? AND expires<=?",
     mid,
@@ -611,7 +612,7 @@ async function canMedia(c: Context, mid: string) {
   }
   const avatar = await c.one("SELECT id FROM users WHERE avatar=?", mid);
   if (avatar && !(await c.blocked(avatar.id))) return m!;
-  if (m!.owner === c.uid) {
+  if (m!.owner === c.uid && !m!.restricted) {
     const linked = await c.one("SELECT 1 FROM posts WHERE image=?", mid);
     if (!linked) return m!;
   }
@@ -721,6 +722,17 @@ export async function api(request: Request, env: APIEnv): Promise<Response> {
       if (request.method === "DELETE") {
         if (await c.one("SELECT 1 FROM circles WHERE owner=?", c.uid))
           fail("leave_owned_circles");
+        const ownedMedia = await c.all(
+          "SELECT id FROM media WHERE owner=?",
+          c.uid,
+        );
+        for (let offset = 0; offset < ownedMedia.length; offset += 50) {
+          await Promise.all(
+            ownedMedia
+              .slice(offset, offset + 50)
+              .map((m) => env.BUCKET.delete(m.id)),
+          );
+        }
         await c.run("DELETE FROM users WHERE id=?", c.uid);
         return json({ ok: true }, 200, {
           "set-cookie": "openly_session=; Path=/; Max-Age=0; HttpOnly; Secure",
@@ -907,8 +919,11 @@ export async function api(request: Request, env: APIEnv): Promise<Response> {
         if (d.circleId) await c.circle(d.circleId, true);
         if (["question", "conversation"].includes(d.kind) && !d.circleId)
           fail("invalid_request");
-        await c.run(
+        const created = now();
+        const expires = d.kind === "moment" ? created + 86400000 : null;
+        const insert = env.DB.prepare(
           "INSERT INTO posts(id,author,body,image,song,audience,circleId,kind,mood,expires,created) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        ).bind(
           d.id,
           c.uid,
           d.body,
@@ -918,9 +933,19 @@ export async function api(request: Request, env: APIEnv): Promise<Response> {
           d.circleId || null,
           d.kind,
           d.mood || null,
-          d.kind === "moment" ? now() + 86400000 : null,
-          now(),
+          expires,
+          created,
         );
+        await env.DB.batch([
+          insert,
+          ...(d.image
+            ? [
+                env.DB.prepare(
+                  "UPDATE media SET restricted=1,expires=? WHERE id=? AND owner=?",
+                ).bind(expires, d.image, c.uid),
+              ]
+            : []),
+        ]);
         return json({ post: exposePost(await c.post(d.id)) }, 201);
       }
       if (target) {
@@ -1493,13 +1518,11 @@ export async function api(request: Request, env: APIEnv): Promise<Response> {
             conv.other,
           );
           return json({
-            items: items
-              .reverse()
-              .map((m) => ({
-                ...m,
-                read: other!.receipts ? m.read : null,
-                reactions: parseJSON(m.reactions, []),
-              })),
+            items: items.reverse().map((m) => ({
+              ...m,
+              read: other!.receipts ? m.read : null,
+              reactions: parseJSON(m.reactions, []),
+            })),
             typing: !!other!.activity && state?.typingUntil > now(),
             status: conv.status,
             next:

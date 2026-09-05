@@ -260,6 +260,8 @@ export const media = sqliteTable(
     type: text().notNull(),
     size: integer().notNull(),
     created: integer().notNull(),
+    expires: integer(),
+    restricted: integer().notNull().default(0),
   },
   (t) => [index("idx_media_owner_created").on(t.owner, t.created)],
 );

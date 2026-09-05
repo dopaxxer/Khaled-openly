@@ -138,16 +138,22 @@ struct MainView:View {
         Group{
             if sizeClass == .regular{
                 NavigationSplitView{
-                    List(selection:$selection){
+                    List{
                         ForEach(0..<5){
-                            i in Label(names[i],systemImage:symbols[i]).tag(i)
+                            i in Button { selection = i } label: { Label(names[i],systemImage:symbols[i]).foregroundStyle(selection == i ? Ink.blue : .primary) }.listRowBackground(selection == i ? Ink.blue.opacity(0.1) : Color.clear)
                         }
                     }
                     .navigationTitle("openly")
                 } detail:{
-                    NavigationStack{
-                        screen(selection).frame(maxWidth:760).frame(maxWidth:.infinity).navigationTitle(names[selection]).toolbar{
-                            topToolbar
+                    ZStack {
+                        ForEach(0..<5) { i in
+                            NavigationStack {
+                                screen(i).frame(maxWidth:760).frame(maxWidth:.infinity)
+                                    .navigationTitle(names[i]).toolbar { topToolbar }
+                            }
+                            .opacity(selection == i ? 1 : 0)
+                            .allowsHitTesting(selection == i)
+                            .accessibilityHidden(selection != i)
                         }
                     }
                 }

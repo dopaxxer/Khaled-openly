@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { CircleRow } from "./Circles";
 import {
   api,
+  countLabel,
   errorText,
   imageUpload,
   interestLabels,
@@ -413,8 +414,11 @@ export function Profile({
         </div>
         <p className="meta">
           <bdi>@{person.username}</bdi> ·{" "}
-          {new Intl.NumberFormat(user?.language).format(person.followers || 0)}{" "}
-          {t("followers", "متابع")}
+          {countLabel(
+            person.followers || 0,
+            "followers",
+            user?.language || "en",
+          )}
         </p>
         {person.bio && (
           <p className="bio" dir="auto">

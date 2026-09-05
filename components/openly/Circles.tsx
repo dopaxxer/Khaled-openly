@@ -15,7 +15,14 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import { api, interestLabels, useAction, useApp, useResource } from "./context";
+import {
+  countLabel,
+  api,
+  interestLabels,
+  useAction,
+  useApp,
+  useResource,
+} from "./context";
 import { Composer, FeedList } from "./Posts";
 import {
   Avatar,
@@ -42,7 +49,7 @@ export function CircleRow({
   circle: Circle;
   onOpen: () => void;
 }) {
-  const { t, bump } = useApp();
+  const { t, bump, user } = useApp();
   const { busy, run } = useAction();
   const Icon = icons[c.interest] || Users;
   return (
@@ -63,7 +70,7 @@ export function CircleRow({
             )}
           </strong>
           <p className="meta">
-            {c.members} {t("members", "عضو")} ·{" "}
+            {countLabel(c.members || 0, "members", user?.language || "en")} ·{" "}
             {interestLabels[c.interest]
               ? t(...interestLabels[c.interest])
               : c.interest}
