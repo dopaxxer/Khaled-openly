@@ -186,6 +186,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "Openly/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "Openly/Openly.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "Openly/Simulator.entitlements";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
@@ -203,6 +204,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "Openly/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "Openly/Openly.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "Openly/Simulator.entitlements";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";

@@ -17,16 +17,16 @@ enum Keychain {
         }
         return String(data:data,encoding:.utf8)
     }
-    static func save(_ token:String?) {
+    @discardableResult static func save(_ token:String?) -> OSStatus {
         let query:[String:Any]=[kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:service,kSecAttrAccount as String:"session"]
-        SecItemDelete(query as CFDictionary)
+        let deleted=SecItemDelete(query as CFDictionary)
         guard let token else{
-            return
+            return deleted == errSecItemNotFound ? errSecSuccess : deleted
         }
         var value=query
         value[kSecValueData as String]=Data(token.utf8)
         value[kSecAttrAccessible as String]=kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(value as CFDictionary,nil)
+        return SecItemAdd(value as CFDictionary,nil)
     }
 }
 @MainActor final class API: ObservableObject {
@@ -106,7 +106,7 @@ enum Keychain {
     }
     func authenticate(register:Bool,email:String,password:String,name:String,username:String) async throws {
         let r:UserResponse=try await request(register ? "auth/register":"auth/login",method:"POST",body:register ? ["email":email,"password":password,"name":name,"username":username]:["email":email,"password":password])
-        Keychain.save(r.token)
+        guard let token=r.token, Keychain.save(token)==errSecSuccess else { throw OpenlyError(code:t("Your session could not be saved securely. Please try again.", "تعذّر حفظ جلستك بأمان. حاول مجددًا.")) }
         user=r.user
         recovery=r.recovery
         if let current: UserResponse = try? await request("me") { pushConfigured=current.capabilities?.push ?? false }

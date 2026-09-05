@@ -80,10 +80,10 @@ jobs:
           PY
       - name: Build and test on iPhone simulator
         run: |
-          xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPHONE_SIMULATOR" -resultBundlePath build/iPhone.xcresult CODE_SIGNING_ALLOWED=NO OPENLY_API_ORIGIN="$OPENLY_API_ORIGIN" OPENLY_BUNDLE_ID="$IOS_BUNDLE_ID" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+          xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPHONE_SIMULATOR" -resultBundlePath build/iPhone.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM="" OPENLY_API_ORIGIN="$OPENLY_API_ORIGIN" OPENLY_BUNDLE_ID="$IOS_BUNDLE_ID" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
       - name: Test Arabic and English UI on iPad simulator
         run: |
-          xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPAD_SIMULATOR" -only-testing:OpenlyUITests -resultBundlePath build/iPad.xcresult CODE_SIGNING_ALLOWED=NO OPENLY_API_ORIGIN="$OPENLY_API_ORIGIN" OPENLY_BUNDLE_ID="$IOS_BUNDLE_ID"
+          xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPAD_SIMULATOR" -only-testing:OpenlyUITests -resultBundlePath build/iPad.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM="" OPENLY_API_ORIGIN="$OPENLY_API_ORIGIN" OPENLY_BUNDLE_ID="$IOS_BUNDLE_ID"
       - name: Validate distribution prerequisites
         if: inputs.distribution != 'verify'
         env:
@@ -127,6 +127,7 @@ jobs:
           with open(os.environ['GITHUB_ENV'],'a') as f:f.write('IPA_PATH='+str(target)+'\nEXPORT_METHOD='+method+'\n')
           PY
           python3 scripts/ios/verify_ipa.py "$IPA_PATH" "$EXPORT_METHOD"
+          echo "SIGNED_IPA_VERIFIED=true" >> "$GITHUB_ENV"
       - name: Upload to TestFlight
         if: inputs.distribution == 'testflight' && inputs.upload_testflight
         env:
@@ -154,7 +155,7 @@ jobs:
           STATUS_OUTPUT: build/deliverables/testflight-status.json
         run: node scripts/ios/testflight_status.mjs
       - name: Upload signed artifacts and verification status
-        if: always() && inputs.distribution != 'verify'
+        if: always() && env.SIGNED_IPA_VERIFIED == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Openly-${{ inputs.version }}-${{ github.run_number }}-${{ inputs.distribution }}

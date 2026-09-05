@@ -6,6 +6,7 @@ umask 077
 SIGN_DIR="$RUNNER_TEMP/openly-signing"
 mkdir -p "$SIGN_DIR"
 export SIGN_DIR
+printf 'SIGN_DIR=%s\n' "$SIGN_DIR" >> "$GITHUB_ENV"
 python3 - <<'PY'
 import base64,os,pathlib
 p=pathlib.Path(os.environ['SIGN_DIR'])

@@ -27,7 +27,7 @@ for name,sources,target,kind in [('Openly',source,app,'application'),('OpenlyTes
  phases=[add('sources:'+name,'PBXSourcesBuildPhase',buildActionMask=2147483647,files=[build(x) for x in sources],runOnlyForDeploymentPostprocessing=0),add('frameworks:'+name,'PBXFrameworksBuildPhase',buildActionMask=2147483647,files=[],runOnlyForDeploymentPostprocessing=0),add('resources:'+name,'PBXResourcesBuildPhase',buildActionMask=2147483647,files=[build(x) for x in [assets,privacy,variant]] if name=='Openly' else [],runOnlyForDeploymentPostprocessing=0)]
  settings={'PRODUCT_NAME':'$(TARGET_NAME)','PRODUCT_BUNDLE_IDENTIFIER':'$(OPENLY_BUNDLE_ID)'+('' if name=='Openly' else '.'+name),'GENERATE_INFOPLIST_FILE':'NO' if name=='Openly' else 'YES'}
  dependencies=[]
- if name=='Openly':settings.update({'INFOPLIST_FILE':'Openly/Info.plist','CODE_SIGN_ENTITLEMENTS':'Openly/Openly.entitlements','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks']})
+ if name=='Openly':settings.update({'INFOPLIST_FILE':'Openly/Info.plist','CODE_SIGN_ENTITLEMENTS':'Openly/Openly.entitlements','CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]':'Openly/Simulator.entitlements','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks']})
  else:
   proxy=add('proxy:'+name,'PBXContainerItemProxy',containerPortal=project,proxyType=1,remoteGlobalIDString=app,remoteInfo='Openly');dependencies=[add('dependency:'+name,'PBXTargetDependency',target=app,targetProxy=proxy)]
   if name=='OpenlyTests':settings.update({'TEST_HOST':'$(BUILT_PRODUCTS_DIR)/Openly.app/Openly','BUNDLE_LOADER':'$(TEST_HOST)'})

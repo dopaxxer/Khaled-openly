@@ -1,7 +1,7 @@
 name: Openly native verification
 on:
   pull_request:
-    paths: ['ios/**', 'scripts/ios/**', '.github/workflows/ios-verify.yml']
+    paths: ["ios/**", "scripts/ios/**", ".github/workflows/ios-verify.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,9 +35,9 @@ jobs:
               f.write(key+'='+target['udid']+'\n')
           PY
       - name: Build and test iPhone
-        run: xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPHONE_SIMULATOR" -resultBundlePath build/iPhone.xcresult CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPHONE_SIMULATOR" -resultBundlePath build/iPhone.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM=""
       - name: Test iPad layouts
-        run: xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPAD_SIMULATOR" -only-testing:OpenlyUITests -resultBundlePath build/iPad.xcresult CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPAD_SIMULATOR" -only-testing:OpenlyUITests -resultBundlePath build/iPad.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM=""
       - uses: actions/upload-artifact@v4
         if: always()
         with:

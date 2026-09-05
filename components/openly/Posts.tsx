@@ -40,6 +40,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   api,
+  RequestError,
   dateLabel,
   errorText,
   imageUpload,
@@ -782,19 +783,58 @@ export function FeedList({
   const { busy, run } = useAction();
   const [pages, setPages] = useState<Post[]>([]),
     [cursor, setCursor] = useState<Cursor>(null);
+  const retained = useRef<Post[]>([]);
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
   useEffect(() => {
+    retained.current = pages;
+  }, [pages]);
+  useEffect(() => {
+    retained.current = [];
     setPages([]);
-    setCursor(r.data.next);
-  }, [r.data, path, refresh]);
+    setRemoved(new Set());
+  }, [path]);
+  useEffect(() => {
+    if (!retained.current.length) setCursor(r.data.next);
+  }, [r.data.next]);
+  useEffect(() => {
+    let active = true;
+    const snapshot = retained.current;
+    if (snapshot.length)
+      void Promise.all(
+        snapshot.map(async (post) => {
+          try {
+            return (await api<{ post: Post }>("posts/" + post.id)).post;
+          } catch (error) {
+            return error instanceof RequestError &&
+              [403, 404].includes(error.status)
+              ? null
+              : post;
+          }
+        }),
+      ).then((posts) => {
+        if (active) setPages(posts.filter((p): p is Post => p !== null));
+      });
+    return () => {
+      active = false;
+    };
+  }, [refresh, path]);
   const items = [...r.data.items, ...pages].filter(
-    (p, i, a) => a.findIndex((x) => x.id === p.id) === i,
+    (p, i, a) => !removed.has(p.id) && a.findIndex((x) => x.id === p.id) === i,
   );
   if (r.loading && !items.length) return <Loading />;
-  if (r.error) return <ErrorState error={r.error} retry={r.reload} />;
+  if (r.error && !items.length)
+    return <ErrorState error={r.error} retry={r.reload} />;
   return (
     <>
+      {!!r.error && <ErrorState error={r.error} retry={r.reload} />}
       {items.length ? (
-        items.map((p) => <PostCard key={p.id} post={p} />)
+        items.map((p) => (
+          <PostCard
+            key={p.id}
+            post={p}
+            onRemoved={() => setRemoved((ids) => new Set([...ids, p.id]))}
+          />
+        ))
       ) : (
         <EmptyState
           icon={<Feather />}

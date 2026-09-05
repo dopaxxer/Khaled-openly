@@ -61,3 +61,5 @@ Install TestFlight from the App Store and accept the relevant testing invitation
 ## References
 
 [GitHub signing on macOS runners](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications), [Apple build uploads](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/), [App Store Connect API](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api/), [macOS 15 runner image](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md).
+
+Simulator tests use local ad hoc code signing (`codesign -`) with a simulator-only entitlement file so Keychain tests exercise actual secure storage. This needs no Apple certificate and is distinct from an Apple-signed Ad Hoc distribution IPA for registered physical devices. Device archives always use the distribution profile and production entitlement file.
