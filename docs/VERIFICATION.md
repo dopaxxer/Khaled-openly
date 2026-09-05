@@ -42,7 +42,7 @@ The following remain manual acceptance gates: all authenticated screens in light
 
 ## Distribution blockers
 
-No Apple distribution certificate/private key, matching provisioning profiles or App Store Connect API key were available to execute signing in this session. A publicly reachable compatible backend origin and confirmed app/team configuration are also needed for a distributed native build. Ad Hoc additionally requires registered device identifiers in its profile.
+The current review repository is public; signed artifacts require a private distribution repository. No Apple distribution certificate/private key, matching provisioning profiles or App Store Connect API key were available to execute signing in this session. A publicly reachable compatible backend origin and confirmed app/team configuration are also needed for a distributed native build. Ad Hoc additionally requires registered device identifiers in its profile.
 
 No signed IPA has been generated. No TestFlight upload, Apple processing completion, tester availability or physical-device installation is claimed. The manual workflows must be made available on the chosen repository's default branch through a reviewed integration or a dedicated repository. The existing production application uses a different account store; migrating it is a separate required decision before cutover.
 

@@ -47,6 +47,7 @@ jobs:
       IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.openly.social' }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       ENABLE_UNIVERSAL_LINKS: ${{ vars.ENABLE_UNIVERSAL_LINKS || 'false' }}
+      BUILD_DISTRIBUTION_METHOD: ${{ inputs.distribution }}
       MARKETING_VERSION: ${{ inputs.version }}
       BUILD_NUMBER: ${{ github.run_number }}
     steps:
@@ -59,7 +60,10 @@ jobs:
           test -d "$DEVELOPER_DIR"
           xcodebuild -version
           python3 - <<'PY'
-          import os,re
+          import os,re,json
+          event=json.load(open(os.environ["GITHUB_EVENT_PATH"]))
+          if os.environ["BUILD_DISTRIBUTION_METHOD"] != "verify" and not event["repository"]["private"]:
+            raise SystemExit("Signed IPA artifacts require a private repository. Use a dedicated private distribution repository; public repositories can run verify.")
           assert re.fullmatch(r'\d+\.\d+\.\d+',os.environ['MARKETING_VERSION']),'Version must use x.y.z'
           PY
           python3 scripts/ios/configure.py
@@ -155,7 +159,7 @@ jobs:
           STATUS_OUTPUT: build/deliverables/testflight-status.json
         run: node scripts/ios/testflight_status.mjs
       - name: Upload signed artifacts and verification status
-        if: always() && env.SIGNED_IPA_VERIFIED == 'true'
+        if: always() && env.SIGNED_IPA_VERIFIED == 'true' && github.event.repository.private
         uses: actions/upload-artifact@v4
         with:
           name: Openly-${{ inputs.version }}-${{ github.run_number }}-${{ inputs.distribution }}

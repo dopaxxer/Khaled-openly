@@ -10,6 +10,12 @@ All compilation and signing happen on GitHub's macOS runner. Safari or the GitHu
 
 GitHub requires a workflow_dispatch workflow to exist on the default branch before it can be manually selected. Do not merge this entire platform replacement merely to activate a workflow. First review the implementation/migration, or import the source into a dedicated repository and set its default branch. The existing production application has not been replaced.
 
+## Repository for signed artifacts
+
+The current review repository is public. Simulator checks and the clearly labeled unsigned device compilation artifact may run there. Signed distribution is deliberately refused in a public repository because downloadable IPA artifacts contain provisioning metadata, including device identifiers for Ad Hoc. Use a dedicated private repository for signed builds, or change repository visibility only after considering its existing users and deployments. This is enforced before importing signing assets and again at artifact upload.
+
+You can create the private repository and a Codespace in Safari on iPhone/iPad, import the delivered source there, then commit/push with the Codespace's repository authorization. No personal Mac is involved. Keep the source review branch separate from the existing production deployment. Private macOS runner usage is subject to your GitHub plan and billing limits.
+
 ## Public configuration
 
 Create a GitHub Environment named `ios-signing` under repository Settings → Environments. A repository owner can do this in Safari using the desktop site layout. Configure environment variables:
