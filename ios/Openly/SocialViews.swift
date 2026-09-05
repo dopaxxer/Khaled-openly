@@ -1076,8 +1076,7 @@ struct SettingsView:View {
                     Task{
                         do{
                             let _:OK=try await api.request("me",method:"DELETE")
-                            Keychain.save(nil)
-                            api.user=nil
+                            api.endSession()
                             dismiss()
                         }
                         catch{

@@ -607,10 +607,24 @@ struct MessageAttachment:View {
                 self.error=error.localizedDescription
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime)) { notification in
+            guard let item=notification.object as? AVPlayerItem, item === player?.currentItem else { return }
+            playing=false
+            player?.seek(to:.zero)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemFailedToPlayToEndTime)) { notification in
+            guard let item=notification.object as? AVPlayerItem, item === player?.currentItem else { return }
+            playing=false
+            error=api.t("Audio could not be played. Try opening this conversation again.", "تعذّر تشغيل الصوت. حاول فتح المحادثة مجددًا.")
+            file=nil
+        }
         .onDisappear{
             player?.pause()
+            playing=false
+            player=nil
             if let file{
                 try? FileManager.default.removeItem(at:file)
+                self.file=nil
             }
         }
     }

@@ -93,6 +93,7 @@ struct SongView:View {
     let song:Song
     @State private var player:AVPlayer?
     @State private var playing=false
+    @State private var unavailable=false
     var body:some View{
         HStack(spacing:12){
             AsyncImage(url:URL(string:song.artwork)){
@@ -104,12 +105,12 @@ struct SongView:View {
             VStack(alignment:.leading,spacing:3){
                 Text(song.title).font(.subheadline.weight(.semibold))
                 Text(song.artist).font(.caption).foregroundStyle(.secondary)
-                if song.preview==nil{
+                if song.preview==nil || unavailable{
                     Text(api.t("Preview unavailable","المقتطف غير متاح")).font(.caption2)
                 }
             }
             Spacer()
-            if let preview=song.preview{
+            if let preview=song.preview, !unavailable{
                 Button{
                     if playing{
                         player?.pause()
@@ -132,6 +133,16 @@ struct SongView:View {
                 }
                 .accessibilityLabel(api.t("Open in Apple Music","فتح في Apple Music"))
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime)) { notification in
+            guard let item=notification.object as? AVPlayerItem, item === player?.currentItem else { return }
+            playing=false
+            player?.seek(to:.zero)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemFailedToPlayToEndTime)) { notification in
+            guard let item=notification.object as? AVPlayerItem, item === player?.currentItem else { return }
+            playing=false
+            unavailable=true
         }
         .padding(12).background(Ink.paper,in:RoundedRectangle(cornerRadius:8)).onDisappear{
             player?.pause()
