@@ -14,6 +14,11 @@ final class LaunchTests: XCTestCase {
         let title = app.staticTexts["login.title"]
         XCTAssertTrue(title.waitForExistence(timeout: 65), "Native sign-in screen did not appear")
         XCTAssertTrue(title.isHittable, "Sign-in heading is clipped or hidden")
+        XCTAssertEqual(title.label, language == "ar" ? "مرحبًا بك في Openly" : "Welcome to openly")
+        let continueButton = app.buttons["login.continue"]
+        if continueButton.waitForExistence(timeout: 10) {
+            XCTAssertEqual(continueButton.label, language == "ar" ? "متابعة" : "Continue")
+        }
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "login-\(language)-\(appearance)"
         screenshot.lifetime = .keepAlways

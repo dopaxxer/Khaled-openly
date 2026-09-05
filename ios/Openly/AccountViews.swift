@@ -639,7 +639,6 @@ struct LoginView: View {
             .lineSpacing(4)
             .padding(.top, 8)
             .padding(.bottom, 30)
-            .environment(\.layoutDirection, .leftToRight)
 
         if capabilities.apple {
             SignInWithAppleButton(.continue) { request in
@@ -664,6 +663,7 @@ struct LoginView: View {
                     Text("G").font(.system(size: 18, weight: .bold))
                     Text("Continue with Google").font(.system(size: 16, weight: .semibold))
                 }
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(OpenlySecondaryButtonStyle())
             .disabled(isSubmitting)
@@ -687,7 +687,7 @@ struct LoginView: View {
                 .foregroundColor(OpenlyTheme.ink)
                 .padding(.bottom, 10)
             OpenlyFieldContainer {
-                TextField("example@email.com", text: $email)
+                TextField("البريد الإلكتروني", text: $email, prompt: Text(verbatim: "example@email.com").foregroundColor(OpenlyTheme.subtle))
                     .accessibilityIdentifier("login.email")
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
@@ -703,10 +703,11 @@ struct LoginView: View {
                 if isSubmitting {
                     ProgressView().tint(OpenlyTheme.accentForeground)
                 } else {
-                    Text("متابعة")
+                    Text("auth_continue")
                 }
             }
             .buttonStyle(OpenlyPrimaryButtonStyle())
+            .accessibilityIdentifier("login.continue")
             .disabled(isSubmitting || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .padding(.top, 20)
 
