@@ -1,0 +1,68 @@
+name: Debug Openly iOS Build
+
+on:
+  push:
+    branches:
+      - native-persistent-navigation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debug-build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate icons and project
+        working-directory: ios
+        run: |
+          python3 generate_icons.py
+          xcodegen generate
+
+      - name: Capture Xcode build log
+        id: build
+        continue-on-error: true
+        working-directory: ios
+        run: |
+          set -o pipefail
+          build_number="$(awk '/CURRENT_PROJECT_VERSION:/ { gsub(/"/, "", $2); print $2; exit }' project.yml)"
+          xcodebuild \
+            -project Openly.xcodeproj \
+            -scheme Openly \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION="$build_number" \
+            MARKETING_VERSION=1.0.0 \
+            build 2>&1 | tee xcodebuild.log
+
+      - name: Extract compiler errors
+        if: always()
+        working-directory: ios
+        run: |
+          grep -nE "error:|fatal error:" xcodebuild.log > compiler-errors.txt || true
+          cat compiler-errors.txt || true
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: openly-ios-build-diagnostics
+          path: |
+            ios/xcodebuild.log
+            ios/compiler-errors.txt
+          if-no-files-found: error
+
+      - name: Fail if Xcode build failed
+        if: steps.build.outcome == 'failure'
+        run: exit 1

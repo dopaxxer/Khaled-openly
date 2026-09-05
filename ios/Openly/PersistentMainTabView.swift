@@ -77,7 +77,6 @@ struct PersistentMainTabView: View {
             NativeWriteView()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
-                .presentationCornerRadius(24)
         }
     }
 

@@ -416,35 +416,122 @@ struct RootView: View {
     }
 }
 
+private enum OpenlyMainTab: Int, CaseIterable, Hashable {
+    case home
+    case explore
+    case write
+    case you
+
+    var title: String {
+        switch self {
+        case .home: return "Home"
+        case .explore: return "Explore"
+        case .write: return "Write"
+        case .you: return "You"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .home: return "house"
+        case .explore: return "safari"
+        case .write: return "square.and.pencil"
+        case .you: return "person.crop.circle"
+        }
+    }
+
+    var selectedIcon: String {
+        switch self {
+        case .home: return "house.fill"
+        case .explore: return "safari.fill"
+        case .write: return "square.and.pencil.circle.fill"
+        case .you: return "person.crop.circle.fill"
+        }
+    }
+}
+
+@MainActor
+private final class MainTabRouter: ObservableObject {
+    @Published var selection: OpenlyMainTab = .home
+}
+
 struct MainTabView: View {
-    @State private var selection = 0
+    @StateObject private var router = MainTabRouter()
+    @State private var visited: Set<OpenlyMainTab> = [.home]
 
     var body: some View {
-        TabView(selection: $selection) {
-            FeedView()
-                .tabItem { Label("Home", systemImage: selection == 0 ? "house.fill" : "house") }
-                .tag(0)
-
-            InterestDiscoveryView()
-                .tabItem { Label("Explore", systemImage: selection == 1 ? "safari.fill" : "safari") }
-                .tag(1)
-
-            NativeWriteView()
-                .tabItem { Label("Write", systemImage: selection == 2 ? "square.and.pencil.circle.fill" : "square.and.pencil") }
-                .tag(2)
-
-            AccountView()
-                .tabItem { Label("You", systemImage: selection == 3 ? "person.crop.circle.fill" : "person.crop.circle") }
-                .tag(3)
+        ZStack {
+            mountedTab(.home) { FeedView() }
+            mountedTab(.explore) { InterestDiscoveryView() }
+            mountedTab(.write) { NativeWriteView() }
+            mountedTab(.you) { AccountView() }
         }
-        .tint(OpenlyTheme.accent)
-        .toolbarBackground(OpenlyTheme.surface, for: .tabBar)
-        .toolbarBackground(.visible, for: .tabBar)
+        .environmentObject(router)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            nativeTabBar
+        }
+        .onChange(of: router.selection) { newTab in
+            visited.insert(newTab)
+        }
+    }
+
+    @ViewBuilder
+    private func mountedTab<Content: View>(
+        _ tab: OpenlyMainTab,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        if visited.contains(tab) {
+            content()
+                .opacity(router.selection == tab ? 1 : 0)
+                .allowsHitTesting(router.selection == tab)
+                .accessibilityHidden(router.selection != tab)
+                .zIndex(router.selection == tab ? 1 : 0)
+        }
+    }
+
+    private var nativeTabBar: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(OpenlyTheme.line)
+                .frame(height: 1)
+
+            HStack(spacing: 4) {
+                ForEach(OpenlyMainTab.allCases, id: \.self) { tab in
+                    Button {
+                        guard router.selection != tab else { return }
+                        withAnimation(.easeOut(duration: 0.16)) {
+                            router.selection = tab
+                        }
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: router.selection == tab ? tab.selectedIcon : tab.icon)
+                                .font(.system(size: 20, weight: router.selection == tab ? .semibold : .regular))
+                                .frame(height: 24)
+                            Text(tab.title)
+                                .font(.system(size: 10, weight: router.selection == tab ? .bold : .medium))
+                                .lineLimit(1)
+                        }
+                        .foregroundColor(router.selection == tab ? OpenlyTheme.accent : OpenlyTheme.muted)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 58)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(tab.title)
+                    .accessibilityAddTraits(router.selection == tab ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 3)
+            .padding(.bottom, 2)
+        }
+        .background(OpenlyTheme.surface)
     }
 }
 
 struct AppHeader: View {
     @EnvironmentObject private var session: AppSession
+    @EnvironmentObject private var tabRouter: MainTabRouter
     @State private var unreadCount = 0
 
     var body: some View {
@@ -480,7 +567,11 @@ struct AppHeader: View {
             .buttonStyle(.plain)
 
             if let user = session.user {
-                NavigationLink(destination: AccountView()) {
+                Button {
+                    withAnimation(.easeOut(duration: 0.16)) {
+                        tabRouter.selection = .you
+                    }
+                } label: {
                     HStack(spacing: 7) {
                         Circle()
                             .fill(Color(hex: user.identityColor) ?? OpenlyTheme.accent)
