@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "التقط صورة لمشاركتها في منشور أو لحظة أو محادثة.";
+"NSMicrophoneUsageDescription" = "سجّل رسالة صوتية عندما تختار ذلك.";
+"NSPhotoLibraryUsageDescription" = "اختر صورة لمشاركتها أو استخدامها في ملفك الشخصي.";

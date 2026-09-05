@@ -1,0 +1,11 @@
+# Public configuration. Copy to ignored .dev.vars only for local development.
+PUBLIC_ORIGIN=https://your-openly-domain.example
+IOS_BUNDLE_ID=com.openly.social
+APPLE_TEAM_ID=
+# Optional server-side APNs integration. Set real values in a secure runtime secret store.
+APNS_KEY_ID=
+APNS_TEAM_ID=
+APNS_PRIVATE_KEY=
+APNS_SANDBOX=false
+# Comma-separated operator account UUIDs permitted to review global reports.
+MODERATOR_IDS=

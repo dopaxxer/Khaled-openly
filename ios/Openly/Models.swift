@@ -1,527 +1,187 @@
 import Foundation
-
-struct UserSummary: Codable, Identifiable, Hashable {
-    var id: String { publicCode }
-    let publicCode: String
-    let identityColor: String
-    let createdAt: String?
-    let status: String?
-    let bio: String?
-    let viewerIsFollowing: Bool?
-    let viewerHasMuted: Bool?
-    let viewerHasBlocked: Bool?
-    let isSelf: Bool?
-}
-
-struct PostTrack: Codable, Hashable {
-    let id: String
+struct Song: Codable, Identifiable, Hashable {
+    let id: Int
     let title: String
     let artist: String
-    let artworkUrl: String?
-    let previewUrl: String?
-    let externalUrl: String?
+    let artwork: String
+    let url: String
+    let preview: String?
 }
-
+struct Person: Codable, Identifiable, Hashable {
+    let id: String
+    var username: String
+    var name: String
+    var bio: String?
+    var avatar: String?
+    var interests: [String]?
+    var song: Song?
+    var accent: String?
+    var `private`: Int?
+    var email: String?
+    var messages: String?
+    var receipts: Int?
+    var activity: Int?
+    var language: String?
+    var theme: String?
+    var onboarded: Int?
+    var notifications: [String]?
+    var following: String?
+    var shared: [String]?
+    var followers: Int?
+}
 struct Post: Codable, Identifiable, Hashable {
     let id: String
-    let body: String
-    let createdAt: String
-    let authorCode: String?
-    let authorColor: String?
-    let commentCount: Int?
-    let mentions: [MentionRef]?
-    let track: PostTrack?
-}
-
-struct Comment: Codable, Identifiable, Hashable {
-    let id: String
-    let body: String
-    let createdAt: String
-    let parentCommentId: String?
-    let authorCode: String?
-    let authorColor: String?
-    let mentions: [MentionRef]?
-}
-
-struct MentionRef: Codable, Identifiable, Hashable {
-    var id: String { publicCode }
-    let publicCode: String
-    let identityColor: String?
-}
-
-struct MentionSuggestionResponse: Codable {
-    let items: [MentionRef]
-}
-
-struct MusicArtist: Codable, Identifiable, Hashable {
-    let id: String
+    let author: String
+    let username: String
     let name: String
-    let listenerCount: Int?
-}
-
-struct MusicGenre: Codable, Identifiable, Hashable {
-    let id: String
-    let slug: String
-    let name: String
-    private let localizedArabicName: String
-
-    enum CodingKeys: String, CodingKey {
-        case id, slug, name
-        case localizedArabicName = "nameAr"
-    }
-
-    init(id: String, slug: String, name: String, nameAr: String) {
-        self.id = id
-        self.slug = slug
-        self.name = name
-        self.localizedArabicName = nameAr
-    }
-
-    /// Existing views already read `nameAr`. Keep that API stable while making
-    /// it respect the language selected inside Openly.
-    var nameAr: String {
-        OpenlyLocale.currentLanguageCode == "en" ? name : localizedArabicName
-    }
-}
-
-struct MusicTrack: Codable, Identifiable, Hashable {
-    let id: String
-    let provider: String
-    let externalId: String
-    let title: String
-    let artist: String
-    let album: String?
-    let artworkUrl: String?
-    let externalUrl: String?
-    let previewUrl: String?
-    let durationMs: Int?
-    let genre: String?
-}
-
-struct MusicCatalogTrack: Codable, Identifiable, Hashable {
-    var id: String { "\(provider):\(externalId)" }
-    let provider: String
-    let externalId: String
-    let title: String
-    let artist: String
-    let album: String?
-    let artworkUrl: String?
-    let externalUrl: String?
-    let previewUrl: String?
-    let durationMs: Int?
-    let genre: String?
-}
-
-struct MusicProfile: Codable, Hashable {
-    let discoveryOptIn: Bool
-    let preferencesPublic: Bool
-    let showTracks: Bool?
-    let showArtists: Bool?
-    let showGenres: Bool?
-    let tracks: [MusicTrack]?
-    let artists: [MusicArtist]
-    let genres: [MusicGenre]
-
-    var tracksArePublic: Bool { showTracks ?? preferencesPublic }
-    var artistsArePublic: Bool { showArtists ?? preferencesPublic }
-    var genresArePublic: Bool { showGenres ?? preferencesPublic }
-
-    static let empty = MusicProfile(
-        discoveryOptIn: false,
-        preferencesPublic: false,
-        showTracks: false,
-        showArtists: false,
-        showGenres: false,
-        tracks: [],
-        artists: [],
-        genres: []
-    )
-}
-
-struct PublicMusicProfile: Codable, Hashable {
-    let publicCode: String
-    let identityColor: String?
-    let showTracks: Bool?
-    let showArtists: Bool?
-    let showGenres: Bool?
-    let tracks: [MusicTrack]?
-    let artists: [MusicArtist]
-    let genres: [MusicGenre]
-}
-
-struct MusicMatch: Codable, Identifiable, Hashable {
-    var id: String { publicCode }
-    let publicCode: String
-    let identityColor: String?
-    let compatibility: Int
-    let sharedArtistCount: Int
-    let sharedGenreCount: Int
-    let sharedArtists: [MusicArtist]
-    let sharedGenres: [MusicGenre]
-    var interested: Bool?
-    var matched: Bool?
-    var matchedAt: String?
-}
-
-struct MusicMatchState: Codable, Hashable {
-    let publicCode: String
-    let identityColor: String?
-    let interested: Bool
-    let matched: Bool
-    let matchedAt: String?
-}
-
-struct MusicMatchStateResponse: Codable {
-    let state: MusicMatchState
-}
-
-struct MusicProfileResponse: Codable {
-    let profile: MusicProfile?
-}
-
-struct PublicMusicProfileResponse: Codable {
-    let profile: PublicMusicProfile?
-}
-
-struct MusicArtistsResponse: Codable {
-    let items: [MusicArtist]
-}
-
-struct MusicGenresResponse: Codable {
-    let items: [MusicGenre]
-}
-
-struct MusicCatalogResponse: Codable {
-    let items: [MusicCatalogTrack]
-    let provider: String
-}
-
-struct MusicTrackCreateResponse: Codable {
-    let track: MusicTrack
-}
-
-struct MusicArtistCreateResponse: Codable {
-    let artist: MusicArtist
-    let created: Bool
-}
-
-struct MusicDiscoveryResponse: Codable {
-    let items: [MusicMatch]
-    let total: Int
-    let limit: Int
-    let offset: Int
-    let hasMore: Bool
-}
-
-enum InterestKind: String, Codable, CaseIterable, Identifiable {
-    case topic
-    case book
-    case movie
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .topic: return NSLocalizedString("مواضيع", comment: "")
-        case .book: return NSLocalizedString("كتب", comment: "")
-        case .movie: return NSLocalizedString("أفلام", comment: "")
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .topic: return "bubble.left.and.bubble.right"
-        case .book: return "book"
-        case .movie: return "film"
-        }
-    }
-}
-
-struct InterestItem: Codable, Identifiable, Hashable {
-    let id: String
-    let source: String?
+    let avatar: String?
+    let body: String
+    let image: String?
+    let song: Song?
+    let audience: String
+    let circleId: String?
     let kind: String
-    let label: String
-    let subtitle: String?
-    let provider: String?
-    let externalId: String?
-    let artworkUrl: String?
-    let releaseYear: Int?
-    let externalUrl: String?
-    let popularity: Int?
-    let position: Int?
-
-    var interestKind: InterestKind? { InterestKind(rawValue: kind) }
-    var isCatalogResult: Bool { source == "catalog" }
+    let mood: String?
+    let pinned: Int
+    let expires: Double?
+    let created: Double
+    let updated: Double?
+    var likes: Int?
+    var liked: Int?
+    let comments: Int?
+    var saved: Int?
 }
-
-struct InterestProfile: Codable, Hashable {
-    let discoveryOptIn: Bool
-    let preferencesPublic: Bool
-    let items: [InterestItem]
-
-    static let empty = InterestProfile(
-        discoveryOptIn: false,
-        preferencesPublic: false,
-        items: []
-    )
+struct Circle: Codable, Identifiable, Hashable {
+    let id: String
+    let owner: String
+    let name: String
+    let description: String
+    let rules: String
+    let interest: String
+    let `private`: Int
+    let status: String?
+    let role: String?
+    let members: Int?
 }
-
-struct PublicInterestProfile: Codable, Hashable {
-    let publicCode: String
-    let identityColor: String?
-    let items: [InterestItem]
+struct Conversation: Codable, Identifiable, Hashable {
+    let id: String
+    let a: String
+    let b: String
+    let initiator: String
+    var status: String
+    var name: String?
+    var username: String?
+    var avatar: String?
+    var other: String?
+    var lastBody: String?
+    var unread: Int?
+    var muted: Int?
 }
-
-struct InterestMatch: Codable, Identifiable, Hashable {
-    var id: String { publicCode }
-    let publicCode: String
-    let identityColor: String?
-    let compatibility: Int
-    let sharedBookCount: Int
-    let sharedMovieCount: Int
-    let sharedTopicCount: Int
-    let sharedItems: [InterestItem]
-    let musicCompatibility: Int
+struct Reaction: Codable, Hashable {
+    let userId: String
+    let emoji: String
 }
-
-struct InterestSearchResponse: Codable {
-    let items: [InterestItem]
-    let catalog: String?
-    let catalogUnavailable: Bool?
-}
-
-struct InterestItemResponse: Codable {
-    let item: InterestItem
-}
-
-struct InterestProfileResponse: Codable {
-    let profile: InterestProfile?
-}
-
-struct PublicInterestProfileResponse: Codable {
-    let profile: PublicInterestProfile?
-}
-
-struct InterestDiscoveryResponse: Codable {
-    let items: [InterestMatch]
-    let total: Int
-    let limit: Int
-    let offset: Int
-    let hasMore: Bool
-}
-
-struct Engagement: Codable, Identifiable, Hashable {
-    var id: String { postId }
-    let postId: String
-    let likeCount: Int
-    let viewerHasLiked: Bool
-    let viewerHasBookmarked: Bool
-}
-
-struct DirectConversation: Codable, Identifiable, Hashable {
-    var id: String { conversationId }
+struct Message: Codable, Identifiable, Hashable {
+    let id: String
     let conversationId: String
-    let publicCode: String
-    let identityColor: String?
-    let createdAt: String?
-    let lastMessageBody: String?
-    let lastMessageAt: String?
-    let lastMessageIsMine: Bool?
-    let unreadCount: Int?
-    let canMessage: Bool
-}
-
-struct DirectMessage: Codable, Identifiable, Hashable {
-    let id: String
+    let sender: String
     let body: String
-    let createdAt: String
-    let readAt: String?
-    let senderCode: String
-    let senderColor: String?
-    let isMine: Bool
+    let media: String?
+    let replyTo: String?
+    let created: Double
+    let delivered: Double?
+    let read: Double?
+    var reactions: [Reaction]?
 }
-
-struct DirectConversationListResponse: Codable {
-    let items: [DirectConversation]
-    let total: Int
-    let limit: Int
-    let offset: Int
-    let hasMore: Bool
-}
-
-struct DirectConversationResponse: Codable {
-    let conversation: DirectConversation
-}
-
-struct DirectThreadResponse: Codable {
-    let conversation: DirectConversation
-    let items: [DirectMessage]
-    let nextCursor: String?
-    let hasMore: Bool
-}
-
-struct DirectMessageResponse: Codable {
-    let message: DirectMessage
-}
-
-struct DirectUnreadResponse: Codable {
-    let unreadCount: Int
-}
-
-struct DirectReadResponse: Codable {
-    let ok: Bool
-    let readCount: Int
-}
-
-struct DirectPresenceResponse: Codable, Hashable {
-    let online: Bool
-    let typing: Bool
-    let lastSeenAt: String?
-}
-
-struct NotificationItem: Codable, Identifiable, Hashable {
+struct Comment: Codable, Identifiable {
     let id: String
-    let kind: String
-    let postId: String?
-    let commentId: String?
-    let actorCode: String?
-    let actorColor: String?
-    let readAt: String?
-    let createdAt: String
+    let author: String
+    let name: String
+    let body: String
+    let parent: String?
+    let avatar: String?
 }
-
-struct PrivacyRelation: Codable, Identifiable, Hashable {
-    var id: String { "\(kind)-\(publicCode)" }
-    let kind: String
-    let publicCode: String
-    let identityColor: String
-    let createdAt: String?
+struct Notice: Codable, Identifiable {
+    let id: String
+    let name: String
+    let actor: String
+    let type: String
+    let target: String
+    let read: Double?
 }
-
-struct FeedResponse: Codable {
-    let items: [Post]
-    let nextCursor: String?
+struct Collection: Codable, Identifiable {
+    let id: String
+    let name: String
+    let count: Int?
 }
-
-struct EngagementResponse: Codable {
-    let items: [Engagement]
-}
-
-struct SearchResponse: Codable {
-    let posts: [Post]
-    let users: [UserSummary]
-}
-
-struct PostDetailResponse: Codable {
-    let post: Post
-    let comments: [Comment]
-}
-
-struct UserResponse: Codable {
-    let user: UserSummary
-}
-
-struct SessionResponse: Codable {
-    let user: UserSummary?
-}
-
-struct ProfileUpdateResponse: Codable {
-    let ok: Bool?
-    let user: UserSummary
-}
-
-struct NotificationResponse: Codable {
-    let items: [NotificationItem]
-    let unreadCount: Int
-}
-
-struct NotificationCountResponse: Codable {
-    let unreadCount: Int
-}
-
-struct FollowingResponse: Codable {
-    let items: [UserSummary]
-}
-
-struct PrivacyResponse: Codable {
-    let items: [PrivacyRelation]
-}
-
-struct CountResponse: Codable {
-    let count: Int
-}
-
-struct ActionResponse: Codable {
-    let ok: Bool?
-    let id: String?
-    let requiresEmailConfirmation: Bool?
-    let email: String?
-}
-
-enum OpenlyLocale {
-    static var currentLanguageCode: String {
-        UserDefaults.standard.string(forKey: "openly.language") == "en" ? "en" : "ar"
+struct CircleMember: Codable, Identifiable {
+    var id:String {
+        userId
     }
-
-    static var locale: Locale {
-        Locale(identifier: currentLanguageCode)
+    let userId:String
+    let name:String
+    let role:String
+    let status:String
+}
+struct ReportItem: Codable, Identifiable {
+    let id:String
+    let kind:String
+    let target:String
+    let reason:String
+}
+struct Page<T:Decodable>: Decodable {
+    let items:[T]
+    let next:Cursor?
+}
+struct Cursor: Codable {
+    let before:Double
+    let cursor:String
+    let score:Double?
+}
+struct UserResponse: Decodable {
+    let capabilities:Capabilities?
+    let user:Person
+    let token:String?
+    let recovery:String?
+}
+struct PostResponse: Decodable {
+    let post:Post
+}
+struct CircleResponse: Decodable {
+    let circle:Circle
+}
+struct ConversationResponse: Decodable {
+    let conversation:Conversation
+}
+struct MessageResponse: Decodable {
+    let message:Message
+}
+struct MessagePage: Decodable {
+    let items:[Message]
+    let typing:Bool
+    let status:String
+    let next:Cursor?
+}
+struct UploadResponse: Decodable {
+    let id:String
+    let type:String
+    let size:Int
+}
+struct OK:Decodable {
+    let ok:Bool?
+}
+struct IDResponse:Decodable {
+    let id:String
+}
+struct RecoveryResponse:Decodable {
+    let recovery:String
+}
+struct StateResponse:Decodable {
+    struct State:Decodable {
+        let draft:String
+        let muted:Int
     }
+    let state:State?
 }
 
-enum OpenlyDate {
-    static func date(from value: String) -> Date? {
-        let normalized = Self.normalize(value)
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = fractional.date(from: normalized) { return date }
-
-        let standard = ISO8601DateFormatter()
-        standard.formatOptions = [.withInternetDateTime]
-        if let date = standard.date(from: normalized) { return date }
-
-        let posix = DateFormatter()
-        posix.locale = Locale(identifier: "en_US_POSIX")
-        posix.timeZone = TimeZone(secondsFromGMT: 0)
-        for format in [
-            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX",
-            "yyyy-MM-dd'T'HH:mm:ssXXXXX"
-        ] {
-            posix.dateFormat = format
-            if let date = posix.date(from: value) ?? posix.date(from: normalized) {
-                return date
-            }
-        }
-        return nil
-    }
-
-    private static func normalize(_ value: String) -> String {
-        var s = value
-        if s.hasSuffix("+00:00") {
-            s = String(s.dropLast(6)) + "Z"
-        }
-        guard let dot = s.firstIndex(of: ".") else { return s }
-        let fractionStart = s.index(after: dot)
-        guard let end = s[fractionStart...].firstIndex(where: { !$0.isNumber }) else { return s }
-        let fraction = s[fractionStart..<end]
-        let millis = fraction.prefix(3).padding(toLength: 3, withPad: "0", startingAt: 0)
-        return String(s[..<fractionStart]) + millis + String(s[end...])
-    }
-
-    static func relative(_ value: String) -> String {
-        guard let date = date(from: value) else { return "" }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = OpenlyLocale.locale
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-
-    static func short(_ value: String?) -> String {
-        guard let value, let date = date(from: value) else { return "" }
-        let formatter = DateFormatter()
-        formatter.locale = OpenlyLocale.locale
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
-    }
-}
+struct Capabilities: Decodable { let push: Bool; let emailRecovery: Bool }

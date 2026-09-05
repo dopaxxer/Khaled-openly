@@ -1,0 +1,188 @@
+name: Openly iPhone and iPad
+on:
+  workflow_dispatch:
+    inputs:
+      distribution:
+        description: Build and distribution method
+        required: true
+        type: choice
+        default: verify
+        options: [verify, testflight, ad-hoc]
+      version:
+        description: Marketing version, for example 1.0.0
+        required: true
+        default: "1.0.0"
+      upload_testflight:
+        description: Upload the App Store Connect IPA to TestFlight (no public App Store submission)
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: openly-ios-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: python3 -m unittest discover -s tests -p "test_ios_*.py" -v
+      - run: npm run test:api
+      - run: npm run build
+  ios:
+    needs: validate
+    runs-on: macos-15
+    timeout-minutes: 50
+    environment: ios-signing
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      OPENLY_API_ORIGIN: ${{ vars.OPENLY_API_ORIGIN || 'https://openly.invalid' }}
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.openly.social' }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      ENABLE_UNIVERSAL_LINKS: ${{ vars.ENABLE_UNIVERSAL_LINKS || 'false' }}
+      BUILD_DISTRIBUTION_METHOD: ${{ inputs.distribution }}
+      MARKETING_VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - name: Validate Xcode and public configuration
+        run: |
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version
+          python3 - <<'PY'
+          import os,re,json
+          event=json.load(open(os.environ["GITHUB_EVENT_PATH"]))
+          if os.environ["BUILD_DISTRIBUTION_METHOD"] != "verify" and not event["repository"]["private"]:
+            raise SystemExit("Signed IPA artifacts require a private repository. Use a dedicated private distribution repository; public repositories can run verify.")
+          assert re.fullmatch(r'\d+\.\d+\.\d+',os.environ['MARKETING_VERSION']),'Version must use x.y.z'
+          PY
+          python3 scripts/ios/configure.py
+          python3 scripts/ios/generate_project.py
+          plutil -lint ios/Openly/Info.plist ios/Openly/Openly.entitlements ios/Openly/PrivacyInfo.xcprivacy ios/Openly.xcodeproj/project.pbxproj
+      - name: Find iPhone and iPad simulators
+        run: |
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
+          python3 - <<'PY'
+          import os,json
+          data=json.load(open(os.environ['RUNNER_TEMP']+'/simulators.json'))
+          devices=[d for runtime,ds in data['devices'].items() if 'iOS' in runtime for d in ds if d.get('isAvailable')]
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+            for kind,key in [('iPhone','IPHONE_SIMULATOR'),('iPad','IPAD_SIMULATOR')]:
+              device=next((d for d in devices if kind in d['name']),None)
+              assert device,'Install an iOS simulator runtime containing '+kind
+              f.write(key+'='+device['udid']+'\n')
+          PY
+      - name: Build and test on iPhone simulator
+        run: |
+          xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPHONE_SIMULATOR" -resultBundlePath build/iPhone.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM="" OPENLY_API_ORIGIN="$OPENLY_API_ORIGIN" OPENLY_BUNDLE_ID="$IOS_BUNDLE_ID" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+      - name: Test Arabic and English UI on iPad simulator
+        run: |
+          xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPAD_SIMULATOR" -only-testing:OpenlyUITests -resultBundlePath build/iPad.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM="" OPENLY_API_ORIGIN="$OPENLY_API_ORIGIN" OPENLY_BUNDLE_ID="$IOS_BUNDLE_ID"
+      - name: Validate distribution prerequisites
+        if: inputs.distribution != 'verify'
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          PROFILE_BASE64: ${{ inputs.distribution == 'ad-hoc' && secrets.IOS_ADHOC_PROFILE_BASE64 || secrets.IOS_APPSTORE_PROFILE_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import os
+          keys=['CERTIFICATE_P12_BASE64','CERTIFICATE_PASSWORD','PROFILE_BASE64','APPLE_TEAM_ID']
+          missing=[key for key in keys if not os.environ.get(key)]
+          assert not missing,'Configure missing GitHub Environment secrets/variables: '+', '.join(missing)
+          assert os.environ['OPENLY_API_ORIGIN']!='https://openly.invalid','A deployed, accessible API origin is required for distribution'
+          PY
+      - name: Install signing certificate and validate provisioning profile
+        if: inputs.distribution != 'verify'
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          PROFILE_BASE64: ${{ inputs.distribution == 'ad-hoc' && secrets.IOS_ADHOC_PROFILE_BASE64 || secrets.IOS_APPSTORE_PROFILE_BASE64 }}
+          DISTRIBUTION_METHOD: ${{ inputs.distribution }}
+        run: bash scripts/ios/sign.sh
+      - name: Archive iOS distribution build
+        if: inputs.distribution != 'verify'
+        run: |
+          xcodebuild archive -project ios/Openly.xcodeproj -scheme Openly -configuration Release -destination 'generic/platform=iOS' -archivePath build/Openly.xcarchive CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' DEVELOPMENT_TEAM="$APPLE_TEAM_ID" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" OPENLY_API_ORIGIN="$OPENLY_API_ORIGIN" OPENLY_BUNDLE_ID="$IOS_BUNDLE_ID" MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+      - name: Export IPA and verify its signature
+        if: inputs.distribution != 'verify'
+        env:
+          DISTRIBUTION_METHOD: ${{ inputs.distribution }}
+        run: |
+          xcodebuild -exportArchive -archivePath build/Openly.xcarchive -exportPath build/export -exportOptionsPlist "$SIGN_DIR/ExportOptions.plist"
+          mkdir -p build/deliverables
+          python3 - <<'PY'
+          import os,pathlib,shutil
+          source=next(pathlib.Path('build/export').glob('*.ipa'))
+          method='ad-hoc' if os.environ['DISTRIBUTION_METHOD']=='ad-hoc' else 'app-store-connect'
+          name=f"Openly-{os.environ['MARKETING_VERSION']}-{os.environ['BUILD_NUMBER']}-{method}-signed.ipa"
+          target=pathlib.Path('build/deliverables')/name
+          shutil.move(source,target)
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('IPA_PATH='+str(target)+'\nEXPORT_METHOD='+method+'\n')
+          PY
+          python3 scripts/ios/verify_ipa.py "$IPA_PATH" "$EXPORT_METHOD"
+          echo "SIGNED_IPA_VERIFIED=true" >> "$GITHUB_ENV"
+      - name: Upload to TestFlight
+        if: inputs.distribution == 'testflight' && inputs.upload_testflight
+        env:
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          umask 077
+          python3 - <<'PY'
+          import os,pathlib,base64
+          for key in ['ASC_PRIVATE_KEY_BASE64','ASC_KEY_ID','ASC_ISSUER_ID']:
+            assert os.environ.get(key),'Missing secure secret: '+key
+          p=pathlib.Path.home()/'.appstoreconnect/private_keys';p.mkdir(parents=True,exist_ok=True)
+          target=p/('AuthKey_'+os.environ['ASC_KEY_ID']+'.p8')
+          target.write_bytes(base64.b64decode(os.environ['ASC_PRIVATE_KEY_BASE64'],validate=True))
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('ASC_KEY_PATH='+str(target)+'\n')
+          PY
+          xcrun altool --upload-app --type ios --file "$IPA_PATH" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" --output-format json
+      - name: Check Apple processing separately from upload
+        if: inputs.distribution == 'testflight' && inputs.upload_testflight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+          STATUS_OUTPUT: build/deliverables/testflight-status.json
+        run: node scripts/ios/testflight_status.mjs
+      - name: Upload signed artifacts and verification status
+        if: always() && env.SIGNED_IPA_VERIFIED == 'true' && github.event.repository.private
+        uses: actions/upload-artifact@v4
+        with:
+          name: Openly-${{ inputs.version }}-${{ github.run_number }}-${{ inputs.distribution }}
+          path: build/deliverables/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload simulator test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Openly-simulator-results-${{ github.run_number }}
+          path: |
+            build/iPhone.xcresult
+            build/iPad.xcresult
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Clean up signing materials
+        if: always()
+        run: |
+          if [ -n "${SIGN_DIR:-}" ]; then
+            security delete-keychain "$SIGN_DIR/build.keychain-db" >/dev/null 2>&1 || true
+            rm -rf "$SIGN_DIR"
+          fi
+          if [ -n "${PROFILE_UUID:-}" ]; then rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"; fi
+          if [ -n "${ASC_KEY_PATH:-}" ]; then rm -f "$ASC_KEY_PATH"; fi

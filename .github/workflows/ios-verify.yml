@@ -1,0 +1,56 @@
+name: Openly native verification
+on:
+  pull_request:
+    paths: ["ios/**", "scripts/ios/**", ".github/workflows/ios-verify.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: native-verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare project
+        run: |
+          xcodebuild -version
+          python3 scripts/ios/configure.py
+          python3 scripts/ios/generate_project.py
+          plutil -lint ios/Openly/Info.plist ios/Openly.xcodeproj/project.pbxproj
+      - name: Select available simulators
+        run: |
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
+          python3 - <<'PY'
+          import os,json
+          d=json.load(open(os.environ['RUNNER_TEMP']+'/simulators.json'))
+          devices=[x for r,ds in d['devices'].items() if 'iOS' in r for x in ds if x.get('isAvailable')]
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+            for kind,key in [('iPhone','IPHONE_SIMULATOR'),('iPad','IPAD_SIMULATOR')]:
+              target=next(x for x in devices if kind in x['name'])
+              f.write(key+'='+target['udid']+'\n')
+          PY
+      - name: Build and test iPhone
+        run: xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPHONE_SIMULATOR" -resultBundlePath build/iPhone.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM=""
+      - name: Test iPad layouts
+        run: xcodebuild test -project ios/Openly.xcodeproj -scheme Openly -destination "platform=iOS Simulator,id=$IPAD_SIMULATOR" -only-testing:OpenlyUITests -resultBundlePath build/iPad.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES DEVELOPMENT_TEAM=""
+      - name: Compile Release for physical-device SDK without distribution signing
+        run: |
+          xcodebuild build -project ios/Openly.xcodeproj -scheme Openly -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/Device CODE_SIGNING_ALLOWED=NO
+          ditto -c -k --sequesterRsrc --keepParent build/Device/Build/Products/Release-iphoneos/Openly.app build/Openly-1.0.0-unsigned-device-build.zip
+      - name: Upload unsigned device compilation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Openly-1.0.0-unsigned-device-build-${{ github.run_number }}
+          path: build/Openly-1.0.0-unsigned-device-build.zip
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Openly-native-verification-${{ github.run_number }}
+          path: build/*.xcresult
+          retention-days: 7
