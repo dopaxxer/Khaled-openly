@@ -530,3 +530,27 @@
 
 "post_comments_count" = "%ld comments";
 "post_likes_count" = "%ld likes";
+
+// Runtime interface labels and feedback.
+"كود الهوية" = "Identity code";
+"لون الهوية" = "Identity color";
+"الحالة" = "Status";
+"النبذة" = "Bio";
+"الأمان" = "Security";
+"حسب الجهاز" = "System";
+"تم حفظ التغييرات." = "Your changes were saved.";
+"الكود يجب أن يكون من 4 إلى 8 رموز." = "The code must contain 4 to 8 characters.";
+"أُرسل كود جديد." = "A new code was sent.";
+"تعذر إكمال تسجيل الدخول بحساب Apple." = "Could not complete Sign in with Apple.";
+"تعذر قراءة بيانات Apple الآمنة." = "Could not read the secure Apple sign-in information.";
+"Google Sign-In يحتاج إعدادات OAuth كاملة للتطبيق والخادم." = "Google sign-in is not configured for this app yet.";
+"تعذر فتح نافذة Google." = "Could not open Google sign-in.";
+"تسجيل البريد داخل التطبيق يحتاج OTP. استخدم نسخة الويب مؤقتًا." = "Email sign-in in this app requires a one-time code. Please use the website for now.";
+"لم يرجع Google رمز هوية صالحًا." = "Google did not return a valid sign-in token.";
+"محدد" = "Selected";
+"أزرق ملكي" = "Ultramarine";
+"عنّابي" = "Crimson";
+"غابي" = "Forest";
+"كهرماني" = "Amber";
+"بنفسجي" = "Violet";
+"auth_error_accessibility" = "Error: %@";

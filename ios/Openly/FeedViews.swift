@@ -451,7 +451,7 @@ struct PostCard: View {
         HStack(spacing: 7) {
             Image(systemName: icon)
                  .font(.system(size: 14, weight: .regular))
-            Text(text)
+            Text(LocalizedStringKey(text))
                 .font(.system(size: 13, weight: active ? .semibold : .medium))
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
@@ -610,7 +610,7 @@ private struct PostTrackAttachment: View {
                         .overlay(Circle().stroke(OpenlyTheme.lineStrong, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(Text(actionLabel))
+                .accessibilityLabel(Text(LocalizedStringKey(actionLabel)))
             }
         }
         .padding(10)
@@ -859,7 +859,7 @@ struct ReportView: View {
         NavigationView {
             Form {
                 Picker("السبب", selection: $reason) {
-                    ForEach(reasons, id: \.0) { Text($0.1).tag($0.0) }
+                    ForEach(reasons, id: \.0) { Text(LocalizedStringKey($0.1)).tag($0.0) }
                 }
                 Section("تفاصيل إضافية") {
                     TextEditor(text: $description)

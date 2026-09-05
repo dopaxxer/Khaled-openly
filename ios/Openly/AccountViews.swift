@@ -155,6 +155,7 @@ struct NotificationsView: View {
                                         .padding(.top, 6)
                                     VStack(alignment: .leading, spacing: 5) {
                                         Text(notificationText(item))
+                                            .accessibilityIdentifier("notification.message.\(item.id)")
                                             .font(.system(size: 15, weight: item.readAt == nil ? .semibold : .regular))
                                             .foregroundColor(OpenlyTheme.ink)
                                         Text(OpenlyDate.relative(item.createdAt))
@@ -195,6 +196,9 @@ struct NotificationsView: View {
     @ViewBuilder
     private func destination(for item: NotificationItem) -> some View {
         if let id = item.postId { PostDetailView(postID: id) }
+        else if item.kind == "follow", let code = item.actorCode, !code.isEmpty {
+            UserProfileView(code: code)
+        }
         else { EmptyState(icon: "bell", title: "إشعار", message: notificationText(item)) }
     }
 
@@ -425,7 +429,7 @@ struct LoginRequiredView: View {
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
-            Text(message)
+            Text(LocalizedStringKey(message))
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(OpenlyTheme.muted)
                 .multilineTextAlignment(.center)
@@ -808,14 +812,14 @@ struct LoginView: View {
     @ViewBuilder
     private var authMessages: some View {
         if let inlineError {
-            Text(inlineError)
+            Text(LocalizedStringKey(inlineError))
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(OpenlyTheme.danger)
                 .padding(.top, 12)
-                .accessibilityLabel("خطأ: \(inlineError)")
+                .accessibilityLabel(Text(String(format: OpenlyLocale.string("auth_error_accessibility"), OpenlyLocale.string(inlineError))))
         }
         if let status {
-            Text(status)
+            Text(LocalizedStringKey(status))
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(OpenlyTheme.muted)
                 .padding(.top, 12)
@@ -1206,7 +1210,7 @@ struct VerificationView: View {
                 .foregroundColor(OpenlyTheme.muted)
 
             if let status {
-                Text(status)
+                Text(LocalizedStringKey(status))
                     .font(.footnote)
                     .foregroundColor(OpenlyTheme.muted)
             }

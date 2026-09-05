@@ -180,6 +180,7 @@ struct ComposerTrackPicker: View {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("music.result.\(track.externalId)")
         .disabled(attachingKey != nil)
         .padding(.horizontal, 18)
     }

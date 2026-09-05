@@ -216,13 +216,13 @@ struct SettingsView: View {
             }
 
             if let inlineError {
-                Text(inlineError)
+                Text(LocalizedStringKey(inlineError))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(OpenlyTheme.danger)
             }
 
             if let inlineMessage {
-                Label(inlineMessage, systemImage: "checkmark.circle.fill")
+                Label(LocalizedStringKey(inlineMessage), systemImage: "checkmark.circle.fill")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(OpenlyTheme.accent)
             }
@@ -343,8 +343,8 @@ struct SettingsView: View {
                             .frame(height: 52)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(theme.title)
-                        .accessibilityValue(colorThemeRaw == theme.rawValue ? "محدد" : "")
+                        .accessibilityLabel(Text(LocalizedStringKey(theme.title)))
+                        .accessibilityValue(Text(LocalizedStringKey(colorThemeRaw == theme.rawValue ? "محدد" : "")))
                     }
                 }
             }
@@ -354,7 +354,7 @@ struct SettingsView: View {
         .padding(.horizontal, 18)
     }
 
-    private func fieldTitle(_ value: String) -> some View {
+    private func fieldTitle(_ value: LocalizedStringKey) -> some View {
         Text(value)
             .font(.system(size: 15, weight: .bold))
             .foregroundColor(OpenlyTheme.ink)
@@ -408,7 +408,7 @@ struct SettingsView: View {
 
                 Spacer(minLength: 0)
 
-                Text(appearance.title)
+                Text(LocalizedStringKey(appearance.title))
                     .font(.system(size: 14, weight: .bold))
             }
             .foregroundColor(

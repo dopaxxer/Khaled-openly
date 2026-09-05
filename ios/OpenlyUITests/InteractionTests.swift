@@ -20,13 +20,17 @@ final class InteractionTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["music.search.error"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["music.search.empty"].exists)
         app.buttons["music.search.retry"].tap()
-        XCTAssertTrue(app.staticTexts["BLUE"].waitForExistence(timeout: 5))
+        let result = app.buttons["music.result.1739659278"]
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["music.search.error"].exists)
         app.buttons["keyboard.dismiss"].tap()
         XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
         screenshot(app, "music-recovered-en")
         app.buttons["music.search.clear"].tap()
-        XCTAssertFalse(app.staticTexts["BLUE"].exists)
+        let cleared = NSPredicate(format: "exists == false")
+        expectation(for: cleared, evaluatedWith: result)
+        waitForExpectations(timeout: 3)
+        XCTAssertFalse(app.staticTexts["music.search.saved"].exists)
         app.buttons["music.search.close"].tap()
         XCTAssertTrue(app.buttons["composer.close"].waitForExistence(timeout: 3))
         app.buttons["composer.close"].tap()
@@ -67,7 +71,11 @@ final class InteractionTests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["الإشعارات"].exists)
         screenshot(app, "home-ar")
         app.tabBars.buttons["الإشعارات"].tap()
-        XCTAssertTrue(app.staticTexts["أعجب BLUE بمنشورك"].waitForExistence(timeout: 5))
+        let notification = app.staticTexts["notification.message.notice-1"]
+        XCTAssertTrue(notification.waitForExistence(timeout: 5))
+        // Foundation inserts bidi isolates around Latin names in Arabic text.
+        let label = notification.label.replacingOccurrences(of: "\u{2068}", with: "").replacingOccurrences(of: "\u{2069}", with: "")
+        XCTAssertEqual(label, "أعجب BLUE بمنشورك")
         screenshot(app, "notifications-ar")
     }
 
