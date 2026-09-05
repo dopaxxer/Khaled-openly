@@ -35,7 +35,9 @@ jobs:
 
       - name: Generate Xcode project
         working-directory: ios
-        run: xcodegen generate
+        run: |
+          python3 generate_icons.py
+          xcodegen generate
 
       - name: Build SwiftUI app
         working-directory: ios
@@ -67,40 +69,34 @@ jobs:
 
       - name: Generate Xcode project
         working-directory: ios
-        run: xcodegen generate
+        run: |
+          python3 generate_icons.py
+          xcodegen generate
 
-      - name: Run or compile model, mention and music unit tests
+      - name: Run model and native launch tests on iOS Simulator
         working-directory: ios
         run: |
           set -euo pipefail
+          xcrun simctl list devices available --json > /tmp/openly-simulators.json
+          simulator_id="$(python3 -c 'import json; d=json.load(open("/tmp/openly-simulators.json")); print(next((x["udid"] for k,v in d["devices"].items() if "iOS" in k for x in v if "iPhone" in x["name"]), ""))')"
+          test -n "$simulator_id" || { echo '::error::No iOS Simulator is available; tests were not executed.'; exit 1; }
+          xcodebuild \
+            -project Openly.xcodeproj \
+            -scheme Openly \
+            -configuration Debug \
+            -derivedDataPath build-tests \
+            -resultBundlePath Openly-tests.xcresult \
+            -destination "platform=iOS Simulator,id=$simulator_id" \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            test
 
-          destinations="$(xcodebuild -project Openly.xcodeproj -scheme Openly -showdestinations)"
-          simulator_id="$(printf '%s\n' "$destinations" | sed -n 's/.*{ platform:iOS Simulator, arch:arm64, id:\([^,]*\),.*/\1/p' | head -n 1)"
-
-
-          common_args=(
-            -project Openly.xcodeproj
-            -scheme Openly
-            -configuration Debug
-            -derivedDataPath build-tests
-            CODE_SIGNING_ALLOWED=NO
-            CODE_SIGNING_REQUIRED=NO
-            CODE_SIGN_IDENTITY=
-          )
-
-          if [ -n "$simulator_id" ]; then
-            echo "Running tests on iOS Simulator: $simulator_id"
-            xcodebuild "${common_args[@]}" \
-              -destination "platform=iOS Simulator,id=$simulator_id" \
-              test
-          else
-            # GitHub occasionally publishes a macos-15 image with Xcode but no
-            # installed iOS simulator runtime. In that case test execution is
-            # impossible on the runner, but compiling the app + hosted XCTest
-            # bundle still catches contract/type/build regressions instead of
-            # failing for a missing device.
-            echo "::warning::No iOS Simulator runtime is installed; compiling the XCTest bundle instead."
-            xcodebuild "${common_args[@]}" \
-              -sdk iphonesimulator \
-              build-for-testing
-          fi
+      - name: Upload test results and launch screenshots
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: Openly-native-test-results
+          path: ios/Openly-tests.xcresult
+          if-no-files-found: warn

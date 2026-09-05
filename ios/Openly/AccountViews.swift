@@ -9,6 +9,7 @@ import UIKit
 struct SearchView: View {
     @EnvironmentObject private var session: AppSession
     @State private var query = ""
+    @State private var searchGeneration = UUID()
     @State private var result: SearchResponse?
     @State private var isLoading = false
     @FocusState private var focused: Bool
@@ -93,6 +94,12 @@ struct SearchView: View {
             .navigationBarHidden(true)
         }
         .navigationViewStyle(.stack)
+        .onChange(of: query) { _ in
+            // A result for an earlier query must not reappear after clearing/editing.
+            searchGeneration = UUID()
+            result = nil
+            isLoading = false
+        }
     }
 
     @MainActor
@@ -100,9 +107,17 @@ struct SearchView: View {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { result = nil; return }
         focused = false
+        let generation = UUID()
+        searchGeneration = generation
         isLoading = true
-        do { result = try await session.api.search(text) }
-        catch { session.alertMessage = error.localizedDescription }
+        do {
+            let response = try await session.api.search(text)
+            guard searchGeneration == generation else { return }
+            result = response
+        } catch {
+            guard searchGeneration == generation else { return }
+            session.alertMessage = error.localizedDescription
+        }
         isLoading = false
     }
 }
@@ -555,6 +570,7 @@ private func authPresentingViewController() -> UIViewController? {
 }
 
 struct LoginView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var session: AppSession
     @State private var method = "email"
     @State private var step = "entry"
@@ -602,6 +618,8 @@ struct LoginView: View {
         }
         .background(OpenlyTheme.background.ignoresSafeArea())
         .navigationBarHidden(true)
+        .accessibilityIdentifier("login.screen")
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: step)
         .task { await loadCapabilities() }
         .onReceive(secondTicker) { _ in
             if resendSeconds > 0 { resendSeconds -= 1 }
@@ -611,6 +629,7 @@ struct LoginView: View {
     @ViewBuilder
     private var entryContent: some View {
         Text("Welcome to openly")
+            .accessibilityIdentifier("login.title")
             .font(.system(size: 30, weight: .bold))
             .tracking(-0.7)
             .foregroundColor(OpenlyTheme.ink)
@@ -669,6 +688,7 @@ struct LoginView: View {
                 .padding(.bottom, 10)
             OpenlyFieldContainer {
                 TextField("example@email.com", text: $email)
+                    .accessibilityIdentifier("login.email")
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -729,7 +749,7 @@ struct LoginView: View {
                     .foregroundColor(OpenlyTheme.ink)
                     .environment(\.layoutDirection, .leftToRight)
             }
-            Text("يُرسل الرقم إلى Supabase بصيغة E.164.")
+            Text("أدخل رقم هاتفك مع رمز الدولة.")
                 .font(.system(size: 12))
                 .foregroundColor(OpenlyTheme.subtle)
                 .padding(.top, 8)

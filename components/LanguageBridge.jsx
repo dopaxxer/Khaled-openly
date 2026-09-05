@@ -6,6 +6,11 @@ import { useEffect, useState } from 'react'
 export const LANGUAGE_STORAGE_KEY = 'openly.language'
 
 const EN = {
+  'الأشخاص': 'People',
+  'الموسيقى': 'Music',
+  'جرافيت': 'Graphite',
+  'أفكار وموسيقى وأشخاص يستحقون وقتك.': 'Thoughts, music and people worth your time.',
+  'أقسام المجتمع': 'Community sections',
   'openly — الرئيسية': 'openly — Home',
   'انتقل إلى المحتوى': 'Skip to content',
   'اكتب شيئًا': 'Write something',

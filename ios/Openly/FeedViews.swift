@@ -69,7 +69,6 @@ final class AudioPreviewPlayer: ObservableObject {
 
 struct FeedView: View {
     @EnvironmentObject private var session: AppSession
-    @Environment(\.scenePhase) private var scenePhase
     @State private var posts: [Post] = []
     @State private var nextCursor: String?
     @State private var isLoading = false
@@ -108,7 +107,7 @@ struct FeedView: View {
                             ForEach(posts) { post in
                                 PostCard(post: post)
                                     .onAppear {
-                                        if post.id == posts.last?.id, nextCursor != nil {
+                                        if post.id == posts.last?.id, nextCursor != nil, errorMessage == nil {
                                             Task { await load(reset: false) }
                                         }
                                     }
@@ -118,7 +117,10 @@ struct FeedView: View {
                                 Text(errorMessage)
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundColor(OpenlyTheme.danger)
-                                    .padding(.vertical, 12)
+                                    .padding(.top, 12)
+                                Button("المحاولة مجددًا") { Task { await load(reset: false) } }
+                                    .buttonStyle(OpenlySecondaryButtonStyle())
+                                    .padding(.bottom, 16)
                             }
                             if isLoading {
                                 ProgressView()
@@ -142,11 +144,7 @@ struct FeedView: View {
                 // Keep the feed stable while the user is reading. Background
                 // polling used to replace the whole list every 30 seconds,
                 // which could cause visible jumps and unnecessary work.
-                await load(reset: true)
-            }
-            .onChange(of: scenePhase) { phase in
-                guard phase == .active else { return }
-                Task { await load(reset: true) }
+                if posts.isEmpty { await load(reset: true) }
             }
             .onChange(of: session.feedRevision) { _ in
                 Task { await load(reset: true) }
@@ -497,6 +495,7 @@ private struct FeedSkeletonRow: View {
 }
 
 struct OpenlySecondaryButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 15, weight: .semibold))
@@ -506,10 +505,13 @@ struct OpenlySecondaryButtonStyle: ButtonStyle {
             .background(Color.clear)
             .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1.2))
             .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: configuration.isPressed)
     }
 }
 
 struct PostCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var session: AppSession
     let post: Post
     @State private var engagement: Engagement?
@@ -524,24 +526,22 @@ struct PostCard: View {
             HStack(spacing: 10) {
                 NavigationLink(destination: UserProfileView(code: code)) {
                     HStack(spacing: 9) {
-                        Circle()
-                            .fill(Color(hex: post.authorColor) ?? OpenlyTheme.accent)
-                            .frame(width: 12, height: 12)
+                        IdentityAvatar(code: code, color: post.authorColor, size: 42)
                         Text(code)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                             .tracking(0.5)
                             .foregroundColor(OpenlyTheme.ink)
                             .environment(\.layoutDirection, .leftToRight)
                     }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(OpenlyPressStyle())
                 .disabled(post.authorCode == nil)
 
                 Text("·")
                     .foregroundColor(OpenlyTheme.subtle)
 
                 Text(OpenlyDate.relative(post.createdAt))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundColor(OpenlyTheme.subtle)
                     .lineLimit(1)
 
@@ -565,7 +565,7 @@ struct PostCard: View {
                         active: false
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(OpenlyPressStyle())
                 .frame(maxWidth: .infinity)
 
                 Button { Task { await toggleLike() } } label: {
@@ -575,7 +575,7 @@ struct PostCard: View {
                         active: engagement?.viewerHasLiked == true
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(OpenlyPressStyle())
                 .disabled(likeInFlight)
                 .frame(maxWidth: .infinity)
 
@@ -586,23 +586,29 @@ struct PostCard: View {
                         active: engagement?.viewerHasBookmarked == true
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(OpenlyPressStyle())
                 .disabled(bookmarkInFlight)
                 .frame(maxWidth: .infinity)
 
                 Button { showReport = true } label: {
                     actionLabel(icon: "flag", text: "إبلاغ", active: false)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(OpenlyPressStyle())
                 .frame(maxWidth: .infinity)
             }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 24)
-        .background(OpenlyTheme.background)
+        .background(OpenlyTheme.surface)
         .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
         .task { await loadEngagement() }
-        .sheet(isPresented: $showReport) { ReportView(postID: post.id) }
+        .sheet(isPresented: $showReport) {
+            ReportView(postID: post.id)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: engagement?.viewerHasLiked)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: engagement?.viewerHasBookmarked)
     }
 
     private func actionLabel(icon: String, text: String, active: Bool) -> some View {
@@ -615,6 +621,7 @@ struct PostCard: View {
                 .fixedSize(horizontal: true, vertical: false)
         }
         .foregroundColor(active ? OpenlyTheme.accent : OpenlyTheme.muted)
+        .frame(minHeight: 44)
         .contentShape(Rectangle())
     }
 

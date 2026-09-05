@@ -27,6 +27,9 @@ jobs:
           brew install xcodegen
           xcodegen --version
 
+      - name: Test IPA validation
+        run: python3 -m unittest discover -s ios/ci -p 'test_*.py'
+
       - name: Generate app icons
         working-directory: ios
         run: python3 generate_icons.py
@@ -82,17 +85,30 @@ jobs:
       - name: Package native IPA
         working-directory: ios
         run: |
-          rm -rf Payload Openly-native.ipa
+          rm -rf Payload Openly-native-unsigned.ipa
           mkdir Payload
           cp -R build/Build/Products/Release-iphoneos/Openly.app Payload/Openly.app
-          zip -qry Openly-native.ipa Payload
-          shasum -a 256 Openly-native.ipa > Openly-native.ipa.sha256
+          zip -qry Openly-native-unsigned.ipa Payload
+          shasum -a 256 Openly-native-unsigned.ipa > Openly-native-unsigned.ipa.sha256
+
+      - name: Verify packaged IPA and record provenance
+        working-directory: ios
+        env:
+          SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          build_number="$(awk '/CURRENT_PROJECT_VERSION:/ { gsub(/"/, "", $2); print $2; exit }' project.yml)"
+          python3 ci/verify_ipa.py Openly-native-unsigned.ipa --build "$build_number" --report Openly-IPA-audit.json
+          printf 'Source commit: %s\nThis IPA is unsigned. It requires signing and provisioning before installation.\n' "$SOURCE_COMMIT" > Openly-build.txt
+          cat Openly-build.txt >> "$GITHUB_STEP_SUMMARY"
+          cat Openly-IPA-audit.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload native IPA
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: Openly-native-ipa
+          name: Openly-native-unsigned-ipa
           path: |
-            ios/Openly-native.ipa
-            ios/Openly-native.ipa.sha256
+            ios/Openly-native-unsigned.ipa
+            ios/Openly-native-unsigned.ipa.sha256
+            ios/Openly-IPA-audit.json
+            ios/Openly-build.txt
           if-no-files-found: error

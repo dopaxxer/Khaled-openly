@@ -6,7 +6,7 @@ struct OpenlyApp: App {
     @StateObject private var session = AppSession()
     @AppStorage("openly.appearance") private var appearanceRaw = OpenlyAppearance.system.rawValue
     @AppStorage("openly.language") private var languageRaw = OpenlyLanguage.arabic.rawValue
-    @AppStorage("openly.colorTheme") private var colorThemeRaw = OpenlyColorTheme.ultramarine.rawValue
+    @AppStorage("openly.colorTheme") private var colorThemeRaw = OpenlyColorTheme.graphite.rawValue
 
     private var selectedAppearance: OpenlyAppearance {
         OpenlyAppearance(rawValue: appearanceRaw) ?? .system
@@ -22,7 +22,7 @@ struct OpenlyApp: App {
                 .environmentObject(session)
                 .environment(\.locale, selectedLanguage.locale)
                 .environment(\.layoutDirection, selectedLanguage.layoutDirection)
-                .tint((OpenlyColorTheme(rawValue: colorThemeRaw) ?? .crimson).accent)
+                .tint((OpenlyColorTheme(rawValue: colorThemeRaw) ?? .graphite).accent)
                 .preferredColorScheme(selectedAppearance.colorScheme)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
@@ -56,6 +56,7 @@ enum OpenlyLanguage: String, CaseIterable, Identifiable {
 }
 
 enum OpenlyColorTheme: String, CaseIterable, Identifiable {
+    case graphite
     case ultramarine
     case crimson
     case forest
@@ -66,6 +67,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .graphite: return "جرافيت"
         case .ultramarine: return "أزرق ملكي"
         case .crimson: return "عنّابي"
         case .forest: return "غابي"
@@ -76,6 +78,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var swatch: Color {
         switch self {
+        case .graphite: return Color(red: 32/255, green: 38/255, blue: 35/255)
         case .ultramarine: return Color(red: 22/255, green: 39/255, blue: 122/255)
         case .crimson: return Color(red: 184/255, green: 36/255, blue: 76/255)
         case .forest: return Color(red: 31/255, green: 122/255, blue: 66/255)
@@ -86,6 +89,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var accent: Color {
         switch self {
+        case .graphite: return adaptiveColor(light: (32, 38, 35), dark: (214, 234, 219))
         case .ultramarine:
             return adaptiveColor(light: (22, 39, 122), dark: (142, 160, 255))
         case .crimson:
@@ -101,6 +105,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var accentStrong: Color {
         switch self {
+        case .graphite: return adaptiveColor(light: (16, 23, 19), dark: (228, 244, 231))
         case .ultramarine:
             return adaptiveColor(light: (22, 39, 122), dark: (166, 179, 255))
         case .crimson:
@@ -116,6 +121,7 @@ enum OpenlyColorTheme: String, CaseIterable, Identifiable {
 
     var accentSoft: Color {
         switch self {
+        case .graphite: return adaptiveColor(light: (233, 238, 233), dark: (40, 56, 45))
         case .ultramarine:
             return adaptiveColor(light: (235, 238, 250), dark: (35, 39, 61))
         case .crimson:
@@ -344,32 +350,32 @@ private func adaptiveColor(light: (Int, Int, Int), dark: (Int, Int, Int)) -> Col
 }
 
 enum OpenlyTheme {
-    // Openly V2: warm paper, dark ink, quiet surfaces. These values mirror
-    // the web/Figma direction while keeping the existing dynamic theme system.
-    static let background = adaptiveColor(light: (247, 244, 238), dark: (17, 17, 19))
-    static let surface = adaptiveColor(light: (255, 253, 248), dark: (25, 25, 28))
-    static let surfaceSoft = adaptiveColor(light: (244, 239, 231), dark: (31, 31, 34))
-    static let elevated = adaptiveColor(light: (252, 249, 243), dark: (34, 34, 38))
-    static let line = adaptiveColor(light: (233, 225, 216), dark: (44, 44, 49))
-    static let lineStrong = adaptiveColor(light: (217, 206, 194), dark: (63, 63, 69))
-    static let ink = adaptiveColor(light: (23, 21, 19), dark: (232, 230, 226))
-    static let muted = adaptiveColor(light: (107, 98, 91), dark: (154, 152, 148))
-    static let subtle = adaptiveColor(light: (149, 138, 130), dark: (112, 110, 106))
+    // Shared neutral palette, with system light/dark adaptation.
+    static let background = adaptiveColor(light: (244, 245, 244), dark: (16, 20, 17))
+    static let surface = adaptiveColor(light: (255, 255, 255), dark: (24, 30, 26))
+    static let surfaceSoft = adaptiveColor(light: (241, 243, 241), dark: (34, 42, 36))
+    static let elevated = adaptiveColor(light: (255, 255, 255), dark: (39, 48, 41))
+    static let line = adaptiveColor(light: (229, 233, 229), dark: (44, 56, 47))
+    static let lineStrong = adaptiveColor(light: (205, 212, 206), dark: (71, 86, 75))
+    static let ink = adaptiveColor(light: (32, 38, 35), dark: (240, 244, 239))
+    static let muted = adaptiveColor(light: (98, 109, 102), dark: (176, 189, 178))
+    static let subtle = adaptiveColor(light: (112, 122, 116), dark: (156, 169, 158))
 
     private static var selectedColorTheme: OpenlyColorTheme {
         let raw = UserDefaults.standard.string(forKey: "openly.colorTheme")
-        return OpenlyColorTheme(rawValue: raw ?? "") ?? .crimson
+        return OpenlyColorTheme(rawValue: raw ?? "") ?? .graphite
     }
 
     static var accent: Color { selectedColorTheme.accent }
     static var accentStrong: Color { selectedColorTheme.accentStrong }
     static var accentSoft: Color { selectedColorTheme.accentSoft }
-    static let accentForeground = adaptiveColor(light: (255, 250, 244), dark: (25, 25, 28))
+    static let accentForeground = adaptiveColor(light: (255, 255, 255), dark: (16, 23, 19))
     static let danger = adaptiveColor(light: (180, 35, 24), dark: (248, 113, 113))
     static var card: Color { surfaceSoft }
 }
 
 struct RootView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var session: AppSession
     @Environment(\.scenePhase) private var scenePhase
 
@@ -400,6 +406,7 @@ struct RootView: View {
                 MainTabView()
             }
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: session.isBooting)
         .onChange(of: scenePhase) { phase in
             guard phase == .active, !session.isBooting else { return }
             Task { await session.refresh() }
@@ -425,17 +432,21 @@ struct MainTabView: View {
                 .tabItem { Label("Home", systemImage: selection == 0 ? "house.fill" : "house") }
                 .tag(0)
 
-            InterestDiscoveryView()
-                .tabItem { Label("Explore", systemImage: selection == 1 ? "safari.fill" : "safari") }
+            SearchView()
+                .tabItem { Label("Search", systemImage: "magnifyingglass") }
                 .tag(1)
 
             NativeWriteView()
                 .tabItem { Label("Write", systemImage: selection == 2 ? "square.and.pencil.circle.fill" : "square.and.pencil") }
                 .tag(2)
 
-            AccountView()
-                .tabItem { Label("You", systemImage: selection == 3 ? "person.crop.circle.fill" : "person.crop.circle") }
+            InterestDiscoveryView()
+                .tabItem { Label("Explore", systemImage: selection == 3 ? "safari.fill" : "safari") }
                 .tag(3)
+
+            AccountView()
+                .tabItem { Label("You", systemImage: selection == 4 ? "person.crop.circle.fill" : "person.crop.circle") }
+                .tag(4)
         }
         .tint(OpenlyTheme.accent)
         .toolbarBackground(OpenlyTheme.surface, for: .tabBar)
@@ -451,10 +462,9 @@ struct AppHeader: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 BrandLockup(markSize: 34)
-                Text("مساحة عامة · الأحدث أولًا")
-                    .font(.system(size: 11, weight: .semibold))
+                Text("أفكار وموسيقى وأشخاص")
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundColor(OpenlyTheme.muted)
-                    .environment(\.layoutDirection, .leftToRight)
             }
 
             Spacer(minLength: 12)
@@ -464,7 +474,7 @@ struct AppHeader: View {
                     Image(systemName: unreadCount > 0 ? "bell.fill" : "bell")
                         .font(.system(size: 19, weight: .medium))
                         .foregroundColor(OpenlyTheme.ink)
-                        .frame(width: 38, height: 38)
+                        .frame(width: 44, height: 44)
 
                     if unreadCount > 0 {
                         Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
@@ -500,8 +510,9 @@ struct AppHeader: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 18)
-        .padding(.bottom, 12)
-        .background(OpenlyTheme.background)
+        .padding(.bottom, 16)
+        .background(OpenlyTheme.surface)
+        .overlay(alignment: .bottom) { Rectangle().fill(OpenlyTheme.line).frame(height: 1) }
         .task(id: "\(session.user?.publicCode ?? "")-\(session.notificationsRevision)") {
             if session.user != nil, let count = try? await session.api.unreadNotificationCount() {
                 unreadCount = count
@@ -635,6 +646,7 @@ struct EmptyState: View {
 }
 
 struct OpenlyPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 17, weight: .bold))
@@ -642,8 +654,10 @@ struct OpenlyPrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background(OpenlyTheme.accent)
-            .clipShape(Capsule())
-            .opacity(configuration.isPressed ? 0.82 : 1)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
     }
 }
 
@@ -658,8 +672,9 @@ struct OpenlyFieldContainer<Content: View>: View {
         content
             .padding(.horizontal, 18)
             .frame(height: 56)
-            .background(OpenlyTheme.background)
-            .overlay(Capsule().stroke(OpenlyTheme.lineStrong, lineWidth: 1.2))
+            .background(OpenlyTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(OpenlyTheme.lineStrong, lineWidth: 1))
     }
 }
 

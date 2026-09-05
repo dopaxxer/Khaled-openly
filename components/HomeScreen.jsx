@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpLeft, Clock3, MessageCircle } from 'lucide-react'
+import { ArrowUpLeft, Search } from 'lucide-react'
 import { Composer } from './Composer'
 import { Timeline } from './Timeline'
 
@@ -11,17 +11,22 @@ export function HomeScreen() {
   const [published, setPublished] = useState(0)
 
   return <section className="v2-home-screen">
-    <header className="home-welcome">
-      <div className="home-welcome-copy">
-        <span className="home-eyebrow"><span aria-hidden="true"/>المساحة العامة</span>
-        <h1>مساحة للكلام الذي يشبهك.</h1>
-        <p>فكرة عابرة، أغنية تحبها، أو بداية حديث.</p>
+    <header className="home-page-header">
+      <div>
+        <span className="home-kicker" dir="ltr">OPENLY / COMMUNITY</span>
+        <h1>الرئيسية</h1>
+        <p>أفكار وموسيقى وأشخاص يستحقون وقتك.</p>
       </div>
-      <div className="home-welcome-art" aria-hidden="true"><span className="welcome-orbit"/><span className="welcome-note"><MessageCircle size={32} strokeWidth={1.4}/></span><span className="welcome-spark"/></div>
+      <Link href="/search" className="home-search-link" aria-label="بحث"><Search size={21} aria-hidden="true"/></Link>
     </header>
+    <nav className="home-sections" aria-label="أقسام المجتمع">
+      <Link href="/" aria-current="page">الكتابات</Link>
+      <Link href="/discover/music">الموسيقى</Link>
+      <Link href="/discover">الأشخاص</Link>
+    </nav>
     <Composer inline onPublished={() => setPublished(count => count + 1)} />
     <div className="home-feed-heading">
-      <div><h2>آخر الكتابات</h2><span><Clock3 size={13} aria-hidden="true"/>الأحدث أولًا</span></div>
+      <div><h2>آخر الكتابات</h2><span>الأحدث أولًا</span></div>
       <Link href="/discover"><span>اكتشف أشخاصًا</span><ArrowUpLeft size={17} aria-hidden="true"/></Link>
     </div>
     <div className="v2-home-timeline">

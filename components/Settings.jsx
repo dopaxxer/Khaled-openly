@@ -25,7 +25,7 @@ function applyMode(preference) {
   // after an override — resolve and write it through, or the phone's status
   // bar ends up the opposite of the page.
   for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
-    meta.content = resolved === 'dark' ? '#111521' : '#f5f6fa'
+    meta.content = resolved === 'dark' ? '#101411' : '#f4f5f4'
   }
 
   try {

@@ -1,0 +1,6 @@
+# Openly is hosted on Cloudflare Workers. Stop Git-triggered Netlify builds
+# while the old site's repository connection is being removed in Netlify.
+# This does not delete the existing site or disable external build hooks.
+# https://docs.netlify.com/build/configure-builds/ignore-builds/
+[build]
+  ignore = "exit 0"
